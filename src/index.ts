@@ -84,7 +84,11 @@ bot.on('message', async (msg) => {
   const curMonthCategoriesId = curMonthPageData.results[2].id
 
   const allCategoriesQuery = await notion.databases.query({
-    database_id: curMonthCategoriesId
+    database_id: curMonthCategoriesId,
+    sorts: [{
+      direction: 'descending',
+      property: 'HNL Gastos'
+    }]
   })
 
   // @ts-ignore
@@ -93,11 +97,17 @@ bot.on('message', async (msg) => {
     // @ts-ignore
     name: category.properties.Categoria.title[0].plain_text,
     // @ts-ignore
-    icon: category.icon
+    icon: category.icon,
+    // @ts-ignore
+    budget: category.properties['HNL'].number || category.properties['USD'].number,
+    // @ts-ignore
+    coin: !!category.properties['HNL'].number ? 'HNL' : 'USD',
+    // @ts-ignore
+    expenses: !!category.properties['HNL'].number ? (category.properties['HNL Gastos'].rollup.number || 0) : (category.properties['USD Gastos'].rollup.number || 0)
   }))
 
-  if (msg.text?.startsWith('/cat')) {
-    if (msg.text?.startsWith('/cat list') || msg.text.trim() === '/cat') {
+  if (msg.text?.toLocaleLowerCase()?.startsWith('/cat')) {
+    if (msg.text?.toLocaleLowerCase().startsWith('/cat list') || msg.text.trim() === '/cat') {
       bot.sendMessage(msg.chat.id, `Categories:\n${allCategories.map(c => c.name).join('\n')}`)
       return
     }
@@ -178,7 +188,16 @@ bot.on('message', async (msg) => {
 
     const transString = allTrans.map(t => `${dayjs(t.date).format('D MMM')} <b>${t.description}</b>:\n${numeral(t.hnl || t.usd || 0).format('0,0.00')} ${t.hnl ? 'HNL' : 'USD'}`).join('\n\n')
 
-    bot.sendMessage(msg.chat.id, `<b>${catToLook.name.toUpperCase()}:</b>${allTrans.length} Transaccione${allTrans.length > 1 && 's'}\n\n${transString}\n\n<b>TOTAL HNL: ${totalHNL}\nTOTAL USD: ${totalUSD}:</b>`, { parse_mode: 'HTML' })
+    bot.sendMessage(msg.chat.id, `<b>${catToLook.name.toUpperCase()}:</b>\n${allTrans.length} Transaccione${allTrans.length > 1 && 's'}\n\n${transString}\n\n<b>TOTAL HNL: ${totalHNL}\nTOTAL USD: ${totalUSD}:</b>`, { parse_mode: 'HTML' })
+    return
+  }
+
+  if (msg.text?.toLocaleLowerCase().startsWith('/summary')) {
+    const showAll = msg.text?.toLocaleLowerCase().includes('all')
+
+    const summaryString = allCategories.filter(c => c.expenses > 0 || showAll).map(c => `<b>${c.name}</b>:\n${c.coin}: ${numeral(c.expenses).format('0,0.00')} /\ ${numeral(c.budget).format('0,0.00')}`).join('\n\n')
+
+    bot.sendMessage(msg.chat.id, summaryString, { parse_mode: 'HTML' })
     return
   }
 
