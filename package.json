@@ -1,0 +1,28 @@
+{
+  "name": "finance-bot",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "author": "jcampbellg",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc --project tsconfig.json && tscpaths -p tsconfig.json -s ./src -o ./dist",
+    "dev": "nodemon",
+    "start": "node dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.8",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "tscpaths": "^0.0.9",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "@types/node-telegram-bot-api": "^0.64.6",
+    "dayjs": "^1.11.11",
+    "dotenv": "^16.4.5",
+    "node-telegram-bot-api": "^0.65.1",
+    "openai": "^4.40.2"
+  }
+}
