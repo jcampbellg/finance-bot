@@ -66,7 +66,7 @@ bot.on('message', async (msg) => {
   }
 
   if (msg.text === '/start') {
-    await bot.sendMessage(msg.chat.id, 'Hello world!')
+    await bot.sendMessage(msg.chat.id, 'Just send a message with the transaction details and I will add it to the database.\n\nYou can also use the following commands:\n\n/cat list: List all categories.\n/cat <category name>: Show transactions for that category.\n/summary: Show a summary expenses of all categories.\n/summary all: Show all categories, even if they have no expenses.')
     await bot.setMyCommands([{
       command: 'cat',
       description: '/cat list to show all categories, or /cat <category name> to show transactions for that category.'
