@@ -178,7 +178,7 @@ bot.on('message', async (msg) => {
 
     const transString = allTrans.map(t => `${dayjs(t.date).format('D MMM')} <b>${t.description}</b>:\n${numeral(t.hnl || t.usd || 0).format('0,0.00')} ${t.hnl ? 'HNL' : 'USD'}`).join('\n\n')
 
-    bot.sendMessage(msg.chat.id, `<b>${catToLook.name.toUpperCase()}:</b>\n\n${transString}\n\n<b>TOTAL HNL: ${totalHNL}\nTOTAL USD: ${totalUSD}:</b>`, { parse_mode: 'HTML' })
+    bot.sendMessage(msg.chat.id, `<b>${catToLook.name.toUpperCase()}:</b>${allTrans.length} Transaccione${allTrans.length > 1 && 's'}\n\n${transString}\n\n<b>TOTAL HNL: ${totalHNL}\nTOTAL USD: ${totalUSD}:</b>`, { parse_mode: 'HTML' })
     return
   }
 
