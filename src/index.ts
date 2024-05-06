@@ -123,7 +123,7 @@ bot.on('message', async (msg) => {
       content: 'The date will be in the format YYYY-MM-DD HH:mm:ss. If no date is provided, use the current date.'
     }, {
       role: 'system',
-      content: 'The amount can also have negative values.'
+      content: 'The amount can also have negative values. If the user says "menos", "deposito" "ingreso", it means it is a negative value.'
     }, {
       role: 'system',
       content: 'The coins accepted are USD and HNL. L also means HNL. Lempiras also mean HNL. Dollars also means USD.'
