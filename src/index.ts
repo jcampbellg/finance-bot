@@ -67,6 +67,19 @@ bot.on('message', async (msg) => {
 
   if (msg.text === '/start') {
     await bot.sendMessage(msg.chat.id, 'Hello world!')
+    await bot.setMyCommands([{
+      command: 'cat',
+      description: '/cat list to show all categories, or /cat <category name> to show transactions for that category.'
+    }, {
+      command: 'summary',
+      description: 'Show a summary of all categories. Add "all" to show all categories, even if they have no expenses.'
+    }], {
+      scope: {
+        type: 'chat',
+        chat_id: msg.chat.id
+      },
+      language_code: 'en'
+    })
     return
   }
 
