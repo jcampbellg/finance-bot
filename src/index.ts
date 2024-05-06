@@ -77,8 +77,7 @@ bot.on('message', async (msg) => {
       scope: {
         type: 'chat',
         chat_id: msg.chat.id
-      },
-      language_code: 'en'
+      }
     })
     return
   }
