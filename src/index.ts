@@ -4,6 +4,7 @@ import dayjs from 'dayjs'
 import timezone from 'dayjs/plugin/timezone'
 import utc from "dayjs/plugin/utc"
 import notion from '@utils/notion'
+import numeral from 'numeral'
 import * as dotenv from 'dotenv'
 dotenv.config()
 
@@ -15,6 +16,12 @@ type BotJsonResponse = {
   amount: string
   coin: 'USD' | 'HNL'
   notes: string
+} | {
+  error: string
+}
+
+type BotJsonCategoryResponse = {
+  category: string
 } | {
   error: string
 }
@@ -84,11 +91,94 @@ bot.on('message', async (msg) => {
   const allCategories = allCategoriesQuery.results.map((category, i) => ({
     id: category.id,
     // @ts-ignore
-    name: category.properties.Categoria.title[0].plain_text
+    name: category.properties.Categoria.title[0].plain_text,
+    // @ts-ignore
+    icon: category.icon
   }))
 
   if (msg.text?.startsWith('/cat')) {
-    bot.sendMessage(msg.chat.id, `Categories:\n${allCategories.map(c => c.name).join('\n')}`)
+    if (msg.text?.startsWith('/cat list') || msg.text.trim() === '/cat') {
+      bot.sendMessage(msg.chat.id, `Categories:\n${allCategories.map(c => c.name).join('\n')}`)
+      return
+    }
+
+    const catName = msg.text.split(' ')[1]
+
+    const botAI = await openAi.chat.completions.create({
+      messages: [{
+        role: 'system',
+        content: `Today is: ${today}`
+      }, {
+        role: 'system',
+        content: `Your job is to get the item on the list the user is trying to refer to, the closest. If the item is not on the list or anything close, return an error message, but you can autocorrect and select the correct item if the user misspelled the word.`
+      }, {
+        role: 'system',
+        content: `Based on this list: [${allCategories.map(c => c.name).join('\n')}]`
+      }, {
+        role: 'system',
+        content: 'You will return these data in JSON format: { "category": "Category Name" } or { "error": "error message" }'
+      }, {
+        role: 'user',
+        content: catName
+      }],
+      model: 'gpt-4-1106-preview',
+      response_format: { type: 'json_object' },
+      temperature: 0.2,
+      max_tokens: 300
+    })
+
+    const botMessage = botAI.choices[0].message.content?.trim() || `{"error": "Unknown error"}`
+    const botJsonMessage: BotJsonCategoryResponse = JSON.parse(botMessage)
+
+
+    if ('error' in botJsonMessage) {
+      bot.sendMessage(msg.chat.id, botMessage)
+      return
+    }
+
+    const catToLook = allCategories.find(c => c.name === botJsonMessage.category)
+
+    if (!catToLook) {
+      bot.sendMessage(msg.chat.id, `{"error": "Category not found."}`)
+      return
+    }
+
+    const queryByCat = await notion.databases.query({
+      database_id: curMonthTransactionsId,
+      filter: {
+        and: [
+          {
+            property: 'Categoria',
+            relation: {
+              contains: catToLook.id
+            }
+          },
+        ]
+      },
+    })
+
+    if (queryByCat.results.length === 0) {
+      bot.sendMessage(msg.chat.id, 'No transactions found for this category.')
+      return
+    }
+
+    const allTrans = queryByCat.results.map(t => ({
+      // @ts-ignore
+      date: t.properties.Fecha.date.start,
+      // @ts-ignore
+      description: t.properties.Descripcion.title[0].plain_text,
+      // @ts-ignore
+      hnl: t.properties.HNL.number,
+      // @ts-ignore
+      usd: t.properties.USD.number,
+    }))
+
+    const totalHNL = numeral(allTrans.reduce((acc, t) => acc + t.hnl, 0)).format('0,0.00')
+    const totalUSD = numeral(allTrans.reduce((acc, t) => acc + t.usd, 0)).format('0,0.00')
+
+    const transString = allTrans.map(t => `${dayjs(t.date).format('D MMM')} <b>${t.description}</b>:\n${numeral(t.hnl || t.usd || 0).format('0,0.00')} ${t.hnl ? 'HNL' : 'USD'}`).join('\n\n')
+
+    bot.sendMessage(msg.chat.id, `<b>${catToLook.name.toUpperCase()}:</b>\n\n${transString}\n\n<b>TOTAL HNL: ${totalHNL}\nTOTAL USD: ${totalUSD}:</b>`, { parse_mode: 'HTML' })
     return
   }
 
