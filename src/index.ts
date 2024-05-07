@@ -126,8 +126,9 @@ bot.on('message', async (msg) => {
     // @ts-ignore
     expenses: !!category.properties['HNL'].number ? (category.properties['HNL Gastos'].rollup.number || 0) : (category.properties['USD Gastos'].rollup.number || 0),
     // @ts-ignore
-    // @ts-ignore
     paymentType: category.properties['Pagado'].status.name,
+    // @ts-ignore
+    notes: category.properties['Notas'].rich_text[0]?.plain_text || ''
   }))
 
   if (msg.text?.toLocaleLowerCase().startsWith('/categorieslist')) {
@@ -210,12 +211,14 @@ bot.on('message', async (msg) => {
       hnl: t.properties.HNL.number,
       // @ts-ignore
       usd: t.properties.USD.number,
+      // @ts-ignore
+      notes: t.properties.Notas.rich_text[0]?.plain_text || ''
     }))
 
     const totalHNL = numeral(allTrans.reduce((acc, t) => acc + t.hnl, 0)).format('0,0.00')
     const totalUSD = numeral(allTrans.reduce((acc, t) => acc + t.usd, 0)).format('0,0.00')
 
-    const transString = allTrans.map(t => `${dayjs(t.date).format('D MMM')} <b>${t.description}</b>:\n${numeral(t.hnl || t.usd || 0).format('0,0.00')} ${t.hnl ? 'HNL' : 'USD'}`).join('\n\n')
+    const transString = allTrans.map(t => `${dayjs(t.date).format('D MMM')} <b>${t.description}</b>:\n${numeral(t.hnl || t.usd || 0).format('0,0.00')} ${t.hnl ? 'HNL' : 'USD'}${t.notes ? `\n><blockquote>${t.notes}</blockquote>` : ''}`).join('\n\n')
 
     bot.sendMessage(msg.chat.id, `<b>${catToLook.name.toUpperCase()}:</b>\n${allTrans.length} Transaccione${allTrans.length > 1 && 's'}\n\n${transString}\n\n<b>TOTAL HNL: ${totalHNL}\nTOTAL USD: ${totalUSD}:</b>`, { parse_mode: 'HTML' })
     return
@@ -231,7 +234,7 @@ bot.on('message', async (msg) => {
       }
       return c.expenses > 0 || showAll
     }).map(c => {
-      return `<b>${c.name}</b>:\n${c.coin}: ${numeral(c.expenses).format('0,0.00')} /\ ${numeral(c.budget).format('0,0.00')}${!showDebts ? '' : `\n<i>${c.paymentType}</i>`}`
+      return `<b>${c.name}</b>:\n${c.coin}: ${numeral(c.expenses).format('0,0.00')} /\ ${numeral(c.budget).format('0,0.00')}${!showDebts ? '' : `\n<i>${c.paymentType}</i>${c.notes ? `\n><blockquote>${c.notes}</blockquote>` : ''}`}`
     }).join('\n\n')
 
     bot.sendMessage(msg.chat.id, summaryString, { parse_mode: 'HTML' })
