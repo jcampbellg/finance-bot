@@ -124,7 +124,7 @@ bot.on('message', async (msg) => {
     // @ts-ignore
     coin: !!category.properties['HNL'].number ? 'HNL' : 'USD',
     // @ts-ignore
-    expenses: !!category.properties['HNL'].number ? (category.properties['HNL Gastos'].rollup.number || 0) : (category.properties['USD Gastos'].rollup.number || 0),
+    expenses: !!category.properties['HNL'].number ? (category.properties['HNL Convert'].rollup.number || 0) : (category.properties['USD Convert'].rollup.number || 0),
     // @ts-ignore
     paymentType: category.properties['Pagado'].status.name,
     // @ts-ignore
@@ -220,7 +220,7 @@ bot.on('message', async (msg) => {
 
     const transString = allTrans.map(t => `${dayjs(t.date).format('D MMM')} <b>${t.description}</b>:\n${numeral(t.hnl || t.usd || 0).format('0,0.00')} ${t.hnl ? 'HNL' : 'USD'}${t.notes ? `<blockquote>${t.notes}</blockquote>` : ''}`).join('\n\n')
 
-    bot.sendMessage(msg.chat.id, `<b>${catToLook.name.toUpperCase()}:</b>\n${allTrans.length} Transaccione${allTrans.length > 1 && 's'}\n\n${transString}\n\n<b>TOTAL HNL: ${totalHNL}\nTOTAL USD: ${totalUSD}:</b>`, { parse_mode: 'HTML' })
+    bot.sendMessage(msg.chat.id, `<b>${catToLook.name.toUpperCase()}:</b>\n${allTrans.length} Transaccione${allTrans.length > 1 && 's'}\n\n${transString}\n\n<b>TOTAL HNL: ${totalHNL}\nTOTAL USD: ${totalUSD}</b>\n\nBudeget ${catToLook.coin}: ${numeral(catToLook.budget).format('0,0.00')} / ${numeral(catToLook.expenses).format('0,0.00')}`, { parse_mode: 'HTML' })
     return
   }
 
