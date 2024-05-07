@@ -66,19 +66,28 @@ bot.on('message', async (msg) => {
   }
 
   if (msg.text === '/start') {
-    await bot.sendMessage(msg.chat.id, 'Just send a message with the transaction details and I will add it to the database.\n\nYou can also use the following commands:\n\n/cat list: List all categories.\n/cat <category name>: Show transactions for that category.\n/summary: Show a summary expenses of all categories.\n/summary all: Show all categories, even if they have no expenses.')
+    await bot.sendMessage(msg.chat.id, 'Just send a message with the transaction details and I will add it to the database.\n\nYou can also use the following commands:\n\n/categorieslist: List all categories.\n/category <category name>: Show transactions for that category.\n/summary: Show a summary of all categories with expenses. Add "all" to show all categories, even if they have no expenses.\n/debts: Show regular monthly payments.')
     await bot.setMyCommands([{
-      command: 'cat',
-      description: '/cat list to show all categories, or /cat <category name> to show transactions for that category.'
+      command: 'categorieslist',
+      description: 'Show all categories.'
+    }, {
+      command: 'category',
+      description: '<category name> Show transactions for a specific category.'
     }, {
       command: 'summary',
-      description: 'Show a summary of all categories. Add "all" to show all categories, even if they have no expenses.'
+      description: 'Show a summary of all categories with expenses. Add "all" to show all categories, even if they have no expenses.'
+    }, {
+      command: 'debts',
+      description: 'Show regular monthly payments.'
     }], {
       scope: {
         type: 'chat',
         chat_id: msg.chat.id
-      }
+      },
+      language_code: 'en'
     })
+
+    await bot.getMyCommands({ type: 'chat', chat_id: msg.chat.id }, 'en')
     return
   }
 
@@ -115,16 +124,24 @@ bot.on('message', async (msg) => {
     // @ts-ignore
     coin: !!category.properties['HNL'].number ? 'HNL' : 'USD',
     // @ts-ignore
-    expenses: !!category.properties['HNL'].number ? (category.properties['HNL Gastos'].rollup.number || 0) : (category.properties['USD Gastos'].rollup.number || 0)
+    expenses: !!category.properties['HNL'].number ? (category.properties['HNL Gastos'].rollup.number || 0) : (category.properties['USD Gastos'].rollup.number || 0),
+    // @ts-ignore
+    // @ts-ignore
+    paymentType: category.properties['Pagado'].status.name,
   }))
 
-  if (msg.text?.toLocaleLowerCase()?.startsWith('/cat')) {
-    if (msg.text?.toLocaleLowerCase().startsWith('/cat list') || msg.text.trim() === '/cat') {
-      bot.sendMessage(msg.chat.id, `Categories:\n${allCategories.map(c => c.name).join('\n')}`)
+  if (msg.text?.toLocaleLowerCase().startsWith('/categorieslist')) {
+    bot.sendMessage(msg.chat.id, `Categories:\n${allCategories.map(c => c.name).join('\n')}`)
+    return
+  }
+
+  if (msg.text?.toLocaleLowerCase()?.startsWith('/category')) {
+    if (msg.text.trim().split(' ').length < 2) {
+      bot.sendMessage(msg.chat.id, 'Please provide a category name.')
       return
     }
 
-    const catName = msg.text.split(' ')[1]
+    const catName = msg.text.trim().split(' ')[1]
 
     const botAI = await openAi.chat.completions.create({
       messages: [{
@@ -204,10 +221,18 @@ bot.on('message', async (msg) => {
     return
   }
 
-  if (msg.text?.toLocaleLowerCase().startsWith('/summary')) {
-    const showAll = msg.text?.toLocaleLowerCase().includes('all')
+  if (msg.text?.toLocaleLowerCase().startsWith('/summary') || msg.text?.toLocaleLowerCase().startsWith('/debts')) {
+    const showAll = msg.text.trim().toLocaleLowerCase().includes('all')
+    const showDebts = msg.text.trim().toLocaleLowerCase().startsWith('/debts')
 
-    const summaryString = allCategories.filter(c => c.expenses > 0 || showAll).map(c => `<b>${c.name}</b>:\n${c.coin}: ${numeral(c.expenses).format('0,0.00')} /\ ${numeral(c.budget).format('0,0.00')}`).join('\n\n')
+    const summaryString = allCategories.filter(c => {
+      if (showDebts) {
+        return c.paymentType !== 'Con Limite'
+      }
+      return c.expenses > 0 || showAll
+    }).map(c => {
+      return `<b>${c.name}</b>:\n${c.coin}: ${numeral(c.expenses).format('0,0.00')} /\ ${numeral(c.budget).format('0,0.00')}${!showDebts ? '' : `\n<i>${c.paymentType}</i>`}`
+    }).join('\n\n')
 
     bot.sendMessage(msg.chat.id, summaryString, { parse_mode: 'HTML' })
     return
