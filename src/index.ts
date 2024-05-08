@@ -66,7 +66,7 @@ bot.on('message', async (msg) => {
   }
 
   if (msg.text === '/start') {
-    await bot.sendMessage(msg.chat.id, 'Just send a message with the transaction details and I will add it to the database.\n\nYou can also use the following commands:\n\n/categorieslist: List all categories.\n/category <category name>: Show transactions for that category.\n/summary: Show a summary of all categories with expenses. Add "all" to show all categories, even if they have no expenses.\n/debts: Show regular monthly payments.')
+    await bot.sendMessage(msg.chat.id, 'Just send a message with the transaction details and I will add it to the database.\n\nYou can also use the following commands:\n\n/categorieslist: List all categories.\n/category <category name>: Show transactions for that category.\n/summary: Show a summary of all categories with expenses. Add "all" to show all categories, even if they have no expenses.\n/debts: Show regular monthly payments.\n/lasttoday: Show today\'s transactions.\n/lastyesterday: Show yesterday\'s transactions.')
     await bot.setMyCommands([{
       command: 'categorieslist',
       description: 'Show all categories.'
@@ -79,6 +79,12 @@ bot.on('message', async (msg) => {
     }, {
       command: 'debts',
       description: 'Show regular monthly payments.'
+    }, {
+      command: 'lasttoday',
+      description: 'Show today\'s transactions.'
+    }, {
+      command: 'lastyesterday',
+      description: 'Show yesterday\'s transactions.'
     }], {
       scope: {
         type: 'chat',
@@ -116,9 +122,9 @@ bot.on('message', async (msg) => {
   const allCategories = allCategoriesQuery.results.map((category, i) => ({
     id: category.id,
     // @ts-ignore
-    name: category.properties.Categoria.title[0].plain_text,
+    name: `${category.icon.emoji} ${category.properties.Categoria.title[0].plain_text}`,
     // @ts-ignore
-    icon: category.icon,
+    icon: category.icon.emoji,
     // @ts-ignore
     budget: category.properties['HNL'].number || category.properties['USD'].number,
     // @ts-ignore
@@ -126,13 +132,63 @@ bot.on('message', async (msg) => {
     // @ts-ignore
     expenses: !!category.properties['HNL'].number ? (category.properties['HNL Convert'].rollup.number || 0) : (category.properties['USD Convert'].rollup.number || 0),
     // @ts-ignore
-    paymentType: category.properties['Pagado'].status.name,
+    paymentType: category.properties['Pagado'].status.name as 'Con Limite' | 'Pagado' | 'No ha Pagado' | 'Automatico',
     // @ts-ignore
     notes: category.properties['Notas'].rich_text[0]?.plain_text || ''
   }))
 
   if (msg.text?.toLocaleLowerCase().startsWith('/categorieslist')) {
     bot.sendMessage(msg.chat.id, `Categories:\n${allCategories.map(c => c.name).join('\n')}`)
+    return
+  }
+
+  if (msg.text?.toLocaleLowerCase().startsWith('/last')) {
+    const isLastToday = msg.text.toLocaleLowerCase().includes('today')
+
+    const queryByToday = await notion.databases.query({
+      database_id: curMonthTransactionsId,
+      filter: {
+        and: [
+          {
+            property: 'Fecha',
+            date: {
+              after: dayjs().tz(process.env.timezone).subtract(isLastToday ? 1 : 2, 'day').format('YYYY-MM-DD')
+            }
+          },
+        ]
+      },
+      sorts: [{
+        direction: 'descending',
+        property: 'Fecha'
+      }]
+    })
+
+    if (queryByToday.results.length === 0) {
+      bot.sendMessage(msg.chat.id, 'No transactions found for today.')
+      return
+    }
+
+    const allTrans = queryByToday.results.map(t => ({
+      // @ts-ignore
+      date: t.properties.Fecha.date.start,
+      // @ts-ignore
+      description: t.properties.Descripcion.title[0].plain_text,
+      // @ts-ignore
+      hnl: t.properties.HNL.number,
+      // @ts-ignore
+      usd: t.properties.USD.number,
+      // @ts-ignore
+      notes: t.properties.Notas.rich_text[0]?.plain_text || '',
+      // @ts-ignore
+      icon: allCategories.find(c => c.id === t.properties.Categoria.relation[0].id)?.icon || ''
+    }))
+
+    const totalHNL = numeral(allTrans.reduce((acc, t) => acc + t.hnl, 0)).format('0,0.00')
+    const totalUSD = numeral(allTrans.reduce((acc, t) => acc + t.usd, 0)).format('0,0.00')
+
+    const transString = allTrans.map(t => `${dayjs(t.date).format('D MMM')} <b>${t.icon} ${t.description}</b>:\n${numeral(t.hnl || t.usd || 0).format('0,0.00')} ${t.hnl ? 'HNL' : 'USD'}${t.notes ? `<blockquote>${t.notes}</blockquote>` : ''}`).join('\n\n')
+
+    bot.sendMessage(msg.chat.id, `<b>Today:</b>\n${allTrans.length} Transaction${allTrans.length > 1 && 's'}\n\n${transString}\n\n<b>TOTAL HNL: ${totalHNL}\nTOTAL USD: ${totalUSD}</b>`, { parse_mode: 'HTML' })
     return
   }
 
@@ -195,6 +251,10 @@ bot.on('message', async (msg) => {
           },
         ]
       },
+      sorts: [{
+        direction: 'descending',
+        property: 'Fecha'
+      }]
     })
 
     if (queryByCat.results.length === 0) {
@@ -220,7 +280,7 @@ bot.on('message', async (msg) => {
 
     const transString = allTrans.map(t => `${dayjs(t.date).format('D MMM')} <b>${t.description}</b>:\n${numeral(t.hnl || t.usd || 0).format('0,0.00')} ${t.hnl ? 'HNL' : 'USD'}${t.notes ? `<blockquote>${t.notes}</blockquote>` : ''}`).join('\n\n')
 
-    bot.sendMessage(msg.chat.id, `<b>${catToLook.name.toUpperCase()}:</b>\n${allTrans.length} Transaccione${allTrans.length > 1 && 's'}\n\n${transString}\n\n<b>TOTAL HNL: ${totalHNL}\nTOTAL USD: ${totalUSD}</b>\n\nBudeget ${catToLook.coin}: ${numeral(catToLook.budget).format('0,0.00')} / ${numeral(catToLook.expenses).format('0,0.00')}`, { parse_mode: 'HTML' })
+    bot.sendMessage(msg.chat.id, `<b>${catToLook.name.toUpperCase()}:</b>\n${allTrans.length} Transaction${allTrans.length > 1 && 's'}\n\n${transString}\n\n<b>TOTAL HNL: ${totalHNL}\nTOTAL USD: ${totalUSD}</b>\n\nBudeget ${catToLook.coin}: ${numeral(catToLook.budget).format('0,0.00')} / ${numeral(catToLook.expenses).format('0,0.00')}`, { parse_mode: 'HTML' })
     return
   }
 
@@ -233,7 +293,18 @@ bot.on('message', async (msg) => {
         return c.paymentType !== 'Con Limite'
       }
       return c.expenses > 0 || showAll
-    }).map(c => {
+    }).sort((a, b) => {
+      if (a.paymentType === 'No ha Pagado') return -1;
+      if (b.paymentType === 'No ha Pagado') return 1;
+      if (a.paymentType === 'Pagado') return 1;
+      if (b.paymentType === 'Pagado') return -1;
+      if (a.paymentType === 'Automatico') return 1;
+      if (b.paymentType === 'Automatico') return -1;
+      return 0;
+    }).map(c => ({
+      ...c,
+      paymentType: c.paymentType === 'Automatico' ? '🤖' : (c.paymentType === 'Pagado' ? '✅' : '❌')
+    })).map(c => {
       return `<b>${c.name}</b>:\n${c.coin}: ${numeral(c.expenses).format('0,0.00')} /\ ${numeral(c.budget).format('0,0.00')}${!showDebts ? '' : `\n<i>${c.paymentType}</i>${c.notes ? `<blockquote>${c.notes}</blockquote>` : ''}`}`
     }).join('\n\n')
 
