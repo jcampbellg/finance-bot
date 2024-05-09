@@ -152,7 +152,7 @@ bot.on('message', async (msg) => {
           {
             property: 'Fecha',
             date: {
-              after: dayjs().tz(process.env.timezone).subtract(isLastToday ? 1 : 2, 'day').format('YYYY-MM-DD')
+              after: dayjs().subtract(isLastToday ? 1 : 2, 'day').format('YYYY-MM-DD'),
             }
           },
         ]
