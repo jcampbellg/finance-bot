@@ -87,7 +87,7 @@ bot.on('message', async (msg) => {
       description: 'Show yesterday\'s transactions.'
     }], {
       scope: {
-        type: 'chat',
+        type: msg.chat.type === 'group' ? 'all_group_chats' : 'chat',
         chat_id: msg.chat.id
       },
       language_code: 'en'
