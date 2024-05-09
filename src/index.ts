@@ -186,7 +186,7 @@ bot.on('message', async (msg) => {
     const totalHNL = numeral(allTrans.reduce((acc, t) => acc + t.hnl, 0)).format('0,0.00')
     const totalUSD = numeral(allTrans.reduce((acc, t) => acc + t.usd, 0)).format('0,0.00')
 
-    const transString = allTrans.map(t => `${dayjs(t.date).format('D MMM')} <b>${t.icon} ${t.description}</b>:\n${numeral(t.hnl || t.usd || 0).format('0,0.00')} ${t.hnl ? 'HNL' : 'USD'}${t.notes ? `<blockquote>${t.notes}</blockquote>` : ''}`).join('\n\n')
+    const transString = allTrans.map(t => `${dayjs(t.date).tz(process.env.timezone).format('D MMM')} <b>${t.icon} ${t.description}</b>:\n${numeral(t.hnl || t.usd || 0).format('0,0.00')} ${t.hnl ? 'HNL' : 'USD'}${t.notes ? `<blockquote>${t.notes}</blockquote>` : ''}`).join('\n\n')
 
     bot.sendMessage(msg.chat.id, `<b>Today:</b>\n${allTrans.length} Transaction${allTrans.length > 1 ? 's' : ''}\n\n${transString}\n\n<b>TOTAL HNL: ${totalHNL}\nTOTAL USD: ${totalUSD}</b>`, { parse_mode: 'HTML' })
     return
@@ -278,7 +278,7 @@ bot.on('message', async (msg) => {
     const totalHNL = numeral(allTrans.reduce((acc, t) => acc + t.hnl, 0)).format('0,0.00')
     const totalUSD = numeral(allTrans.reduce((acc, t) => acc + t.usd, 0)).format('0,0.00')
 
-    const transString = allTrans.map(t => `${dayjs(t.date).format('D MMM')} <b>${t.description}</b>:\n${numeral(t.hnl || t.usd || 0).format('0,0.00')} ${t.hnl ? 'HNL' : 'USD'}${t.notes ? `<blockquote>${t.notes}</blockquote>` : ''}`).join('\n\n')
+    const transString = allTrans.map(t => `${dayjs(t.date).tz(process.env.timezone).format('D MMM')} <b>${t.description}</b>:\n${numeral(t.hnl || t.usd || 0).format('0,0.00')} ${t.hnl ? 'HNL' : 'USD'}${t.notes ? `<blockquote>${t.notes}</blockquote>` : ''}`).join('\n\n')
 
     bot.sendMessage(msg.chat.id, `<b>${catToLook.name.toUpperCase()}:</b>\n${allTrans.length} Transaction${allTrans.length > 1 ? 's' : ''}\n\n${transString}\n\n<b>TOTAL HNL: ${totalHNL}\nTOTAL USD: ${totalUSD}</b>\n\nBudget ${catToLook.coin}: ${numeral(catToLook.expenses).format('0,0.00')} / ${numeral(catToLook.budget).format('0,0.00')}`, { parse_mode: 'HTML' })
     return
