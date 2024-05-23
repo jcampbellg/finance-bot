@@ -13,7 +13,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Coin {
+enum Currency {
   HNL
   USD
 }
@@ -30,6 +30,16 @@ enum Type {
   EXPENSE
 }
 
+model User {
+  id             String        @id @default(cuid())
+  chatId         Int           @unique
+  chatSubject    String
+  chatSubSubject String
+  chatHistory    String[]
+  transactions   Transaction[]
+  statementIdSet String?
+}
+
 model Transaction {
   id          String   @id @default(cuid())
   amount      Float
@@ -38,8 +48,10 @@ model Transaction {
   Budget      Budget   @relation(fields: [BudgetId], references: [id])
   BudgetId    String
   notes       String?
-  coin        Coin
+  currency    Currency
   type        Type
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
 }
 
 model Category {
@@ -55,25 +67,24 @@ model Budget {
   transactions Transaction[]
   statement    Statement     @relation(fields: [statementId], references: [id])
   statementId  String
-  budget       Float
-  coin         Coin
+  limit        Float
+  currency     Currency
   debt         Debt
+  dueDate      DateTime?
   notes        String?
 }
 
 model Statement {
-  id         String   @id @default(cuid())
-  categories Budget[]
-  month      Int
-  year       Int
-  incomes    Income[]
+  id      String   @id @default(cuid())
+  budgets Budget[]
+  month   Int
+  year    Int
+  incomes String[]
 }
 
 model Income {
-  id          String    @id @default(cuid())
-  amount      Float
-  description String
-  coin        Coin
-  statement   Statement @relation(fields: [statementId], references: [id])
-  statementId String
+  id       String   @id @default(cuid())
+  amount   Float
+  source   String
+  currency Currency
 }
