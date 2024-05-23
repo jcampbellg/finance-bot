@@ -45,8 +45,8 @@ model Transaction {
   amount      Float
   description String
   date        DateTime
-  Budget      Budget   @relation(fields: [BudgetId], references: [id])
-  BudgetId    String
+  category    Category @relation(fields: [categoryId], references: [id])
+  categoryId  String
   notes       String?
   currency    Currency
   type        Type
@@ -55,15 +55,8 @@ model Transaction {
 }
 
 model Category {
-  id          String   @id @default(cuid())
-  description String
-  bugets      Budget[]
-}
-
-model Budget {
   id           String        @id @default(cuid())
-  category     Category      @relation(fields: [categoryId], references: [id])
-  categoryId   String
+  description  String
   transactions Transaction[]
   statement    Statement     @relation(fields: [statementId], references: [id])
   statementId  String
@@ -75,16 +68,18 @@ model Budget {
 }
 
 model Statement {
-  id      String   @id @default(cuid())
-  budgets Budget[]
-  month   Int
-  year    Int
-  incomes String[]
+  id         String     @id @default(cuid())
+  categories Category[]
+  month      Int
+  year       Int
+  incomes    Income[]
 }
 
 model Income {
-  id       String   @id @default(cuid())
-  amount   Float
-  source   String
-  currency Currency
+  id          String    @id @default(cuid())
+  amount      Float
+  source      String
+  currency    Currency
+  statement   Statement @relation(fields: [statementId], references: [id])
+  statementId String
 }
