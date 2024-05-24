@@ -31,6 +31,20 @@ type CategoryJSON = {
   reset?: boolean
 }
 
+type TransactionJSON = {
+  date: string
+  paymentMethod: 'CASH' | 'CARD' | 'TRANSFER'
+  category: string
+  description: string
+  amount: number | string
+  currency: 'HNL' | 'USD'
+  type: 'INCOME' | 'EXPENSE'
+  notes: string
+} | {
+  error: string
+  reset?: boolean
+}
+
 if (process.env.botToken === undefined) {
   throw new Error('botToken is not defined')
 }
@@ -1002,5 +1016,124 @@ bot.on('message', async (msg) => {
         return
       }
     }
+  }
+
+  if (userText.startsWith('/')) {
+    await bot.sendMessage(msg.chat.id, 'No se reconoce el comando.')
+    return
+  }
+
+  if (!user.statementIdSet) {
+    await bot.sendMessage(msg.chat.id, 'Primero debes crear un estado de cuenta.\nUsa /estado para crear uno.')
+    return
+  }
+
+  // Save transactions and inteprate them with AI
+  const allCategories = await prisma.category.findMany({
+    where: {
+      statementId: user.statementIdSet
+    }
+  })
+  const botAI = await openAi.chat.completions.create({
+    messages: [{
+      role: 'system',
+      content: `Today is: ${today}`
+    }, {
+      role: 'system',
+      content: 'The conversation is in spanish.'
+    }, {
+      role: 'system',
+      content: 'Your job is to get the date, description, category name, payment method, expense or income, amount and currency of a transaction from the user input. Notes are optionals.'
+    }, {
+      role: 'system',
+      content: `You will get the category name from this list: [${allCategories.map(c => c.description).join(', ')}]`
+    }, {
+      role: 'system',
+      content: 'The date will be in the format YYYY-MM-DD HH:mm:ss. If no date is provided, use the current date.'
+    }, {
+      role: 'system',
+      content: 'The amount will always be a positive value unless the user says DEPOSITO'
+    }, {
+      role: 'system',
+      content: `The currency can be HNL (the user can type L, Lempiras or HNL) or USD (the user can type as $ or Dollars).`
+    }, {
+      role: 'system',
+      content: 'If the message contains "FICO: Transaccion TC xxxx*2928 por 213 en" you will not include this in the description. And the payment method will be CARD.'
+    }, {
+      role: 'system',
+      content: 'You will return these data in JSON format: { "date": "YYYY-MM-DD HH:mm:ss", "paymentMethod": "CASH || CARD || TRANSFER", "category": "Category Name" "description": "description", "amount": "amount", "currency": "USD or HNL", "type": "INCOME or EXPENSE" "notes": "return empty string if none" }'
+    }, {
+      role: 'system',
+      content: 'If you cannot find payment method, description, amount and currency, return a json with error message explaining what you need: { "error": "error message" }'
+    }, {
+      role: 'user',
+      content: userText
+    }],
+    model: 'gpt-4-1106-preview',
+    response_format: { type: 'json_object' },
+    temperature: 0.2,
+    max_tokens: 300
+  })
+
+  const botMessage = botAI.choices[0].message.content?.trim() || '{"error": "No se pudo procesar la información.", "reset": true}'
+  const botMessageJSON: TransactionJSON = JSON.parse(botMessage)
+
+  if ('reset' in botMessageJSON) {
+    await bot.sendMessage(msg.chat.id, 'No se pudo procesar la información. Inténtalo de nuevo.')
+  }
+
+  if ('error' in botMessageJSON) {
+    await bot.sendMessage(msg.chat.id, botMessageJSON.error)
+  }
+
+  if ('reset' in botMessageJSON || 'error' in botMessageJSON) {
+    await prisma.user.update({
+      where: {
+        chatId: msg.chat.id
+      },
+      data: {
+        chatSubject: '',
+        chatSubSubject: '',
+        chatHistory: []
+      }
+    })
+    return
+  }
+
+  const category = allCategories.find(c => c.description === botMessageJSON.category)
+
+  if (!category) {
+    await bot.sendMessage(msg.chat.id, 'No se encontró la categoría.')
+    await prisma.user.update({
+      where: {
+        chatId: msg.chat.id
+      },
+      data: {
+        chatHistory: [],
+        chatSubject: '',
+        chatSubSubject: ''
+      }
+    })
+    return
+  }
+
+  try {
+    const newTransaction = await prisma.transaction.create({
+      data: {
+        userId: user.id,
+        amount: parseFloat(botMessageJSON.amount.toString()),
+        date: dayjs(botMessageJSON.date).format(),
+        currency: botMessageJSON.currency,
+        description: botMessageJSON.description,
+        paymentMethod: botMessageJSON.paymentMethod,
+        type: botMessageJSON.type,
+        notes: botMessageJSON.notes || '',
+        categoryId: category.id
+      }
+    })
+
+    await bot.sendMessage(msg.chat.id, `<b>${newTransaction.description} por ${numeral(newTransaction.amount).format('0,0.00')} ${newTransaction.currency}</b>\nCategorizada como ${category.description}\n${newTransaction.type === 'EXPENSE' ? 'Gasto' : 'Ingreso'} el dia ${dayjs(newTransaction.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}${newTransaction.notes ? `\n<blockquote>${newTransaction.notes}</blockquote>` : ''}\n<i>Creada correctamente.</i>`, { parse_mode: 'HTML' })
+  } catch (error) {
+    await bot.sendMessage(msg.chat.id, 'No se pudo crear la transacción. Inténtalo de nuevo.')
   }
 })
