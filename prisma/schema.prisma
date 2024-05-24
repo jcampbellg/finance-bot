@@ -18,21 +18,22 @@ enum Currency {
   USD
 }
 
-enum Debt {
-  NO
-  AUTOMATIC
-  DEBT
-  PAID
-}
-
 enum Type {
   INCOME
   EXPENSE
 }
 
+model Conversion {
+  id          String   @id @default(cuid())
+  dollarToHNL Float
+  hnlToDollar Float
+  date        DateTime @default(now())
+}
+
 model User {
   id             String        @id @default(cuid())
   chatId         Int           @unique
+  fullName       String
   chatSubject    String
   chatSubSubject String
   chatHistory    String[]
@@ -60,10 +61,10 @@ model Category {
   transactions Transaction[]
   statement    Statement     @relation(fields: [statementId], references: [id])
   statementId  String
-  limit        Float
+  budget       Float
   currency     Currency
-  debt         Debt
-  dueDate      DateTime?
+  isFixed      Boolean
+  dueDate      Int?
   notes        String?
 }
 
