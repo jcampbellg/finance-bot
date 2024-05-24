@@ -145,10 +145,17 @@ bot.on('message', async (msg) => {
   }
 
   const chatHistory = user.chatHistory.map(s => {
-    const json = JSON.parse(s)
-    return {
-      role: json.role as 'assistant' | 'user',
-      content: json.content as string
+    try {
+      const json = JSON.parse(s)
+      return {
+        role: json.role as 'assistant' | 'user' | 'system',
+        content: json.content as string
+      }
+    } catch (error) {
+      return {
+        role: 'system' as 'assistant' | 'user' | 'system',
+        content: s
+      }
     }
   }) || []
 
@@ -625,7 +632,7 @@ bot.on('message', async (msg) => {
       }
 
       const categoriesText = categories.map((category, i) => {
-        return `/${i + 1}. <b>${category.description}</b>\n${category.budget} ${category.currency}`
+        return `/${i + 1}. <b>${category.description}</b>\n${numeral(category.budget).format('0,0.00')} ${category.currency}`
       }).join('\n\n')
 
       await bot.sendMessage(msg.chat.id, `Presiona el /# para editar o eliminar.\n\n${categoriesText}`, { parse_mode: 'HTML' })
@@ -662,7 +669,7 @@ bot.on('message', async (msg) => {
               chatId: msg.chat.id
             },
             data: {
-              chatHistory: [],
+              chatHistory: [JSON.stringify({ role: 'system', content: category.id })],
               chatSubSubject: 'view-ask'
             }
           })
@@ -681,6 +688,175 @@ bot.on('message', async (msg) => {
           await bot.sendMessage(msg.chat.id, 'Ocurrió un error. Inténtalo de nuevo.')
         }
       }
+    }
+
+    if (user.chatSubSubject === 'view-ask') {
+      if (userText === '/eliminar') {
+        try {
+          await prisma.category.delete({
+            where: {
+              id: chatHistory[0].content
+            }
+          })
+
+          await bot.sendMessage(msg.chat.id, 'Categoría eliminada correctamente.')
+        } catch (error) {
+          await bot.sendMessage(msg.chat.id, 'No se pudo eliminar la categoría. Inténtalo de nuevo.')
+        }
+
+        await prisma.user.update({
+          where: {
+            chatId: msg.chat.id
+          },
+          data: {
+            chatHistory: [],
+            chatSubject: '',
+            chatSubSubject: ''
+          }
+        })
+        return
+      }
+
+      if (userText === '/editar') {
+        await prisma.user.update({
+          where: {
+            chatId: msg.chat.id
+          },
+          data: {
+            chatSubSubject: 'edit',
+          }
+        })
+
+        const categorySelected = await prisma.category.findUnique({
+          where: {
+            id: chatHistory[0].content
+          }
+        })
+
+        await bot.sendMessage(msg.chat.id, `¿Que quieres editar?\n/descripcion\n/presupuesto${categorySelected?.isFixed ? '\n/fecha de pago' : ''}\n/notas`)
+        return
+      }
+    }
+
+    if (user.chatSubSubject.startsWith('edit') && user.chatSubSubject !== 'edit') {
+      const category = await prisma.category.findUnique({
+        where: {
+          id: chatHistory[0].content
+        }
+      })
+
+      if (!category) {
+        await bot.sendMessage(msg.chat.id, 'No se encontró la categoría.')
+        await prisma.user.update({
+          where: {
+            chatId: msg.chat.id
+          },
+          data: {
+            chatHistory: [],
+            chatSubject: '',
+            chatSubSubject: ''
+          }
+        })
+        return
+      }
+
+      switch (user.chatSubSubject) {
+        case 'edit-description':
+          await prisma.category.update({
+            where: {
+              id: category.id
+            },
+            data: {
+              description: userText
+            }
+          })
+          await bot.sendMessage(msg.chat.id, 'Descripción editada correctamente.')
+          break
+        case 'edit-budget':
+          await prisma.category.update({
+            where: {
+              id: category.id
+            },
+            data: {
+              budget: parseFloat(userText)
+            }
+          })
+          await bot.sendMessage(msg.chat.id, 'Presupuesto editado correctamente.')
+          break
+        case 'edit-dueDate':
+          await prisma.category.update({
+            where: {
+              id: category.id
+            },
+            data: {
+              dueDate: parseInt(userText)
+            }
+          })
+          await bot.sendMessage(msg.chat.id, 'Fecha de pago editada correctamente.')
+          break
+        case 'edit-notes':
+          await prisma.category.update({
+            where: {
+              id: category.id
+            },
+            data: {
+              notes: userText
+            }
+          })
+          await bot.sendMessage(msg.chat.id, 'Presupuesto editado correctamente.')
+          break
+      }
+
+      await prisma.user.update({
+        where: {
+          chatId: msg.chat.id
+        },
+        data: {
+          chatHistory: [],
+          chatSubject: '',
+          chatSubSubject: ''
+        }
+      })
+    }
+
+    if (user.chatSubSubject === 'edit') {
+      let botReply = ''
+      let subSubject = ''
+
+      switch (userText) {
+        case '/descripcion':
+          botReply = '¿Cuál es la nueva descripción de la categoría?'
+          subSubject = 'edit-description'
+          break
+        case '/presupuesto':
+          botReply = '¿Cuál es el nuevo presupuesto de la categoría?'
+          subSubject = 'edit-budget'
+          break
+        case '/fecha':
+          botReply = '¿Cuál es la fecha de vencimiento?'
+          subSubject = 'edit-dueDate'
+          break
+        case '/notas':
+          botReply = 'Agrega alguna nota adicional.'
+          subSubject = 'edit-notes'
+          break
+        default:
+          botReply = 'No se reconoce la opción.'
+          subSubject = 'edit'
+          break
+      }
+
+      await prisma.user.update({
+        where: {
+          chatId: msg.chat.id
+        },
+        data: {
+          chatSubSubject: subSubject,
+        }
+      })
+
+      await bot.sendMessage(msg.chat.id, botReply)
+      return
     }
 
     if (user.chatSubSubject === 'create-description') {
