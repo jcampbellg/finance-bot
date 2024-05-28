@@ -19,6 +19,12 @@ type StatementJSON = {
   year: number
 }
 
+type IncomeJSON = {
+  amount: number
+  currency: 'HNL' | 'USD'
+  source: string
+}
+
 if (process.env.botToken === undefined) {
   throw new Error('botToken is not defined')
 }
@@ -135,6 +141,7 @@ bot.on('message', async (msg) => {
     userText = transcription
   }
 
+  // Estado de cuenta
   if (userText === '/estado') {
     userChat(msg.chat.id, { chatSubject: 'estado', chatSubSubject: [!!user.statement ? 'queres cambiarlo' : 'mes y año'] })
 
@@ -179,6 +186,7 @@ bot.on('message', async (msg) => {
         const botMessageJSON: StatementJSON | ErrorJSON = JSON.parse(botMessage)
 
         if ('error' in botMessageJSON) {
+          userChat(msg.chat.id)
           await bot.sendMessage(msg.chat.id, botMessageJSON.error)
           return
         }
@@ -232,6 +240,137 @@ bot.on('message', async (msg) => {
   if (!user.statement) {
     await bot.sendMessage(msg.chat.id, 'Primero debes crear un estado de cuenta con el comando /estado.')
     return
+  }
+
+  // Ingreso
+  if (userText === '/ingreso') {
+    userChat(msg.chat.id, { chatSubject: 'ingreso', chatSubSubject: ['crear o ver'] })
+
+    await bot.sendMessage(msg.chat.id, '¿Quieres crear un ingreso o ver los ingresos actuales?\n/crear\n/ver')
+    return
+  }
+
+  if (user.chatSubject === 'ingreso') {
+    switch (user.chatSubSubject[0]) {
+      case 'crear o ver':
+        if (userText === '/crear') {
+          userChat(msg.chat.id, { chatSubSubject: ['crear', 'fuente'] })
+
+          await bot.sendMessage(msg.chat.id, '¿Cuál es la fuente de tu ingreso?')
+          return
+        }
+        if (userText === '/ver') {
+          userChat(msg.chat.id, { chatSubSubject: ['ver'] })
+
+          const incomes = await prisma.budgetIncome.findMany({
+            where: {
+              statementId: user.statement.id
+            },
+            include: {
+              income: true
+            }
+          })
+
+          if (incomes.length === 0) {
+            await bot.sendMessage(msg.chat.id, 'No tienes ingresos registrados.')
+            return
+          }
+
+          const incomesText = incomes.map((income, i) => {
+            return `/${i + 1}. <b>${income.income.source}</b>\n${income.amount} ${income.income.currency}`
+          }).join('\n\n')
+
+          const totalInUSD = incomes.reduce((acc, income) => {
+            if (income.income.currency === 'HNL') {
+              return acc + (income.amount * hnlToDollar)
+            }
+            return acc + income.amount
+          }, 0)
+
+          const totalInHNL = incomes.reduce((acc, income) => {
+            if (income.income.currency === 'USD') {
+              return acc + (income.amount * dollarToHNL)
+            }
+            return acc + income.amount
+          }, 0)
+
+          await bot.sendMessage(msg.chat.id, `Presiona el /# para eliminar.\n\n${incomesText}\n\nTotal HNL: ${numeral(totalInHNL).format('0,0.00')}\nTotal USD: ${numeral(totalInUSD).format('0,0.00')}`, { parse_mode: 'HTML' })
+          return
+        }
+        break
+      case 'crear':
+        switch (user.chatSubSubject[1]) {
+          case 'fuente':
+            // Ahorita nos esta contestando la fuente del ingreso
+            userChat(msg.chat.id, { chatSubSubject: ['crear', 'monto'], chatHistory: [userText] })
+
+            await bot.sendMessage(msg.chat.id, '¿Cuánto es el ingreso?')
+            return
+          case 'monto':
+            // guardamos el ingreso
+            const botAI = await openAi.chat.completions.create({
+              messages: [{
+                role: 'system',
+                content: `Today is: ${today}`
+              }, {
+                role: 'system',
+                content: 'Reply in spanish'
+              }, {
+                role: 'system',
+                content: `Your job is to get amount, currency and source of your income from the user.`
+              }, {
+                role: 'system',
+                content: `The currency can be HNL (the user can type L, Lempiras or HNL) or USD (the user can type as $ or Dollars).`
+              }, {
+                role: 'system',
+                content: 'You will return these data in JSON format: { "amount": <amount in number>, "currency": "HNL" or "USD", "source": <job description> } or { "error": "error message" }'
+              }, {
+                role: 'assistant',
+                content: '¿Cuál es la fuente de tu ingreso?'
+              }, {
+                role: 'user',
+                content: user.chatHistory[0]
+              }, {
+                role: 'assistant',
+                content: '¿Cuánto es el ingreso?'
+              }, {
+                role: 'user',
+                content: userText
+              }],
+              model: 'gpt-4-1106-preview',
+              response_format: { type: 'json_object' },
+              temperature: 0.2,
+              max_tokens: 300
+            })
+            const botMessage = botAI.choices[0].message.content?.trim() || '{"error": "No se pudo procesar la información.", "reset": true}'
+            const botMessageJSON: IncomeJSON | ErrorJSON = JSON.parse(botMessage)
+
+            if ('error' in botMessageJSON) {
+              userChat(msg.chat.id)
+              await bot.sendMessage(msg.chat.id, botMessageJSON.error)
+              return
+            }
+
+            const income = await prisma.income.create({
+              data: {
+                source: botMessageJSON.source,
+                currency: botMessageJSON.currency,
+                budgetIncome: {
+                  create: {
+                    amount: botMessageJSON.amount,
+                    statementId: user.statement.id
+                  }
+                }
+              }
+            })
+
+            userChat(msg.chat.id)
+
+            await bot.sendMessage(msg.chat.id, `Ingreso creado para ${income.source}.\n\n${numeral(botMessageJSON.amount).format('0,0.00')} ${income.currency}`)
+            return
+        }
+        break
+    }
   }
 
   await bot.sendMessage(msg.chat.id, 'No entiendo tu mensaje. Empieza otra vez.')
