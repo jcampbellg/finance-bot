@@ -7,23 +7,8 @@ import utc from 'dayjs/plugin/utc'
 import numeral from 'numeral'
 import * as dotenv from 'dotenv'
 import prisma from '@utils/prisma'
+import { AIEditIncome, AISaveIncome, AIStatement } from '@utils/AI'
 dotenv.config()
-
-type ErrorJSON = {
-  error: string
-  reset?: boolean
-}
-
-type StatementJSON = {
-  month: number
-  year: number
-}
-
-type IncomeJSON = {
-  amount: number
-  currency: 'HNL' | 'USD'
-  source: string
-}
 
 if (process.env.botToken === undefined) {
   throw new Error('botToken is not defined')
@@ -58,8 +43,11 @@ bot.on('message', async (msg) => {
   }
 
   bot.sendChatAction(msg.chat.id, 'typing')
-  const today = dayjs().tz(process.env.timezone).format('YYYY-MM-DD HH:mm:ss')
-  const conversion = await prisma.conversion.findFirst()
+  const conversion = await prisma.conversion.findFirst({
+    orderBy: {
+      createdAt: 'asc'
+    }
+  })
   const dollarToHNL = conversion?.dollarToHNL || 24.6
   const hnlToDollar = conversion?.hnlToDollar || 0.04
 
@@ -159,31 +147,7 @@ bot.on('message', async (msg) => {
   if (user.chatSubject === 'estado') {
     switch (user.chatSubSubject[0]) {
       case 'mes y año':
-        const botAI = await openAi.chat.completions.create({
-          messages: [{
-            role: 'system',
-            content: `Today is: ${today}`
-          }, {
-            role: 'system',
-            content: 'Reply in spanish'
-          }, {
-            role: 'system',
-            content: `Your job is to get the month and year from the user. The user can type the month in full or in short form.`
-          }, {
-            role: 'system',
-            content: 'You will return these data in JSON format: { "month": <from 1 to 12>, "year": <4 digits number> } or { "error": "error message" }'
-          }, {
-            role: 'user',
-            content: userText
-          }],
-          model: 'gpt-4-1106-preview',
-          response_format: { type: 'json_object' },
-          temperature: 0.2,
-          max_tokens: 300
-        })
-
-        const botMessage = botAI.choices[0].message.content?.trim() || '{"error": "No se pudo procesar la información.", "reset": true}'
-        const botMessageJSON: StatementJSON | ErrorJSON = JSON.parse(botMessage)
+        const botMessageJSON = await AIStatement(userText)
 
         if ('error' in botMessageJSON) {
           userChat(msg.chat.id)
@@ -246,7 +210,7 @@ bot.on('message', async (msg) => {
   if (userText === '/ingreso') {
     userChat(msg.chat.id, { chatSubject: 'ingreso', chatSubSubject: ['crear o ver'] })
 
-    await bot.sendMessage(msg.chat.id, '¿Quieres crear un ingreso o ver los ingresos actuales?\n/crear\n/ver')
+    await bot.sendMessage(msg.chat.id, '¿Quieres crear un ingreso o ver los ingresos actuales?\n\n/crear\n/ver')
     return
   }
 
@@ -268,6 +232,9 @@ bot.on('message', async (msg) => {
             },
             include: {
               income: true
+            },
+            orderBy: {
+              createdAt: 'asc'
             }
           })
 
@@ -294,7 +261,7 @@ bot.on('message', async (msg) => {
             return acc + income.amount
           }, 0)
 
-          await bot.sendMessage(msg.chat.id, `Presiona el /# para eliminar.\n\n${incomesText}\n\nTotal HNL: ${numeral(totalInHNL).format('0,0.00')}\nTotal USD: ${numeral(totalInUSD).format('0,0.00')}`, { parse_mode: 'HTML' })
+          await bot.sendMessage(msg.chat.id, `Presiona el /# para editar.\n\n${incomesText}\n\nTotal HNL: ${numeral(totalInHNL).format('0,0.00')}\nTotal USD: ${numeral(totalInUSD).format('0,0.00')}`, { parse_mode: 'HTML' })
           return
         }
         break
@@ -307,43 +274,7 @@ bot.on('message', async (msg) => {
             await bot.sendMessage(msg.chat.id, '¿Cuánto es el ingreso?')
             return
           case 'monto':
-            // guardamos el ingreso
-            const botAI = await openAi.chat.completions.create({
-              messages: [{
-                role: 'system',
-                content: `Today is: ${today}`
-              }, {
-                role: 'system',
-                content: 'Reply in spanish'
-              }, {
-                role: 'system',
-                content: `Your job is to get amount, currency and source of your income from the user.`
-              }, {
-                role: 'system',
-                content: `The currency can be HNL (the user can type L, Lempiras or HNL) or USD (the user can type as $ or Dollars).`
-              }, {
-                role: 'system',
-                content: 'You will return these data in JSON format: { "amount": <amount in number>, "currency": "HNL" or "USD", "source": <job description> } or { "error": "error message" }'
-              }, {
-                role: 'assistant',
-                content: '¿Cuál es la fuente de tu ingreso?'
-              }, {
-                role: 'user',
-                content: user.chatHistory[0]
-              }, {
-                role: 'assistant',
-                content: '¿Cuánto es el ingreso?'
-              }, {
-                role: 'user',
-                content: userText
-              }],
-              model: 'gpt-4-1106-preview',
-              response_format: { type: 'json_object' },
-              temperature: 0.2,
-              max_tokens: 300
-            })
-            const botMessage = botAI.choices[0].message.content?.trim() || '{"error": "No se pudo procesar la información.", "reset": true}'
-            const botMessageJSON: IncomeJSON | ErrorJSON = JSON.parse(botMessage)
+            const botMessageJSON = await AISaveIncome(user.chatHistory[0], userText)
 
             if ('error' in botMessageJSON) {
               userChat(msg.chat.id)
@@ -368,6 +299,94 @@ bot.on('message', async (msg) => {
 
             await bot.sendMessage(msg.chat.id, `Ingreso creado para ${income.source}.\n\n${numeral(botMessageJSON.amount).format('0,0.00')} ${income.currency}`)
             return
+        }
+        break
+      case 'ver':
+        if (userText.match(/^\/\d+$/)) {
+          const index = parseInt(userText.replace('/', '')) - 1
+
+          const budgetIncomes = await prisma.budgetIncome.findMany({
+            take: 1,
+            skip: index,
+            where: {
+              statementId: user.statement.id
+            },
+            include: {
+              income: true
+            },
+            orderBy: {
+              createdAt: 'asc'
+            }
+          })
+
+          if (budgetIncomes.length === 0) {
+            await bot.sendMessage(msg.chat.id, 'No se encontró el ingreso.')
+            return
+          }
+
+          userChat(msg.chat.id, { chatSubSubject: ['editar', `${budgetIncomes[0].id}`] })
+
+          await bot.sendMessage(msg.chat.id, `<b>${budgetIncomes[0].income.source}</b>\n${numeral(budgetIncomes[0].amount).format('0,0.00')} ${budgetIncomes[0].income.currency}\n\n¿Qué quieres hacer?\n\n/editar monto\n/eliminar`, { parse_mode: 'HTML' })
+          return
+        }
+        break
+      case 'editar':
+        const budgetIncome = await prisma.budgetIncome.findUnique({
+          where: {
+            id: parseInt(user.chatSubSubject[1]),
+          },
+          include: {
+            income: true
+          }
+        })
+
+        if (!budgetIncome) {
+          await bot.sendMessage(msg.chat.id, 'No se encontró el ingreso.')
+          return
+        }
+
+        if (user.chatSubSubject[2] === 'monto') {
+          const editJSON = await AIEditIncome(userText)
+
+          if ('error' in editJSON) {
+            userChat(msg.chat.id)
+            await bot.sendMessage(msg.chat.id, editJSON.error)
+            return
+          }
+
+          await prisma.budgetIncome.update({
+            where: {
+              id: budgetIncome.id
+            },
+            data: {
+              amount: editJSON.amount,
+            }
+          })
+
+          userChat(msg.chat.id)
+
+          await bot.sendMessage(msg.chat.id, `Monto actualizado para ${budgetIncome.income.source}.\n\n${numeral(editJSON.amount).format('0,0.00')} ${budgetIncome.income.currency}`)
+          return
+        }
+
+        if (userText === '/editar') {
+          userChat(msg.chat.id, { chatSubSubject: ['editar', budgetIncome.id.toString(), 'monto'] })
+
+          await bot.sendMessage(msg.chat.id, `Escribe el nuevo monto para ${budgetIncome.income.source}:`)
+          return
+        }
+
+        if (userText === '/eliminar') {
+          await prisma.budgetIncome.delete({
+            where: {
+              id: budgetIncome.id
+            }
+          })
+
+          userChat(msg.chat.id)
+
+          await bot.sendMessage(msg.chat.id, `Ingreso eliminado para ${budgetIncome.income.source}.`)
+          return
         }
         break
     }
