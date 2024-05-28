@@ -123,3 +123,37 @@ export async function AIEditIncome(amount: string): Promise<Pick<IncomeJSON, 'am
 
   return botMessageJSON
 }
+
+export async function AIAmountAndCurrency(userReply: string): Promise<Omit<IncomeJSON, 'source'> | ErrorJSON> {
+  const today = dayjs().tz(process.env.timezone).format('YYYY-MM-DD HH:mm:ss')
+
+  const botAI = await openAi.chat.completions.create({
+    messages: [{
+      role: 'system',
+      content: `Today is: ${today}`
+    }, {
+      role: 'system',
+      content: 'Reply in spanish'
+    }, {
+      role: 'system',
+      content: `Your job is to get a amount and currency from the user.`
+    }, {
+      role: 'system',
+      content: `The currency can be HNL (the user can type L, Lempiras or HNL) or USD (the user can type as $ or Dollars).`
+    }, {
+      role: 'system',
+      content: 'You will return these data in JSON format: { "amount": <amount in number>, "currency": "HNL" or "USD" } or { "error": "error message" }'
+    }, {
+      role: 'user',
+      content: userReply
+    }],
+    model: 'gpt-4-1106-preview',
+    response_format: { type: 'json_object' },
+    temperature: 0.2,
+    max_tokens: 300
+  })
+  const botMessage = botAI.choices[0].message.content?.trim() || '{"error": "No se pudo procesar la información.", "reset": true}'
+  const botMessageJSON: Omit<IncomeJSON, 'source'> | ErrorJSON = JSON.parse(botMessage)
+
+  return botMessageJSON
+}
