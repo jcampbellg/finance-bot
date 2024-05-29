@@ -98,7 +98,7 @@ bot.on('message', async (msg) => {
 
     await prisma.chat.create({
       data: {
-        fullName: msg.chat.first_name || msg.chat.username || '',
+        fullName: msg.chat.first_name || msg.chat.username || msg.chat.title || msg.chat.description || '',
         chatId: msg.chat.id,
         chatSubject: '',
         chatSubSubject: [],
