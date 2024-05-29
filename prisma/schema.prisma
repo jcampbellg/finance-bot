@@ -30,25 +30,17 @@ enum PaymentMethod {
   TRANSFER
 }
 
-model Conversion {
-  id          Int      @id @default(autoincrement())
-  dollarToHNL Float
-  hnlToDollar Float
-  createdAt   DateTime @default(now())
-}
-
-model User {
-  id             Int           @id @default(autoincrement())
-  chatId         Int           @unique
+model Chat {
+  id             Int        @id @default(autoincrement())
+  chatId         BigInt     @unique
   fullName       String
   chatSubject    String
   chatSubSubject String[]
   chatHistory    String[]
-  transactions   Transaction[]
-  statement      Statement?    @relation(fields: [statementId], references: [id])
+  statement      Statement? @relation(fields: [statementId], references: [id])
   statementId    Int?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 }
 
 model Transaction {
@@ -61,9 +53,8 @@ model Transaction {
   notes         String?
   currency      Currency
   type          Type
-  user          User          @relation(fields: [userId], references: [id])
-  userId        Int
   paymentMethod PaymentMethod
+  attachmentUrl String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 }
@@ -75,6 +66,7 @@ model Category {
   transactions Transaction[]
   currency     Currency
   isFixed      Boolean
+  isPaid       Boolean       @default(false)
   notes        String?
   limit        Float
   statement    Statement     @relation(fields: [statementId], references: [id])
@@ -84,14 +76,16 @@ model Category {
 }
 
 model Statement {
-  id         Int        @id @default(autoincrement())
-  month      Int
-  year       Int
-  user       User[]
-  incomes    Income[]
-  categories Category[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id          Int        @id @default(autoincrement())
+  month       Int
+  year        Int
+  chat        Chat[]
+  incomes     Income[]
+  categories  Category[]
+  dollarToHNL Float      @default(24.6)
+  hnlToDollar Float      @default(0.04)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 model Income {

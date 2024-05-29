@@ -7,7 +7,9 @@ import utc from 'dayjs/plugin/utc'
 import numeral from 'numeral'
 import * as dotenv from 'dotenv'
 import prisma from '@utils/prisma'
-import { AIAmountAndCurrency, AISaveIncome, AIStatement } from '@utils/AI'
+import { AIAmount, AIAmountAndCurrency, AISaveIncome, AIStatement, AITransaction } from '@utils/AI'
+import { Prisma } from '@prisma/client'
+import { ChatCompletionMessageParam } from 'openai/resources'
 dotenv.config()
 
 if (process.env.botToken === undefined) {
@@ -31,6 +33,13 @@ const token = process.env.botToken
 
 const bot = new TelegramBot(token, { polling: true })
 
+const paymentMethod = {
+  CASH: 'por efectivo',
+  CREDITCARD: 'con tarjeta de crédito',
+  DEBITCARD: 'con tarjeta de débito',
+  TRANSFER: 'por transferencia'
+}
+
 bot.on('message', async (msg) => {
   if (!userWhitelist.includes(msg.chat.id)) {
     bot.sendMessage(msg.chat.id, `You, ${msg.chat.id} are not authorized to use this bot.`)
@@ -43,13 +52,6 @@ bot.on('message', async (msg) => {
   }
 
   bot.sendChatAction(msg.chat.id, 'typing')
-  const conversion = await prisma.conversion.findFirst({
-    orderBy: {
-      createdAt: 'asc'
-    }
-  })
-  const dollarToHNL = conversion?.dollarToHNL || 24.6
-  const hnlToDollar = conversion?.hnlToDollar || 0.04
 
   if (msg.text === '/start') {
     await bot.setMyCommands([{
@@ -64,6 +66,15 @@ bot.on('message', async (msg) => {
     }, {
       command: 'resumen',
       description: 'Ver un resumen de tus estado de cuenta actual.'
+    }, {
+      command: 'fijos',
+      description: 'Ver tus pagos fijos.'
+    }, {
+      command: 'cambio',
+      description: 'Establecer el cambio de moneda actual.'
+    }, {
+      command: 'ultima',
+      description: 'Ver y editar la última transacción.'
     }], {
       scope: {
         type: msg.chat.type === 'group' ? 'all_group_chats' : 'chat',
@@ -74,7 +85,7 @@ bot.on('message', async (msg) => {
 
     await bot.getMyCommands({ type: 'chat', chat_id: msg.chat.id }, 'en')
 
-    const userExists = await prisma.user.findUnique({
+    const userExists = await prisma.chat.findUnique({
       where: {
         chatId: msg.chat.id
       }
@@ -85,7 +96,7 @@ bot.on('message', async (msg) => {
       return
     }
 
-    await prisma.user.create({
+    await prisma.chat.create({
       data: {
         fullName: msg.chat.first_name || msg.chat.username || '',
         chatId: msg.chat.id,
@@ -99,7 +110,7 @@ bot.on('message', async (msg) => {
     return
   }
 
-  const user = await prisma.user.findUnique({
+  const chat = await prisma.chat.findUnique({
     where: {
       chatId: msg.chat.id
     },
@@ -108,7 +119,7 @@ bot.on('message', async (msg) => {
     }
   })
 
-  if (!user) {
+  if (!chat) {
     await bot.sendMessage(msg.chat.id, 'Primero debes iniciar el bot con el comando /start.')
     return
   }
@@ -131,11 +142,11 @@ bot.on('message', async (msg) => {
 
   // Estado de cuenta
   if (userText === '/estado') {
-    userChat(msg.chat.id, { chatSubject: 'estado', chatSubSubject: [!!user.statement ? 'queres cambiarlo' : 'mes y año'] })
+    chatUpdate(msg.chat.id, { chatSubject: 'estado', chatSubSubject: [!!chat.statement ? 'queres cambiarlo' : 'mes y año'] })
 
-    if (!!user.statement) {
-      const monthInSpanish = dayjs().locale('es').month(user.statement.month - 1).format('MMMM')
-      const year = user.statement.year
+    if (!!chat.statement) {
+      const monthInSpanish = dayjs().locale('es').month(chat.statement.month - 1).format('MMMM')
+      const year = chat.statement.year
       await bot.sendMessage(msg.chat.id, `Tu estado de cuenta actual es para el mes de ${monthInSpanish} del año ${year}.\n\n¿Quieres cambiarlo?\n/si\n/no`)
       return
     }
@@ -144,13 +155,13 @@ bot.on('message', async (msg) => {
     return
   }
 
-  if (user.chatSubject === 'estado') {
-    switch (user.chatSubSubject[0]) {
+  if (chat.chatSubject === 'estado') {
+    switch (chat.chatSubSubject[0]) {
       case 'mes y año':
         const botMessageJSON = await AIStatement(userText)
 
         if ('error' in botMessageJSON) {
-          userChat(msg.chat.id)
+          chatUpdate(msg.chat.id)
           await bot.sendMessage(msg.chat.id, botMessageJSON.error)
           return
         }
@@ -179,16 +190,16 @@ bot.on('message', async (msg) => {
           }
         })
 
-        if (user.statement) {
+        if (chat.statement) {
           const oldCategories = await prisma.category.findMany({
             where: {
-              statementId: user.statement.id
+              statementId: chat.statement.id
             }
           })
 
           const oldIncomes = await prisma.income.findMany({
             where: {
-              statementId: user.statement.id
+              statementId: chat.statement.id
             }
           })
 
@@ -197,26 +208,49 @@ bot.on('message', async (msg) => {
               id: newStatement.id
             },
             data: {
-              // todo
-              categories: oldCategories.map(c => { })
+              categories: {
+                createMany: {
+                  data: oldCategories.map(c => {
+                    return {
+                      description: c.description,
+                      emoji: c.emoji,
+                      isFixed: c.isFixed,
+                      limit: c.limit,
+                      currency: c.currency,
+                      notes: c.notes
+                    }
+                  })
+                }
+              },
+              incomes: {
+                createMany: {
+                  data: oldIncomes.map(i => {
+                    return {
+                      source: i.source,
+                      amount: i.amount,
+                      currency: i.currency
+                    }
+                  })
+                }
+              }
             }
           })
         }
 
-        userChat(msg.chat.id, { statementId: newStatement.id, chatSubject: '', chatSubSubject: [], chatHistory: [] })
+        chatUpdate(msg.chat.id, { statementId: newStatement.id, chatSubject: '', chatSubSubject: [], chatHistory: [] })
 
         await bot.sendMessage(msg.chat.id, `Estado de cuenta creado para el mes de ${monthInSpanish} del año ${year}.`)
         return
       case 'queres cambiarlo':
         if (userText === '/si') {
-          userChat(msg.chat.id, { chatSubSubject: ['mes y año'] })
+          chatUpdate(msg.chat.id, { chatSubSubject: ['mes y año'] })
 
           await bot.sendMessage(msg.chat.id, 'Escribe el mes y año para el estado de cuenta:')
           return
         }
 
         if (userText === '/no') {
-          userChat(msg.chat.id)
+          chatUpdate(msg.chat.id)
 
           await bot.sendMessage(msg.chat.id, 'Entendido.')
           return
@@ -225,34 +259,37 @@ bot.on('message', async (msg) => {
     }
   }
 
-  if (!user.statement) {
+  if (!chat.statement) {
     await bot.sendMessage(msg.chat.id, 'Primero debes crear un estado de cuenta con el comando /estado.')
     return
   }
 
+  const hnlToDollar = chat.statement.hnlToDollar
+  const dollarToHNL = chat.statement.dollarToHNL
+
   // Ingreso
   if (userText === '/ingreso') {
-    userChat(msg.chat.id, { chatSubject: 'ingreso', chatSubSubject: ['crear o ver'] })
+    chatUpdate(msg.chat.id, { chatSubject: 'ingreso', chatSubSubject: ['crear o ver'] })
 
     await bot.sendMessage(msg.chat.id, '¿Quieres crear un ingreso o ver los ingresos actuales?\n\n/crear\n/ver')
     return
   }
 
-  if (user.chatSubject === 'ingreso') {
-    switch (user.chatSubSubject[0]) {
+  if (chat.chatSubject === 'ingreso') {
+    switch (chat.chatSubSubject[0]) {
       case 'crear o ver':
         if (userText === '/crear') {
-          userChat(msg.chat.id, { chatSubSubject: ['crear', 'fuente'] })
+          chatUpdate(msg.chat.id, { chatSubSubject: ['crear', 'fuente'] })
 
           await bot.sendMessage(msg.chat.id, '¿Cuál es la fuente de tu ingreso?')
           return
         }
         if (userText === '/ver') {
-          userChat(msg.chat.id, { chatSubSubject: ['ver'] })
+          chatUpdate(msg.chat.id, { chatSubSubject: ['ver'] })
 
           const incomes = await prisma.income.findMany({
             where: {
-              statementId: user.statement.id
+              statementId: chat.statement.id
             },
             orderBy: {
               createdAt: 'asc'
@@ -287,18 +324,18 @@ bot.on('message', async (msg) => {
         }
         break
       case 'crear':
-        switch (user.chatSubSubject[1]) {
+        switch (chat.chatSubSubject[1]) {
           case 'fuente':
             // Ahorita nos esta contestando la fuente del ingreso
-            userChat(msg.chat.id, { chatSubSubject: ['crear', 'monto'], chatHistory: [userText] })
+            chatUpdate(msg.chat.id, { chatSubSubject: ['crear', 'monto'], chatHistory: [userText] })
 
             await bot.sendMessage(msg.chat.id, '¿Cuánto es el ingreso?')
             return
           case 'monto':
-            const botMessageJSON = await AISaveIncome(user.chatHistory[0], userText)
+            const botMessageJSON = await AISaveIncome(chat.chatHistory[0], userText)
 
             if ('error' in botMessageJSON) {
-              userChat(msg.chat.id)
+              chatUpdate(msg.chat.id)
               await bot.sendMessage(msg.chat.id, botMessageJSON.error)
               return
             }
@@ -308,11 +345,11 @@ bot.on('message', async (msg) => {
                 source: botMessageJSON.source,
                 currency: botMessageJSON.currency,
                 amount: botMessageJSON.amount,
-                statementId: user.statement.id
+                statementId: chat.statement.id
               }
             })
 
-            userChat(msg.chat.id)
+            chatUpdate(msg.chat.id)
 
             await bot.sendMessage(msg.chat.id, `Ingreso creado para ${income.source}.\n\n${numeral(botMessageJSON.amount).format('0,0.00')} ${income.currency}`)
             return
@@ -326,7 +363,7 @@ bot.on('message', async (msg) => {
             take: 1,
             skip: index,
             where: {
-              statementId: user.statement.id
+              statementId: chat.statement.id
             },
             orderBy: {
               createdAt: 'asc'
@@ -338,7 +375,7 @@ bot.on('message', async (msg) => {
             return
           }
 
-          userChat(msg.chat.id, { chatSubSubject: ['editar', `${incomeToEdit[0].id}`] })
+          chatUpdate(msg.chat.id, { chatSubSubject: ['editar', `${incomeToEdit[0].id}`] })
 
           await bot.sendMessage(msg.chat.id, `<b>${incomeToEdit[0].source}</b>\n${numeral(incomeToEdit[0].amount).format('0,0.00')} ${incomeToEdit[0].currency}\n\n¿Qué quieres hacer?\n\n/editar monto\n/eliminar`, { parse_mode: 'HTML' })
           return
@@ -347,7 +384,7 @@ bot.on('message', async (msg) => {
       case 'editar':
         const incomeEditing = await prisma.income.findUnique({
           where: {
-            id: parseInt(user.chatSubSubject[1]),
+            id: parseInt(chat.chatSubSubject[1]),
           }
         })
 
@@ -356,11 +393,11 @@ bot.on('message', async (msg) => {
           return
         }
 
-        if (user.chatSubSubject[2] === 'monto') {
+        if (chat.chatSubSubject[2] === 'monto') {
           const editJSON = await AIAmountAndCurrency(userText)
 
           if ('error' in editJSON) {
-            userChat(msg.chat.id)
+            chatUpdate(msg.chat.id)
             await bot.sendMessage(msg.chat.id, editJSON.error)
             return
           }
@@ -375,14 +412,14 @@ bot.on('message', async (msg) => {
             }
           })
 
-          userChat(msg.chat.id)
+          chatUpdate(msg.chat.id)
 
           await bot.sendMessage(msg.chat.id, `Monto actualizado para ${incomeEditing.source}.\n\n${numeral(editJSON.amount).format('0,0.00')} ${incomeEditing.currency}`)
           return
         }
 
         if (userText === '/editar') {
-          userChat(msg.chat.id, { chatSubSubject: ['editar', incomeEditing.id.toString(), 'monto'] })
+          chatUpdate(msg.chat.id, { chatSubSubject: ['editar', incomeEditing.id.toString(), 'monto'] })
 
           await bot.sendMessage(msg.chat.id, `Escribe el nuevo monto para ${incomeEditing.source}:`)
           return
@@ -395,7 +432,7 @@ bot.on('message', async (msg) => {
             }
           })
 
-          userChat(msg.chat.id)
+          chatUpdate(msg.chat.id)
 
           await bot.sendMessage(msg.chat.id, `Ingreso eliminado para ${incomeEditing.source}.`)
           return
@@ -406,23 +443,23 @@ bot.on('message', async (msg) => {
 
   // Categoría
   if (userText === '/categoria') {
-    userChat(msg.chat.id, { chatSubject: 'categoria', chatSubSubject: ['crear o ver'] })
+    chatUpdate(msg.chat.id, { chatSubject: 'categoria', chatSubSubject: ['crear o ver'] })
 
     await bot.sendMessage(msg.chat.id, '¿Quieres crear una categoría o ver las categorías actuales?\n\n/crear\n/ver')
     return
   }
 
-  if (user.chatSubject === 'categoria') {
-    switch (user.chatSubSubject[0]) {
+  if (chat.chatSubject === 'categoria') {
+    switch (chat.chatSubSubject[0]) {
       case 'crear o ver':
         if (userText === '/crear') {
-          userChat(msg.chat.id, { chatSubSubject: ['crear', 'descripcion'] })
+          chatUpdate(msg.chat.id, { chatSubSubject: ['crear', 'descripcion'] })
 
           await bot.sendMessage(msg.chat.id, 'Escribe la descripción de la categoría:')
           return
         }
         if (userText === '/ver') {
-          userChat(msg.chat.id, { chatSubSubject: ['ver'] })
+          chatUpdate(msg.chat.id, { chatSubSubject: ['ver'] })
 
           const budgetCategories = await prisma.category.findMany({
             orderBy: {
@@ -436,7 +473,7 @@ bot.on('message', async (msg) => {
           }
 
           const categoriesText = budgetCategories.map((cat, i) => {
-            return `/${i + 1}. <b>${cat.emoji} ${cat.description}</b>\nLimite: ${numeral(cat.limit).format('0,0.00')} ${cat.currency}${cat.isFixed ? '\nGasto Fijo' : ''}`
+            return `/${i + 1}. <b>${cat.emoji} ${cat.description}</b>\nLimite: ${numeral(cat.limit).format('0,0.00')}${cat.currency}${cat.isFixed ? '\nGasto Fijo' : ''}${cat.notes ? `\nNota: <blockquote>${cat.notes}</blockquote>` : ''}`
           }).join('\n\n')
 
           await bot.sendMessage(msg.chat.id, `Presiona el /# para editar.\n\n${categoriesText}`, { parse_mode: 'HTML' })
@@ -444,20 +481,25 @@ bot.on('message', async (msg) => {
         }
         break
       case 'crear':
-        switch (user.chatSubSubject[1]) {
+        switch (chat.chatSubSubject[1]) {
           case 'descripcion':
             // Ahorita nos esta contestando la descripcion de la categoria
-            userChat(msg.chat.id, { chatSubSubject: ['crear', 'emoji'], chatHistory: [userText] })
+            chatUpdate(msg.chat.id, { chatSubSubject: ['crear', 'emoji'], chatHistory: [userText] })
 
             await bot.sendMessage(msg.chat.id, 'Manda un emoji:')
             return
           case 'emoji':
-            userChat(msg.chat.id, { chatSubSubject: ['crear', 'fijo'], chatHistory: [user.chatHistory[0], userText] })
+            chatUpdate(msg.chat.id, { chatSubSubject: ['crear', 'fijo'], chatHistory: { push: userText } })
 
             await bot.sendMessage(msg.chat.id, '¿Es una gasto fijo?\n\n/si\n/no')
             return
           case 'fijo':
-            userChat(msg.chat.id, { chatSubSubject: ['crear', 'limite'], chatHistory: [user.chatHistory[0], user.chatHistory[1], userText] })
+            chatUpdate(msg.chat.id, { chatSubSubject: ['crear', 'nota'], chatHistory: { push: userText } })
+
+            await bot.sendMessage(msg.chat.id, '¿Quieres agregar una nota?')
+            return
+          case 'nota':
+            chatUpdate(msg.chat.id, { chatSubSubject: ['crear', 'limite'], chatHistory: { push: userText.toLowerCase().trim() } })
 
             await bot.sendMessage(msg.chat.id, '¿Cuál es el límite de la categoría?')
             return
@@ -465,23 +507,24 @@ bot.on('message', async (msg) => {
             const botLimitJSON = await AIAmountAndCurrency(userText)
 
             if ('error' in botLimitJSON) {
-              userChat(msg.chat.id)
+              chatUpdate(msg.chat.id)
               await bot.sendMessage(msg.chat.id, botLimitJSON.error)
               return
             }
 
             const category = await prisma.category.create({
               data: {
-                description: user.chatHistory[0],
-                emoji: user.chatHistory[1],
-                isFixed: user.chatHistory[2] === '/si' ? true : false,
+                description: chat.chatHistory[0],
+                emoji: chat.chatHistory[1],
+                isFixed: chat.chatHistory[2] === '/si' ? true : false,
+                notes: chat.chatHistory[3] === 'no' ? '' : chat.chatHistory[3],
                 limit: botLimitJSON.amount,
                 currency: botLimitJSON.currency,
-                statementId: user.statement.id
+                statementId: chat.statement.id
               }
             })
 
-            userChat(msg.chat.id)
+            chatUpdate(msg.chat.id)
 
             await bot.sendMessage(msg.chat.id, `Categoría creada para ${category.emoji} ${category.description}.\n\n${numeral(category.limit).format('0,0.00')} ${category.currency}`)
             return
@@ -495,7 +538,7 @@ bot.on('message', async (msg) => {
             take: 1,
             skip: index,
             where: {
-              statementId: user.statement.id
+              statementId: chat.statement.id
             },
             orderBy: {
               description: 'asc'
@@ -509,7 +552,7 @@ bot.on('message', async (msg) => {
 
           const categorySelected = categoryToEdit[0]
 
-          userChat(msg.chat.id, { chatSubSubject: ['editar', `${categorySelected.id}`] })
+          chatUpdate(msg.chat.id, { chatSubSubject: ['editar', `${categorySelected.id}`] })
 
           const limitText = `Límite: ${numeral(categorySelected.limit).format('0,0.00')} ${categorySelected.currency}${categorySelected.isFixed ? '\nGasto Fijo' : ''}`
 
@@ -520,7 +563,7 @@ bot.on('message', async (msg) => {
       case 'editar':
         const categoryEditing = await prisma.category.findUnique({
           where: {
-            id: parseInt(user.chatSubSubject[1]),
+            id: parseInt(chat.chatSubSubject[1]),
           }
         })
 
@@ -530,7 +573,7 @@ bot.on('message', async (msg) => {
         }
 
         if (userText === '/editar') {
-          userChat(msg.chat.id, { chatSubSubject: ['editar', categoryEditing.id.toString(), 'limite'] })
+          chatUpdate(msg.chat.id, { chatSubSubject: ['editar', categoryEditing.id.toString(), 'limite'] })
 
           await bot.sendMessage(msg.chat.id, `Escribe el nuevo límite para ${categoryEditing.emoji} ${categoryEditing.description}:`)
           return
@@ -543,7 +586,7 @@ bot.on('message', async (msg) => {
             }
           })
 
-          userChat(msg.chat.id)
+          chatUpdate(msg.chat.id)
 
           await bot.sendMessage(msg.chat.id, `Categoría eliminada ${categoryEditing.emoji} ${categoryEditing.description}.`)
           return
@@ -559,17 +602,17 @@ bot.on('message', async (msg) => {
             }
           })
 
-          userChat(msg.chat.id)
+          chatUpdate(msg.chat.id)
 
           await bot.sendMessage(msg.chat.id, `Gasto fijo ${userText === '/quitar' ? 'quitado' : 'agregado'} para ${categoryEditing.emoji} ${categoryEditing.description}.`)
           return
         }
 
-        if (user.chatSubSubject[2] === 'limite') {
+        if (chat.chatSubSubject[2] === 'limite') {
           const editJSON = await AIAmountAndCurrency(userText)
 
           if ('error' in editJSON) {
-            userChat(msg.chat.id)
+            chatUpdate(msg.chat.id)
             await bot.sendMessage(msg.chat.id, editJSON.error)
             return
           }
@@ -584,7 +627,7 @@ bot.on('message', async (msg) => {
             }
           })
 
-          userChat(msg.chat.id)
+          chatUpdate(msg.chat.id)
 
           await bot.sendMessage(msg.chat.id, `Límite actualizado para ${categoryEditing.emoji} ${categoryEditing.description}.\n\Limite: ${numeral(editJSON.amount).format('0,0.00')} ${editJSON.currency}`)
           return
@@ -593,20 +636,203 @@ bot.on('message', async (msg) => {
     }
   }
 
-  await bot.sendMessage(msg.chat.id, 'No entiendo tu mensaje. Empieza otra vez.')
-  userChat(msg.chat.id)
-  return
+  // Cambio
+  if (userText === '/cambio') {
+    chatUpdate(msg.chat.id, { chatSubject: 'cambio', chatSubSubject: ['hnl o usd'] })
+
+    await bot.sendMessage(msg.chat.id, '¿Quieres establecer el cambio de moneda actual?\n\n/hnl\n/usd')
+    return
+  }
+
+  if (chat.chatSubject === 'cambio') {
+    switch (chat.chatSubSubject[0]) {
+      case 'hnl o usd':
+        if (userText === '/hnl') {
+          chatUpdate(msg.chat.id, { chatSubSubject: ['hnl'] })
+
+          await bot.sendMessage(msg.chat.id, '¿Cuántos dolares son un lempira?')
+          return
+        }
+        if (userText === '/usd') {
+          chatUpdate(msg.chat.id, { chatSubSubject: ['usd'] })
+
+          await bot.sendMessage(msg.chat.id, '¿Cuántos lempiras son un dolar?')
+          return
+        }
+        break
+      case 'hnl':
+        const amountHNL = await AIAmount(userText)
+
+        if ('error' in amountHNL) {
+          chatUpdate(msg.chat.id)
+          await bot.sendMessage(msg.chat.id, amountHNL.error)
+          return
+        }
+
+        chatUpdate(msg.chat.id)
+
+        await prisma.statement.update({
+          where: {
+            id: chat.statement.id
+          },
+          data: {
+            hnlToDollar: amountHNL.amount
+          }
+        })
+
+        await bot.sendMessage(msg.chat.id, `Cambio de moneda actualizado.\n\n1 HNL = ${amountHNL.amount} USD`)
+        return
+      case 'usd':
+        const amountUSD = await AIAmount(userText)
+
+        if ('error' in amountUSD) {
+          chatUpdate(msg.chat.id)
+          await bot.sendMessage(msg.chat.id, amountUSD.error)
+          return
+        }
+
+        chatUpdate(msg.chat.id)
+
+        await prisma.statement.update({
+          where: {
+            id: chat.statement.id
+          },
+          data: {
+            dollarToHNL: amountUSD.amount
+          }
+        })
+
+        await bot.sendMessage(msg.chat.id, `Cambio de moneda actualizado.\n\n1 USD = ${amountUSD.amount} HNL`)
+        return
+    }
+  }
+
+  // Ultima
+  if (userText === '/ultima') {
+    chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: ['ver o editar'] })
+
+    const lastTransaction = await prisma.transaction.findFirst({
+      where: {
+        category: {
+          statementId: chat.statement.id
+        }
+      },
+      orderBy: {
+        id: 'desc'
+      },
+      include: {
+        category: true
+      }
+    })
+
+    if (!lastTransaction) {
+      await bot.sendMessage(msg.chat.id, 'No tienes transacciones registradas.')
+      return
+    }
+
+    chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`] })
+    bot.sendMessage(msg.chat.id, `<i>${dayjs(lastTransaction.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${lastTransaction.description}</b>\n${lastTransaction.category.emoji} ${lastTransaction.category.description}\n${lastTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[lastTransaction.paymentMethod]}\n${numeral(lastTransaction.amount).format('0,0.00')} ${lastTransaction.currency}${lastTransaction.notes ? `\n<blockquote>${lastTransaction.notes}<blockquote>` : ''}\n\n/eliminar`, { parse_mode: 'HTML' })
+    return
+  }
+
+  if (chat.chatSubject === 'ultima') {
+    const lastTransaction = await prisma.transaction.findUnique({
+      where: {
+        id: parseInt(chat.chatSubSubject[0])
+      }
+    })
+
+    if (!lastTransaction) {
+      await bot.sendMessage(msg.chat.id, 'No se encontró la transacción.')
+      return
+    }
+
+    if (userText === '/eliminar') {
+      await prisma.transaction.delete({
+        where: {
+          id: lastTransaction.id
+        }
+      })
+
+      chatUpdate(msg.chat.id)
+      await bot.sendMessage(msg.chat.id, 'Transacción eliminada.')
+      return
+    }
+  }
+  // Add transaction
+  const allCategories = await prisma.category.findMany({
+    where: {
+      statementId: chat.statement.id
+    },
+    orderBy: {
+      description: 'asc'
+    }
+  })
+
+  const history: ChatCompletionMessageParam[] = chat.chatHistory.map((h, i) => {
+    return {
+      role: i % 2 === 0 ? 'user' : 'assistant',
+      content: h
+    }
+  })
+
+  const botTransactionJSON = await AITransaction(allCategories, userText, history)
+
+  if ('reset' in botTransactionJSON) {
+    chatUpdate(msg.chat.id)
+    await bot.sendMessage(msg.chat.id, 'Intenta de nuevo.')
+    return
+  }
+
+  if ('error' in botTransactionJSON) {
+    chatUpdate(msg.chat.id, {
+      chatHistory: {
+        push: [
+          userText,
+          botTransactionJSON.error,
+        ]
+      }
+    })
+    await bot.sendMessage(msg.chat.id, botTransactionJSON.error)
+    return
+  }
+
+  chatUpdate(msg.chat.id)
+
+  try {
+    const saveCategory = allCategories.find(c => c.description === botTransactionJSON.category)
+    if (!saveCategory) {
+      bot.sendMessage(msg.chat.id, 'No se encontró la categoría.')
+      return
+    }
+
+    const newTransaction = await prisma.transaction.create({
+      data: {
+        date: dayjs(botTransactionJSON.date).format(),
+        description: botTransactionJSON.description,
+        categoryId: saveCategory.id,
+        paymentMethod: botTransactionJSON.paymentMethod,
+        type: botTransactionJSON.type,
+        amount: botTransactionJSON.amount,
+        currency: botTransactionJSON.currency,
+        notes: botTransactionJSON.notes || ''
+      },
+      include: {
+        category: true
+      }
+    })
+
+    bot.sendMessage(msg.chat.id, `Transacción creada.\n\n${dayjs(newTransaction.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}\n<b>${newTransaction.description}</b>\n${newTransaction.category.emoji} ${newTransaction.category.description}\n${newTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[newTransaction.paymentMethod]}\n${numeral(newTransaction.amount).format('0,0.00')} ${newTransaction.currency}${newTransaction.notes ? `\n<blockquote>${newTransaction.notes}<blockquote>` : ''}`, { parse_mode: 'HTML' })
+    return
+  } catch (error) {
+    console.error(error)
+    bot.sendMessage(msg.chat.id, 'No se pudo crear la transacción.')
+    return
+  }
 })
 
-type ChatData = {
-  chatSubject?: string
-  chatSubSubject?: string[]
-  chatHistory?: string[]
-  statementId?: number
-}
-
-async function userChat(chatId: number, data: ChatData = { chatHistory: [], chatSubject: '', chatSubSubject: [] }) {
-  await prisma.user.update({
+async function chatUpdate(chatId: number, data: Prisma.ChatUncheckedUpdateInput = { chatHistory: [], chatSubject: '', chatSubSubject: [] }) {
+  await prisma.chat.update({
     where: {
       chatId: chatId
     },
