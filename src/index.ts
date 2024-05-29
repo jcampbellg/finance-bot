@@ -476,6 +476,47 @@ bot.on('message', async (msg) => {
             return `/${i + 1}. <b>${cat.emoji} ${cat.description}</b>\nLimite: ${numeral(cat.limit).format('0,0.00')}${cat.currency}${cat.isFixed ? '\nGasto Fijo' : ''}${cat.notes ? `\nNota: <blockquote>${cat.notes}</blockquote>` : ''}`
           }).join('\n\n')
 
+          const incomes = await prisma.income.findMany({
+            where: {
+              statementId: chat.statement.id
+            },
+            orderBy: {
+              createdAt: 'asc'
+            }
+          })
+
+          const totalHNLIncomes = incomes.reduce((acc, income) => {
+            if (income.currency === 'HNL') {
+              return acc + income.amount
+            }
+            return acc + (income.amount * dollarToHNL)
+          }, 0)
+
+          const totalUSDIncomes = incomes.reduce((acc, income) => {
+            if (income.currency === 'USD') {
+              return acc + income.amount
+            }
+            return acc + (income.amount * hnlToDollar)
+          }, 0)
+
+          const totalHNLLimit = budgetCategories.reduce((acc, cat) => {
+            if (cat.currency === 'HNL') {
+              return acc + cat.limit
+            }
+            return acc + (cat.limit * dollarToHNL)
+          }, 0)
+
+          const totalUSDLimit = budgetCategories.reduce((acc, cat) => {
+            if (cat.currency === 'USD') {
+              return acc + cat.limit
+            }
+            return acc + (cat.limit * hnlToDollar)
+          }, 0)
+
+          const totalText = `${numeral(totalHNLLimit).format('0,0.00')} / ${numeral(totalHNLIncomes).format('0,0.00')} HNL\n${numeral(totalUSDLimit).format('0,0.00')} / ${numeral(totalUSDIncomes).format('0,0.00')} USD`
+
+          await bot.sendMessage(msg.chat.id, `Presupuesto / Total:\n${totalText}`, { parse_mode: 'HTML' })
+
           await bot.sendMessage(msg.chat.id, `Presiona el /# para editar.\n\n${categoriesText}`, { parse_mode: 'HTML' })
           return
         }
