@@ -80,10 +80,10 @@ bot.on('message', async (msg) => {
         type: msg.chat.type === 'group' ? 'all_group_chats' : 'chat',
         chat_id: msg.chat.id
       },
-      language_code: 'en'
+      language_code: msg.from?.language_code || 'en'
     })
 
-    await bot.getMyCommands({ type: 'chat', chat_id: msg.chat.id }, 'en')
+    await bot.getMyCommands({ type: 'chat', chat_id: msg.chat.id }, msg.from?.language_code || 'en')
 
     const userExists = await prisma.chat.findUnique({
       where: {
@@ -92,7 +92,7 @@ bot.on('message', async (msg) => {
     })
 
     if (!!userExists) {
-      await bot.sendMessage(msg.chat.id, 'Ya tienes una cuenta creada.')
+      await bot.sendMessage(msg.chat.id, 'Ya tienes una cuenta creada.\nlanguages_code: ' + msg.from?.language_code || 'No language code')
       return
     }
 
