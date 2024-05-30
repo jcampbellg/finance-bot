@@ -179,6 +179,7 @@ bot.on('message', async (msg) => {
         const monthInSpanish = dayjs().locale('es').month(month - 1).format('MMMM')
 
         if (!!statementExists) {
+          await chatUpdate(msg.chat.id, { statementId: statementExists.id, chatSubject: '', chatSubSubject: [], chatHistory: [] })
           await bot.sendMessage(msg.chat.id, `Cambiando el estado de cuenta para el mes de ${monthInSpanish} del año ${year}.`)
           return
         }
