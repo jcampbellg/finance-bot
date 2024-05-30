@@ -597,7 +597,7 @@ bot.on('message', async (msg) => {
 
           const limitText = `Límite: ${numeral(categorySelected.limit).format('0,0.00')} ${categorySelected.currency}${categorySelected.isFixed ? '\nGasto Fijo' : ''}`
 
-          await bot.sendMessage(msg.chat.id, `<b>${categorySelected.emoji} ${categorySelected.description}</b>\n${limitText}\n\n¿Qué quieres hacer?\n\n/editar limite\n/eliminar\n${categorySelected.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}`, { parse_mode: 'HTML' })
+          await bot.sendMessage(msg.chat.id, `<b>${categorySelected.emoji} ${categorySelected.description}</b>\n${limitText}\n\n¿Qué quieres hacer?\n\n/editar limite\n/eliminar\n${categorySelected.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n/notas`, { parse_mode: 'HTML' })
           return
         }
         break
@@ -617,6 +617,13 @@ bot.on('message', async (msg) => {
           await chatUpdate(msg.chat.id, { chatSubSubject: ['editar', categoryEditing.id.toString(), 'limite'] })
 
           await bot.sendMessage(msg.chat.id, `Escribe el nuevo límite para ${categoryEditing.emoji} ${categoryEditing.description}:`)
+          return
+        }
+
+        if (userText === '/notas') {
+          await chatUpdate(msg.chat.id, { chatSubSubject: ['editar', categoryEditing.id.toString(), 'notas'] })
+
+          await bot.sendMessage(msg.chat.id, `Escribe la nota para ${categoryEditing.emoji} ${categoryEditing.description}: \n\n/quitar la nota.`)
           return
         }
 
@@ -671,6 +678,38 @@ bot.on('message', async (msg) => {
           await chatUpdate(msg.chat.id)
 
           await bot.sendMessage(msg.chat.id, `Límite actualizado para ${categoryEditing.emoji} ${categoryEditing.description}.\n\Limite: ${numeral(editJSON.amount).format('0,0.00')} ${editJSON.currency}`)
+          return
+        }
+
+        if (chat.chatSubSubject[2] === 'notas') {
+          if (userText === '/quitar') {
+            await prisma.category.update({
+              where: {
+                id: categoryEditing.id
+              },
+              data: {
+                notes: ''
+              }
+            })
+
+            await chatUpdate(msg.chat.id)
+
+            await bot.sendMessage(msg.chat.id, `Nota eliminada para ${categoryEditing.emoji} ${categoryEditing.description}.`)
+            return
+          }
+
+          await prisma.category.update({
+            where: {
+              id: categoryEditing.id
+            },
+            data: {
+              notes: userText
+            }
+          })
+
+          await chatUpdate(msg.chat.id)
+
+          await bot.sendMessage(msg.chat.id, `Nota actualizada para ${categoryEditing.emoji} ${categoryEditing.description}.\n\n${userText}`)
           return
         }
         break
@@ -928,8 +967,11 @@ bot.on('message', async (msg) => {
       return
     }
   }
-  // Add transaction
 
+  // Fijos
+
+
+  // Add transaction
   const history: ChatCompletionMessageParam[] = chat.chatHistory.map((h, i) => {
     return {
       role: i % 2 === 0 ? 'user' : 'assistant',
