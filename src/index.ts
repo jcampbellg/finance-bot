@@ -8,7 +8,7 @@ import numeral from 'numeral'
 import * as dotenv from 'dotenv'
 import prisma from '@utils/prisma'
 import { AIAmount, AIAmountAndCurrency, AISaveIncome, AIStatement, AITransaction } from '@utils/AI'
-import { Prisma } from '@prisma/client'
+import { FileType, Prisma } from '@prisma/client'
 import { ChatCompletionMessageParam } from 'openai/resources'
 dotenv.config()
 
@@ -514,7 +514,7 @@ bot.on('message', async (msg) => {
           }
 
           const categoriesText = categories.map((cat, i) => {
-            return `/${i + 1}. <b>${!!cat.attachmentUrl ? '📎 ' : ''}${cat.emoji} ${cat.description}</b>\nLimite: ${numeral(cat.limit).format('0,0.00')}${cat.currency}${cat.isFixed ? '\nGasto Fijo' : ''}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`
+            return `/${i + 1}. <b>${!!cat.fileUrl ? '📎 ' : ''}${cat.emoji} ${cat.description}</b>\nLimite: ${numeral(cat.limit).format('0,0.00')}${cat.currency}${cat.isFixed ? '\nGasto Fijo' : ''}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`
           }).join('\n\n')
 
           const incomes = await prisma.income.findMany({
@@ -681,20 +681,24 @@ bot.on('message', async (msg) => {
           const limitText = `Límite:\n${numeral(spendTotal).format('0,0.00')} / ${numeral(categorySelected.limit).format('0,0.00')} ${categorySelected.currency}${categorySelected.isFixed ? '\n<i>Gasto Fijo</i>' : ''}`
           const notesText = categorySelected.notes ? `\n\n<blockquote>${categorySelected.notes}</blockquote>` : ''
 
-          const caption = `<b>${categorySelected.emoji} ${categorySelected.description}</b>\n\n${spendText}\n${limitText}${notesText}\n\n¿Qué quieres hacer?\n\n/editar limite\n${categorySelected.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n/notas\n/adjuntar imagen\n/eliminar`
+          const caption = `<b>${categorySelected.emoji} ${categorySelected.description}</b>\n\n${spendText}\n${limitText}${notesText}\n\n¿Qué quieres hacer?\n\n/editar limite\n${categorySelected.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n/notas\n/adjuntar archivo\n/eliminar`
 
-          if (categorySelected.attachmentUrl) {
+          if (categorySelected.fileUrl) {
             // get buffer
-            const res = await fetch(categorySelected.attachmentUrl)
+            const res = await fetch(categorySelected.fileUrl)
 
             if (!res.ok) {
-              await bot.sendMessage(msg.chat.id, 'No se encontró la imagen adjunta.')
+              await bot.sendMessage(msg.chat.id, 'No se encontró el archivo adjunto.')
               return
             }
-            const arrayBuffer = await res.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
+            const arrayBuffer = await res.arrayBuffer()
+            const buffer = Buffer.from(arrayBuffer)
 
-            await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+            if (categorySelected.fileType === 'PHOTO') {
+              await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+            } else {
+              await bot.sendDocument(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+            }
             return
           }
 
@@ -744,7 +748,7 @@ bot.on('message', async (msg) => {
         if (userText === '/adjuntar') {
           await chatUpdate(msg.chat.id, { chatSubSubject: ['editar', categoryEditing.id.toString(), 'adjuntar'] })
 
-          await bot.sendMessage(msg.chat.id, `Envía la imagen que quieres adjuntar para <b>${categoryEditing.emoji} ${categoryEditing.description}.</b>${!!categoryEditing.attachmentUrl ? '\n\n/quitar la imagen adjunta' : ''}`, { parse_mode: 'HTML' })
+          await bot.sendMessage(msg.chat.id, `Envía el archivo que quieres adjuntar para <b>${categoryEditing.emoji} ${categoryEditing.description}.</b>${!!categoryEditing.fileUrl ? '\n\n/quitar el archivo adjunto' : ''}`, { parse_mode: 'HTML' })
           return
         }
 
@@ -754,13 +758,14 @@ bot.on('message', async (msg) => {
               id: categoryEditing.id
             },
             data: {
-              attachmentUrl: ''
+              fileUrl: null,
+              fileType: null
             }
           })
 
           await chatUpdate(msg.chat.id)
 
-          await bot.sendMessage(msg.chat.id, `Imagen eliminada para ${categoryEditing.emoji} ${categoryEditing.description}.`)
+          await bot.sendMessage(msg.chat.id, `Archivo eliminado para ${categoryEditing.emoji} ${categoryEditing.description}.`)
           return
         }
 
@@ -781,17 +786,21 @@ bot.on('message', async (msg) => {
         }
 
         if (chat.chatSubSubject[2] === 'adjuntar') {
-          if (!msg.photo) {
+          if (!msg.photo && !msg.document) {
             await chatUpdate(msg.chat.id)
-            await bot.sendMessage(msg.chat.id, 'Envía una foto.\nEmpieza de nuevo.')
+            await bot.sendMessage(msg.chat.id, 'Envía un archivo.\nEmpieza de nuevo.')
             return
           }
 
-          const photoLen = msg.photo.length || 0
-          const fileId = msg.photo[photoLen - 1].file_id
+          const fileType: FileType = !!msg.photo ? 'PHOTO' : 'DOCUMENT'
+
+          const photoLen = msg.photo?.length || 0
+          // @ts-ignore
+          const fileId = fileType === 'PHOTO' ? msg.photo[photoLen - 1].file_id : msg.document?.file_id
+
           if (!fileId) {
             await chatUpdate(msg.chat.id)
-            await bot.sendMessage(msg.chat.id, 'No se encontró la imagen.\nEmpieza de nuevo.')
+            await bot.sendMessage(msg.chat.id, 'No se encontró el archivo.\nEmpieza de nuevo.')
             return
           }
 
@@ -803,11 +812,12 @@ bot.on('message', async (msg) => {
               id: categoryEditing.id
             },
             data: {
-              attachmentUrl: fileUrl
+              fileUrl: fileUrl,
+              fileType: fileType
             }
           })
 
-          await bot.sendMessage(msg.chat.id, `Imagen adjuntada para ${categoryEditing.emoji} ${categoryEditing.description}.`)
+          await bot.sendMessage(msg.chat.id, `Archivo adjuntado para ${categoryEditing.emoji} ${categoryEditing.description}.`)
           return
         }
 
@@ -1080,7 +1090,7 @@ bot.on('message', async (msg) => {
         }
 
         await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${transactionSelected.id}`] })
-        bot.sendMessage(msg.chat.id, `<i>${dayjs(transactionSelected.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${transactionSelected.description}</b>\n${categorySelected.emoji} ${categorySelected.description}\n${transactionSelected.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transactionSelected.paymentMethod]}\n${numeral(transactionSelected.amount).format('0,0.00')} ${transactionSelected.currency}${transactionSelected.notes ? `\n<blockquote>${transactionSelected.notes}<blockquote>` : ''}\n\n/adjuntar imagen\n\n/eliminar`, { parse_mode: 'HTML' })
+        bot.sendMessage(msg.chat.id, `<i>${dayjs(transactionSelected.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${transactionSelected.description}</b>\n${categorySelected.emoji} ${categorySelected.description}\n${transactionSelected.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transactionSelected.paymentMethod]}\n${numeral(transactionSelected.amount).format('0,0.00')} ${transactionSelected.currency}${transactionSelected.notes ? `\n<blockquote>${transactionSelected.notes}<blockquote>` : ''}\n\n/adjuntar archivo\n\n/eliminar`, { parse_mode: 'HTML' })
         return
       }
     }
@@ -1109,20 +1119,24 @@ bot.on('message', async (msg) => {
 
     await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`] })
 
-    const caption = `<i>${dayjs(lastTransaction.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${lastTransaction.description}</b>\n${lastTransaction.category.emoji} ${lastTransaction.category.description}\n${lastTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[lastTransaction.paymentMethod]}\n${numeral(lastTransaction.amount).format('0,0.00')} ${lastTransaction.currency}${lastTransaction.notes ? `\n<blockquote>${lastTransaction.notes}<blockquote>` : ''}\n\n/adjuntar imagen\n\n/eliminar`
+    const caption = `<i>${dayjs(lastTransaction.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${lastTransaction.description}</b>\n${lastTransaction.category.emoji} ${lastTransaction.category.description}\n${lastTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[lastTransaction.paymentMethod]}\n${numeral(lastTransaction.amount).format('0,0.00')} ${lastTransaction.currency}${lastTransaction.notes ? `\n<blockquote>${lastTransaction.notes}<blockquote>` : ''}\n\n/adjuntar archivo\n\n/eliminar`
 
-    if (!!lastTransaction.attachmentUrl) {
+    if (!!lastTransaction.fileUrl) {
       // get buffer
-      const res = await fetch(lastTransaction.attachmentUrl)
+      const res = await fetch(lastTransaction.fileUrl)
 
       if (!res.ok) {
-        await bot.sendMessage(msg.chat.id, 'No se encontró la imagen adjunta.')
+        await bot.sendMessage(msg.chat.id, 'No se encontró el archivo adjunto.')
         return
       }
-      const arrayBuffer = await res.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      const arrayBuffer = await res.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
 
-      await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+      if (lastTransaction.fileType === 'PHOTO') {
+        await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+      } else {
+        await bot.sendDocument(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+      }
       return
     }
 
@@ -1157,7 +1171,7 @@ bot.on('message', async (msg) => {
     if (userText === '/adjuntar') {
       await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`, 'adjuntar'] })
 
-      await bot.sendMessage(msg.chat.id, `Envía la imagen que quieres adjuntar para <b>${lastTransaction.description}.</b>${!!lastTransaction.attachmentUrl ? '\n\n/quitar la imagen adjunta' : ''}`, { parse_mode: 'HTML' })
+      await bot.sendMessage(msg.chat.id, `Envía el archivo que quieres adjuntar para <b>${lastTransaction.description}.</b>${!!lastTransaction.fileUrl ? '\n\n/quitar el archivo adjunto' : ''}`, { parse_mode: 'HTML' })
       return
     }
 
@@ -1168,26 +1182,30 @@ bot.on('message', async (msg) => {
             id: lastTransaction.id
           },
           data: {
-            attachmentUrl: ''
+            fileUrl: null,
+            fileType: null
           }
         })
 
         await chatUpdate(msg.chat.id)
-        await bot.sendMessage(msg.chat.id, `Imagen eliminada para <b>${lastTransaction.description}.</b>`, { parse_mode: 'HTML' })
+        await bot.sendMessage(msg.chat.id, `Archivo eliminado para <b>${lastTransaction.description}.</b>`, { parse_mode: 'HTML' })
         return
       }
 
-      if (!msg.photo) {
+      if (!msg.photo && !msg.document) {
         await chatUpdate(msg.chat.id)
-        await bot.sendMessage(msg.chat.id, 'Envía una foto.\nEmpieza de nuevo.')
+        await bot.sendMessage(msg.chat.id, 'Envía un archivo.\nEmpieza de nuevo.')
         return
       }
 
-      const photoLen = msg.photo.length || 0
-      const fileId = msg.photo[photoLen - 1].file_id
+      const fileType: FileType = !!msg.photo ? 'PHOTO' : 'DOCUMENT'
+
+      const photoLen = msg.photo?.length || 0
+      // @ts-ignore
+      const fileId = fileType === 'PHOTO' ? msg.photo[photoLen - 1].file_id : msg.document.file_id
       if (!fileId) {
         await chatUpdate(msg.chat.id)
-        await bot.sendMessage(msg.chat.id, 'No se encontró la imagen.\nEmpieza de nuevo.')
+        await bot.sendMessage(msg.chat.id, 'No se encontró el archivo.\nEmpieza de nuevo.')
         return
       }
 
@@ -1199,11 +1217,12 @@ bot.on('message', async (msg) => {
           id: lastTransaction.id
         },
         data: {
-          attachmentUrl: fileUrl
+          fileUrl: fileUrl,
+          fileType: fileType
         }
       })
 
-      await bot.sendMessage(msg.chat.id, `Imagen adjuntada para <b>${lastTransaction.description}.</b>`, { parse_mode: 'HTML' })
+      await bot.sendMessage(msg.chat.id, `Archivo adjuntado para <b>${lastTransaction.description}.</b>`, { parse_mode: 'HTML' })
       return
     }
   }
@@ -1372,7 +1391,9 @@ bot.on('message', async (msg) => {
       }
     })
 
-    bot.sendMessage(msg.chat.id, `<i>Transacción creada.</i>\n\n<i>${dayjs(newTransaction.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${newTransaction.description}</b>\n${newTransaction.category.emoji} ${newTransaction.category.description}\n${newTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[newTransaction.paymentMethod]}\n${numeral(newTransaction.amount).format('0,0.00')} ${newTransaction.currency}${newTransaction.notes ? `\n<blockquote>${newTransaction.notes}<blockquote>` : ''}\n\n/adjuntar imagen`, { parse_mode: 'HTML' })
+    await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${newTransaction.id}`] })
+
+    await bot.sendMessage(msg.chat.id, `<i>Transacción creada.</i>\n\n<i>${dayjs(newTransaction.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${newTransaction.description}</b>\n${newTransaction.category.emoji} ${newTransaction.category.description}\n${newTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[newTransaction.paymentMethod]}\n${numeral(newTransaction.amount).format('0,0.00')} ${newTransaction.currency}${newTransaction.notes ? `\n<blockquote>${newTransaction.notes}<blockquote>` : ''}\n\n/adjuntar archivo`, { parse_mode: 'HTML' })
     return
   } catch (error) {
     console.error(error)
