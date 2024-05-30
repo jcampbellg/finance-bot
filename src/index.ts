@@ -473,7 +473,7 @@ bot.on('message', async (msg) => {
           }
 
           const categoriesText = budgetCategories.map((cat, i) => {
-            return `/${i + 1}. <b>${cat.emoji} ${cat.description}</b>\nLimite: ${numeral(cat.limit).format('0,0.00')}${cat.currency}${cat.isFixed ? '\nGasto Fijo' : ''}${cat.notes ? `\nNota: <blockquote>${cat.notes}</blockquote>` : ''}`
+            return `/${i + 1}. <b>${cat.emoji} ${cat.description}</b>\nLimite: ${numeral(cat.limit).format('0,0.00')}${cat.currency}${cat.isFixed ? '\nGasto Fijo' : ''}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`
           }).join('\n\n')
 
           const incomes = await prisma.income.findMany({
@@ -537,7 +537,7 @@ bot.on('message', async (msg) => {
           case 'fijo':
             await chatUpdate(msg.chat.id, { chatSubSubject: ['crear', 'nota'], chatHistory: { push: userText } })
 
-            await bot.sendMessage(msg.chat.id, '¿Quieres agregar una nota?')
+            await bot.sendMessage(msg.chat.id, '¿Quieres agregar una nota?\n\n/no')
             return
           case 'nota':
             await chatUpdate(msg.chat.id, { chatSubSubject: ['crear', 'limite'], chatHistory: { push: userText.toLowerCase().trim() } })
@@ -558,7 +558,7 @@ bot.on('message', async (msg) => {
                 description: chat.chatHistory[0],
                 emoji: chat.chatHistory[1],
                 isFixed: chat.chatHistory[2] === '/si' ? true : false,
-                notes: chat.chatHistory[3] === 'no' ? '' : chat.chatHistory[3],
+                notes: chat.chatHistory[3] === '/no' ? '' : chat.chatHistory[3],
                 limit: botLimitJSON.amount,
                 currency: botLimitJSON.currency,
                 statementId: chat.statement.id
