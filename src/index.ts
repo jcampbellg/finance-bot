@@ -418,7 +418,7 @@ bot.on('message', async (msg) => {
 
           await chatUpdate(msg.chat.id, { chatSubSubject: ['editar', `${incomeToEdit[0].id}`] })
 
-          await bot.sendMessage(msg.chat.id, `<b>${incomeToEdit[0].source}</b>\n${numeral(incomeToEdit[0].amount).format('0,0.00')} ${incomeToEdit[0].currency}\n\n¿Qué quieres hacer?\n\n/editar monto\n/eliminar`, { parse_mode: 'HTML' })
+          await bot.sendMessage(msg.chat.id, `<b>${incomeToEdit[0].source}</b>\n${numeral(incomeToEdit[0].amount).format('0,0.00')} ${incomeToEdit[0].currency}\n\n¿Qué quieres hacer?\n\n/editar monto\n\n/eliminar`, { parse_mode: 'HTML' })
           return
         }
         break
@@ -681,7 +681,7 @@ bot.on('message', async (msg) => {
           const limitText = `Límite:\n${numeral(spendTotal).format('0,0.00')} / ${numeral(categorySelected.limit).format('0,0.00')} ${categorySelected.currency}${categorySelected.isFixed ? '\n<i>Gasto Fijo</i>' : ''}`
           const notesText = categorySelected.notes ? `\n\n<blockquote>${categorySelected.notes}</blockquote>` : ''
 
-          const caption = `<b>${categorySelected.emoji} ${categorySelected.description}</b>\n\n${spendText}\n${limitText}${notesText}\n\n¿Qué quieres hacer?\n\n/editar limite\n${categorySelected.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n/notas\n/adjuntar archivo\n/eliminar`
+          const caption = `<b>${categorySelected.emoji} ${categorySelected.description}</b>\n\n${spendText}\n${limitText}${notesText}\n\n¿Qué quieres hacer?\n\n/editar limite\n\n${categorySelected.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n\n/notas\n\n/adjuntar archivo\n\n/eliminar`
 
           if (categorySelected.fileUrl) {
             // get buffer
@@ -716,6 +716,10 @@ bot.on('message', async (msg) => {
         if (!categoryEditing) {
           await bot.sendMessage(msg.chat.id, 'No se encontró la categoría.')
           return
+        }
+
+        if (userText === '/ver') {
+
         }
 
         if (userText === '/editar') {
@@ -1088,9 +1092,30 @@ bot.on('message', async (msg) => {
           await bot.sendMessage(msg.chat.id, 'No se encontró la transacción.')
           return
         }
-
         await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${transactionSelected.id}`] })
-        bot.sendMessage(msg.chat.id, `<i>${dayjs(transactionSelected.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${transactionSelected.description}</b>\n${categorySelected.emoji} ${categorySelected.description}\n${transactionSelected.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transactionSelected.paymentMethod]}\n${numeral(transactionSelected.amount).format('0,0.00')} ${transactionSelected.currency}${transactionSelected.notes ? `\n<blockquote>${transactionSelected.notes}<blockquote>` : ''}\n\n/adjuntar archivo\n\n/eliminar`, { parse_mode: 'HTML' })
+
+        const caption = `<i>${dayjs(transactionSelected.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!transactionSelected.fileUrl ? '📎 ' : ''}${transactionSelected.description}</b>\n${categorySelected.emoji} ${categorySelected.description}\n${transactionSelected.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transactionSelected.paymentMethod]}\n${numeral(transactionSelected.amount).format('0,0.00')} ${transactionSelected.currency}${transactionSelected.notes ? `\n<blockquote>${transactionSelected.notes}<blockquote>` : ''}\n\n/adjuntar archivo\n\n/eliminar`
+
+        if (!!transactionSelected.fileUrl) {
+          // get buffer
+          const res = await fetch(transactionSelected.fileUrl)
+
+          if (!res.ok) {
+            await bot.sendMessage(msg.chat.id, 'No se encontró el archivo adjunto.')
+            return
+          }
+          const arrayBuffer = await res.arrayBuffer()
+          const buffer = Buffer.from(arrayBuffer)
+
+          if (transactionSelected.fileType === 'PHOTO') {
+            await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+          } else {
+            await bot.sendDocument(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+          }
+          return
+        }
+
+        await bot.sendMessage(msg.chat.id, caption, { parse_mode: 'HTML' })
         return
       }
     }
