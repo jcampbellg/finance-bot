@@ -502,18 +502,18 @@ bot.on('message', async (msg) => {
         if (userText === '/ver') {
           await chatUpdate(msg.chat.id, { chatSubSubject: ['ver'] })
 
-          const budgetCategories = await prisma.category.findMany({
+          const categories = await prisma.category.findMany({
             orderBy: {
               description: 'asc'
             }
           })
 
-          if (budgetCategories.length === 0) {
+          if (categories.length === 0) {
             await bot.sendMessage(msg.chat.id, 'No tienes categorías registradas.')
             return
           }
 
-          const categoriesText = budgetCategories.map((cat, i) => {
+          const categoriesText = categories.map((cat, i) => {
             return `/${i + 1}. <b>${cat.emoji} ${cat.description}</b>\nLimite: ${numeral(cat.limit).format('0,0.00')}${cat.currency}${cat.isFixed ? '\nGasto Fijo' : ''}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`
           }).join('\n\n')
 
@@ -540,14 +540,14 @@ bot.on('message', async (msg) => {
             return acc + (income.amount * hnlToDollar)
           }, 0)
 
-          const totalHNLLimit = budgetCategories.reduce((acc, cat) => {
+          const totalHNLLimit = categories.reduce((acc, cat) => {
             if (cat.currency === 'HNL') {
               return acc + cat.limit
             }
             return acc + (cat.limit * dollarToHNL)
           }, 0)
 
-          const totalUSDLimit = budgetCategories.reduce((acc, cat) => {
+          const totalUSDLimit = categories.reduce((acc, cat) => {
             if (cat.currency === 'USD') {
               return acc + cat.limit
             }
@@ -865,15 +865,23 @@ bot.on('message', async (msg) => {
 
       const totalSpend = cat.transactions.reduce((acc, t) => {
         if (cat.currency === 'HNL') {
+          if (t.type === 'INCOME') {
+            if (t.currency === 'USD') return acc - (t.amount * dollarToHNL)
+            return acc - t.amount
+          }
           if (t.currency === 'USD') return acc + (t.amount * dollarToHNL)
           return acc + t.amount
         } else {
+          if (t.type === 'INCOME') {
+            if (t.currency === 'HNL') return acc - (t.amount * hnlToDollar)
+            return acc - t.amount
+          }
           if (t.currency === 'HNL') return acc + (t.amount * hnlToDollar)
           return acc + t.amount
         }
       }, 0)
 
-      return `<b>/${i + 1} ${cat.emoji} ${cat.description}</b>\n${numeral(totalHNL).format('0,0.00')} HNL\n${numeral(totalUSD).format('0,0.00')} USD\n${numeral(totalSpend).format('0,0.00')} / ${numeral(cat.limit).format('0,0.00')} ${cat.currency}\n${cat.notes ? `<blockquote>${cat.notes}</blockquote>` : ''}`
+      return `<b>/${i + 1} ${cat.emoji} ${cat.description}</b>\n${numeral(totalHNL).format('0,0.00')} HNL\n${numeral(totalUSD).format('0,0.00')} USD\n${numeral(totalSpend).format('0,0.00')} / ${numeral(cat.limit).format('0,0.00')} ${cat.currency}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`
     }).join('\n\n')
 
     await chatUpdate(msg.chat.id, { chatSubject: 'resumen', chatSubSubject: [] })
@@ -920,9 +928,17 @@ bot.on('message', async (msg) => {
 
         const totalSpend = categorySelected.transactions.reduce((acc, t) => {
           if (categorySelected.currency === 'HNL') {
+            if (t.type === 'INCOME') {
+              if (t.currency === 'USD') return acc - (t.amount * dollarToHNL)
+              return acc - t.amount
+            }
             if (t.currency === 'USD') return acc + (t.amount * dollarToHNL)
             return acc + t.amount
           } else {
+            if (t.type === 'INCOME') {
+              if (t.currency === 'HNL') return acc - (t.amount * hnlToDollar)
+              return acc - t.amount
+            }
             if (t.currency === 'HNL') return acc + (t.amount * hnlToDollar)
             return acc + t.amount
           }
@@ -967,7 +983,7 @@ bot.on('message', async (msg) => {
         }
       },
       orderBy: {
-        id: 'desc'
+        createdAt: 'desc'
       },
       include: {
         category: true
@@ -1010,7 +1026,113 @@ bot.on('message', async (msg) => {
   }
 
   // Fijos
+  if (userText === '/fijos') {
+    // Get all fixed categories
+    const fixedCategories = await prisma.category.findMany({
+      where: {
+        statementId: chat.statement.id,
+        isFixed: true
+      },
+      include: {
+        transactions: true
+      },
+      orderBy: {
+        description: 'asc'
+      }
+    })
 
+    if (fixedCategories.length === 0) {
+      await bot.sendMessage(msg.chat.id, 'No tienes gastos fijos registrados.')
+      return
+    }
+
+    const fixedText = fixedCategories.map((cat, i) => {
+      const totalHNL = cat.transactions.reduce((acc, t) => {
+        if (t.currency === 'HNL') {
+          if (t.type === 'INCOME') {
+            return acc - t.amount
+          }
+          return acc + t.amount
+        }
+        return acc
+      }, 0)
+
+      const totalUSD = cat.transactions.reduce((acc, t) => {
+        if (t.currency === 'USD') {
+          if (t.type === 'INCOME') {
+            return acc - t.amount
+          }
+          return acc + t.amount
+        }
+        return acc
+      }, 0)
+
+      const totalSpend = cat.transactions.reduce((acc, t) => {
+        if (cat.currency === 'HNL') {
+          if (t.type === 'INCOME') {
+            if (t.currency === 'USD') return acc - (t.amount * dollarToHNL)
+            return acc - t.amount
+          }
+          if (t.currency === 'USD') return acc + (t.amount * dollarToHNL)
+          return acc + t.amount
+        } else {
+          if (t.type === 'INCOME') {
+            if (t.currency === 'HNL') return acc - (t.amount * hnlToDollar)
+            return acc - t.amount
+          }
+          if (t.currency === 'HNL') return acc + (t.amount * hnlToDollar)
+          return acc + t.amount
+        }
+      }, 0)
+
+      return {
+        text: `/${i + 1}. <b>${cat.emoji} ${cat.description}</b>\n${numeral(totalHNL).format('0,0.00')} HNL\n${numeral(totalUSD).format('0,0.00')} USD\n${numeral(totalSpend).format('0,0.00')} / ${numeral(cat.limit).format('0,0.00')} ${cat.currency}\n${cat.isPaid ? '✅ Pagado' : '❌ No se ha pagado'}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`,
+        isPaid: cat.isPaid,
+      }
+    }).sort((a, b) => a.isPaid === b.isPaid ? 0 : a.isPaid ? 1 : -1)
+
+    await chatUpdate(msg.chat.id, { chatSubject: 'fijos', chatSubSubject: [] })
+    await bot.sendMessage(msg.chat.id, `<i>Presiona /# para marcar como pagado</i>\nGastos fijos:\n\n${fixedText.map(f => f.text).join('\n\n')}`, { parse_mode: 'HTML' })
+    return
+  }
+
+  if (chat.chatSubject === 'fijos') {
+    if (userText.match(/^\/\d+$/)) {
+      const index = parseInt(userText.replace('/', '')) - 1
+
+      const fixedSelected = await prisma.category.findFirst({
+        where: {
+          statementId: chat.statement.id,
+          isFixed: true
+        },
+        skip: index,
+        orderBy: {
+          description: 'asc'
+        },
+        include: {
+          transactions: true
+        }
+      })
+
+      if (!fixedSelected) {
+        await bot.sendMessage(msg.chat.id, 'No se encontró el gasto fijo.')
+        return
+      }
+
+      const fixedUpdate = await prisma.category.update({
+        where: {
+          id: fixedSelected.id
+        },
+        data: {
+          isPaid: !fixedSelected.isPaid
+        }
+      })
+
+      await chatUpdate(msg.chat.id)
+      await bot.sendMessage(msg.chat.id, `Gasto fijo para ${fixedSelected.emoji} ${fixedSelected.description}\n${fixedUpdate.isPaid ? '✅ Pagado' : '❌ No pagado'}.`)
+      return
+    }
+  }
 
   // Add transaction
   const history: ChatCompletionMessageParam[] = chat.chatHistory.map((h, i) => {
