@@ -40,6 +40,29 @@ const paymentMethod = {
   TRANSFER: 'por transferencia'
 }
 
+const commands = [{
+  command: 'estado',
+  description: 'Crear o edita tus estados de cuentas mensuales.'
+}, {
+  command: 'ingreso',
+  description: 'Crear o edita tus ingresos mensuales.'
+}, {
+  command: 'categoria',
+  description: 'Crear o edita tus categorías de gastos.'
+}, {
+  command: 'resumen',
+  description: 'Ver un resumen de tus estado de cuenta actual.'
+}, {
+  command: 'fijos',
+  description: 'Ver tus pagos fijos.'
+}, {
+  command: 'cambio',
+  description: 'Establecer el cambio de moneda actual.'
+}, {
+  command: 'ultima',
+  description: 'Ver y editar la última transacción.'
+}]
+
 bot.on('message', async (msg) => {
   if (!userWhitelist.includes(msg.chat.id)) {
     bot.sendMessage(msg.chat.id, `You, ${msg.chat.id} are not authorized to use this bot.`)
@@ -54,36 +77,53 @@ bot.on('message', async (msg) => {
   bot.sendChatAction(msg.chat.id, 'typing')
 
   if (msg.text === '/start') {
-    await bot.setMyCommands([{
-      command: 'estado',
-      description: 'Crear o edita tus estados de cuentas mensuales.'
-    }, {
-      command: 'ingreso',
-      description: 'Crear o edita tus ingresos mensuales.'
-    }, {
-      command: 'categoria',
-      description: 'Crear o edita tus categorías de gastos.'
-    }, {
-      command: 'resumen',
-      description: 'Ver un resumen de tus estado de cuenta actual.'
-    }, {
-      command: 'fijos',
-      description: 'Ver tus pagos fijos.'
-    }, {
-      command: 'cambio',
-      description: 'Establecer el cambio de moneda actual.'
-    }, {
-      command: 'ultima',
-      description: 'Ver y editar la última transacción.'
-    }], {
+    await bot.setMyCommands(commands, {
       scope: {
-        type: msg.chat.type === 'group' ? 'all_group_chats' : 'chat',
+        type: 'chat',
         chat_id: msg.chat.id
       },
-      language_code: msg.from?.language_code || 'en'
+      language_code: 'en'
+    })
+
+    await bot.setMyCommands(commands, {
+      scope: {
+        type: 'chat',
+        chat_id: msg.chat.id
+      },
+      language_code: 'es'
+    })
+
+    await bot.setMyCommands(commands, {
+      scope: {
+        type: 'all_group_chats',
+      },
+      language_code: 'en'
+    })
+
+    await bot.setMyCommands(commands, {
+      scope: {
+        type: 'all_group_chats',
+      },
+      language_code: 'es'
+    })
+
+    await bot.setMyCommands(commands, {
+      scope: {
+        type: 'all_private_chats',
+      },
+      language_code: 'en'
+    })
+
+    await bot.setMyCommands(commands, {
+      scope: {
+        type: 'all_private_chats',
+      },
+      language_code: 'es'
     })
 
     await bot.getMyCommands({ type: 'chat', chat_id: msg.chat.id }, msg.from?.language_code || 'en')
+    await bot.getMyCommands({ type: 'all_group_chats' }, msg.from?.language_code || 'en')
+    await bot.getMyCommands({ type: 'all_private_chats' }, msg.from?.language_code || 'en')
 
     const userExists = await prisma.chat.findUnique({
       where: {
