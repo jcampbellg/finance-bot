@@ -69,11 +69,6 @@ bot.on('message', async (msg) => {
     return
   }
 
-  if (!msg.text && !msg.voice) {
-    bot.sendMessage(msg.chat.id, 'Envia un mensaje de texto o de voz.')
-    return
-  }
-
   bot.sendChatAction(msg.chat.id, 'typing')
 
   if (msg.text === '/start') {
@@ -161,6 +156,11 @@ bot.on('message', async (msg) => {
 
   if (!chat) {
     await bot.sendMessage(msg.chat.id, 'Primero debes iniciar el bot con el comando /start.')
+    return
+  }
+
+  if (!msg.text && !msg.voice && !chat.chatSubSubject.some(s => s === 'adjuntar')) {
+    bot.sendMessage(msg.chat.id, 'Envía un mensaje de texto o de voz.')
     return
   }
 
@@ -312,7 +312,7 @@ bot.on('message', async (msg) => {
   if (userText === '/ingreso') {
     await chatUpdate(msg.chat.id, { chatSubject: 'ingreso', chatSubSubject: ['crear o ver'] })
 
-    await bot.sendMessage(msg.chat.id, '¿Quieres crear un ingreso o ver los ingresos actuales?\n\n/crear\n/ver')
+    await bot.sendMessage(msg.chat.id, '¿Quieres crear un ingreso o ver los ingresos actuales?\n\n/crear\n\n/ver')
     return
   }
 
@@ -486,7 +486,7 @@ bot.on('message', async (msg) => {
   if (userText === '/categoria') {
     await chatUpdate(msg.chat.id, { chatSubject: 'categoria', chatSubSubject: ['crear o ver'] })
 
-    await bot.sendMessage(msg.chat.id, '¿Quieres crear una categoría o ver las categorías actuales?\n\n/crear\n/ver')
+    await bot.sendMessage(msg.chat.id, '¿Quieres crear una categoría o ver las categorías actuales?\n\n/crear\n\n/ver')
     return
   }
 
@@ -514,7 +514,7 @@ bot.on('message', async (msg) => {
           }
 
           const categoriesText = categories.map((cat, i) => {
-            return `/${i + 1}. <b>${cat.emoji} ${cat.description}</b>\nLimite: ${numeral(cat.limit).format('0,0.00')}${cat.currency}${cat.isFixed ? '\nGasto Fijo' : ''}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`
+            return `/${i + 1}. <b>${!!cat.attachmentUrl ? '📎 ' : ''}${cat.emoji} ${cat.description}</b>\nLimite: ${numeral(cat.limit).format('0,0.00')}${cat.currency}${cat.isFixed ? '\nGasto Fijo' : ''}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`
           }).join('\n\n')
 
           const incomes = await prisma.income.findMany({
@@ -624,6 +624,9 @@ bot.on('message', async (msg) => {
             },
             orderBy: {
               description: 'asc'
+            },
+            include: {
+              transactions: true
             }
           })
 
@@ -636,9 +639,66 @@ bot.on('message', async (msg) => {
 
           await chatUpdate(msg.chat.id, { chatSubSubject: ['editar', `${categorySelected.id}`] })
 
-          const limitText = `Límite: ${numeral(categorySelected.limit).format('0,0.00')} ${categorySelected.currency}${categorySelected.isFixed ? '\nGasto Fijo' : ''}`
+          const spendHNL = categorySelected.transactions.reduce((acc, t) => {
+            if (t.currency === 'HNL') {
+              if (t.type === 'INCOME') {
+                return acc - t.amount
+              }
+              return acc + t.amount
+            }
+            return acc
+          }, 0)
 
-          await bot.sendMessage(msg.chat.id, `<b>${categorySelected.emoji} ${categorySelected.description}</b>\n${limitText}\n\n¿Qué quieres hacer?\n\n/editar limite\n/eliminar\n${categorySelected.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n/notas`, { parse_mode: 'HTML' })
+          const spendUSD = categorySelected.transactions.reduce((acc, t) => {
+            if (t.currency === 'USD') {
+              if (t.type === 'INCOME') {
+                return acc - t.amount
+              }
+              return acc + t.amount
+            }
+            return acc
+          }, 0)
+
+          const spendTotal = categorySelected.transactions.reduce((acc, t) => {
+            if (categorySelected.currency === 'HNL') {
+              if (t.type === 'INCOME') {
+                if (t.currency === 'USD') return acc - (t.amount * dollarToHNL)
+                return acc - t.amount
+              }
+              if (t.currency === 'USD') return acc + (t.amount * dollarToHNL)
+              return acc + t.amount
+            } else {
+              if (t.type === 'INCOME') {
+                if (t.currency === 'HNL') return acc - (t.amount * hnlToDollar)
+                return acc - t.amount
+              }
+              if (t.currency === 'HNL') return acc + (t.amount * hnlToDollar)
+              return acc + t.amount
+            }
+          }, 0)
+
+          const spendText = `Gasto:\n${numeral(spendHNL).format('0,0.00')} HNL\n${numeral(spendUSD).format('0,0.00')} USD\n`
+          const limitText = `Límite:\n${numeral(spendTotal).format('0,0.00')} / ${numeral(categorySelected.limit).format('0,0.00')} ${categorySelected.currency}${categorySelected.isFixed ? '\n<i>Gasto Fijo</i>' : ''}`
+          const notesText = categorySelected.notes ? `\n\n<blockquote>${categorySelected.notes}</blockquote>` : ''
+
+          const caption = `<b>${categorySelected.emoji} ${categorySelected.description}</b>\n\n${spendText}\n${limitText}${notesText}\n\n¿Qué quieres hacer?\n\n/editar limite\n${categorySelected.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n/notas\n/adjuntar archivo\n/eliminar`
+
+          if (categorySelected.attachmentUrl) {
+            // get buffer
+            const res = await fetch(categorySelected.attachmentUrl)
+
+            if (!res.ok) {
+              await bot.sendMessage(msg.chat.id, 'No se encontró el archivo adjunto.')
+              return
+            }
+            const arrayBuffer = await res.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+
+            await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+            return
+          }
+
+          await bot.sendMessage(msg.chat.id, caption, { parse_mode: 'HTML' })
           return
         }
         break
@@ -681,6 +741,29 @@ bot.on('message', async (msg) => {
           return
         }
 
+        if (userText === '/adjuntar') {
+          await chatUpdate(msg.chat.id, { chatSubSubject: ['editar', categoryEditing.id.toString(), 'adjuntar'] })
+
+          await bot.sendMessage(msg.chat.id, `Envía el archivo que quieres adjuntar para ${categoryEditing.emoji} ${categoryEditing.description}.${!!categoryEditing.attachmentUrl ? '\n\n/quitar para eliminar el archivo' : ''}`)
+          return
+        }
+
+        if (userText === '/quitar' && chat.chatSubSubject[2] === 'adjuntar') {
+          await prisma.category.update({
+            where: {
+              id: categoryEditing.id
+            },
+            data: {
+              attachmentUrl: ''
+            }
+          })
+
+          await chatUpdate(msg.chat.id)
+
+          await bot.sendMessage(msg.chat.id, `Archivo adjunto eliminado para ${categoryEditing.emoji} ${categoryEditing.description}.`)
+          return
+        }
+
         if (userText === '/quitar' || userText === '/poner') {
           await prisma.category.update({
             where: {
@@ -694,6 +777,37 @@ bot.on('message', async (msg) => {
           await chatUpdate(msg.chat.id)
 
           await bot.sendMessage(msg.chat.id, `Gasto fijo ${userText === '/quitar' ? 'quitado' : 'agregado'} para ${categoryEditing.emoji} ${categoryEditing.description}.`)
+          return
+        }
+
+        if (chat.chatSubSubject[2] === 'adjuntar') {
+          if (!msg.photo) {
+            await chatUpdate(msg.chat.id)
+            await bot.sendMessage(msg.chat.id, 'Envía una foto.\nEmpieza de nuevo.')
+            return
+          }
+
+          const photoLen = msg.photo.length || 0
+          const fileId = msg.photo[photoLen - 1].file_id
+          if (!fileId) {
+            await chatUpdate(msg.chat.id)
+            await bot.sendMessage(msg.chat.id, 'No se encontró el archivo.\nEmpieza de nuevo.')
+            return
+          }
+
+          await chatUpdate(msg.chat.id)
+
+          const fileUrl = await bot.getFileLink(fileId)
+          await prisma.category.update({
+            where: {
+              id: categoryEditing.id
+            },
+            data: {
+              attachmentUrl: fileUrl
+            }
+          })
+
+          await bot.sendMessage(msg.chat.id, `Archivo adjuntado para ${categoryEditing.emoji} ${categoryEditing.description}.`)
           return
         }
 
