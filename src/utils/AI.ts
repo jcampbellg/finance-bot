@@ -15,6 +15,10 @@ type IncomeJSON = Omit<Income, 'id' | 'createdAt' | 'updatedAt' | 'statementId'>
 
 type TransactionJSON = Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'categoryId' | 'chatId'> & { category: string }
 
+type CategoryJSON = {
+  category: string
+}
+
 export async function AIStatement(userReply: string): Promise<StatementJSON | ErrorJSON> {
   const today = dayjs().tz(process.env.timezone).format('YYYY-MM-DD HH:mm:ss')
 
@@ -239,4 +243,36 @@ export async function AITransaction(allCategories: Category[], userReply: string
     ...botMessageJSON,
     amount: parseFloat(botMessageJSON.amount.toString())
   }
+}
+
+export async function AICategory(allCategories: Category[], userReply: string): Promise<CategoryJSON | ErrorJSON> {
+  const botAI = await openAi.chat.completions.create({
+    messages: [{
+      role: 'system',
+      content: 'The conversation is in spanish.'
+    }, {
+      role: 'system',
+      content: 'Your job is to get the category name the user is trying to find.'
+    }, {
+      role: 'system',
+      content: `You will get the category name from this list: [${allCategories.map(c => c.description).join(", ")}]`
+    }, {
+      role: 'system',
+      content: 'Don\'t be to strict with the user input, try to match the category name as best as you can.'
+    }, {
+      role: 'system',
+      content: 'You will return these data in JSON format: { "category": "Category Name based on the list" } or { "error": "error message" }'
+    }, {
+      role: 'user',
+      content: userReply
+    }],
+    model: 'gpt-4-1106-preview',
+    response_format: { type: 'json_object' },
+    temperature: 0.2,
+    max_tokens: 300
+  })
+  const botMessage = botAI.choices[0].message.content?.trim() || '{"error": "No se pudo procesar la información.", "reset": true}'
+  const botMessageJSON: CategoryJSON | ErrorJSON = JSON.parse(botMessage)
+
+  return botMessageJSON
 }
