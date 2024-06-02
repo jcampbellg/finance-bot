@@ -1,5 +1,4 @@
 import TelegramBot from 'node-telegram-bot-api'
-import openAi from '@utils/openAi'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
@@ -184,9 +183,8 @@ bot.on('message', async (msg) => {
   }
 
   if (chat.chatSubject === 'estado') {
-    switch (chat.chatSubSubject[0]) {
-      case 'mes y año':
-        const botMessageJSON = await AIStatement(userText)
+    if (chat.chatSubSubject[0] === 'mes y año') {
+      const botMessageJSON = await AIStatement(userText)
 
         if ('error' in botMessageJSON) {
           await chatUpdate(msg.chat.id)
@@ -270,8 +268,10 @@ bot.on('message', async (msg) => {
 
         await bot.sendMessage(msg.chat.id, `Estado de cuenta creado para el mes de ${monthInSpanish} del año ${year}.`)
         return
-      case 'queres cambiarlo':
-        if (userText === '/si') {
+    }
+
+    if (chat.chatSubSubject[0] === 'queres cambiarlo') {
+      if (userText === '/si') {
           await chatUpdate(msg.chat.id, { chatSubSubject: ['mes y año'] })
 
           await bot.sendMessage(msg.chat.id, 'Escribe el mes y año para el estado de cuenta:')
@@ -284,7 +284,6 @@ bot.on('message', async (msg) => {
           await bot.sendMessage(msg.chat.id, 'Entendido.')
           return
         }
-        break
     }
   }
 
