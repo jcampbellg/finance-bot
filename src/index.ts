@@ -166,21 +166,7 @@ bot.on('message', async (msg) => {
     return
   }
 
-  let userText = msg.text || ''
-
-  if (msg.voice) {
-    const link = await bot.getFileLink(msg.voice.file_id)
-    const audioFile = await fetch(link)
-
-    const transcription = await openAi.audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1",
-      response_format: "text"
-    })
-
-    // @ts-ignore
-    userText = transcription
-  }
+  const userText = msg.text || ''
 
   // Estado de cuenta
   if (userText === '/estado') {
@@ -189,7 +175,7 @@ bot.on('message', async (msg) => {
     if (!!chat.statement) {
       const monthInSpanish = dayjs().locale('es').month(chat.statement.month - 1).format('MMMM')
       const year = chat.statement.year
-      await bot.sendMessage(msg.chat.id, `Tu estado de cuenta actual es para el mes de ${monthInSpanish} del año ${year}.\n\n¿Quieres cambiarlo?\n/si\n/no`)
+      await bot.sendMessage(msg.chat.id, `Tu estado de cuenta actual es para el mes de ${monthInSpanish} del año ${year}.\n\n¿Quieres cambiarlo?\n\n/si\n\n/no`)
       return
     }
 
