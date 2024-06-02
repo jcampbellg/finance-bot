@@ -102,18 +102,20 @@ export async function AISaveIncome(source: string, amount: string): Promise<Inco
 }
 
 export async function AIAmount(amount: string): Promise<Pick<IncomeJSON, 'amount'> | ErrorJSON> {
-  const today = dayjs().tz(process.env.timezone).format('YYYY-MM-DD HH:mm:ss')
 
   const botAI = await openAi.chat.completions.create({
     messages: [{
       role: 'system',
-      content: `Today is: ${today}`
-    }, {
-      role: 'system',
       content: 'Reply in spanish'
     }, {
       role: 'system',
-      content: `Your job is to get a amount from the user.`
+      content: `Your job is to get a amount from the user. The user can type the amount in words or numbers. The amount will always be a positive value. Remove the negative sign if it is present.`
+    }, {
+      role: 'system',
+      content: 'The user can also do basic math, like adding, subtracting, multiplying and dividing. You will need to return the result of the operation.'
+    }, {
+      role: 'system',
+      content: 'The user can ask you to get the amount with the taxes (impuesto or ISV in spanish). You will need to return the amount with the taxes. The taxes are 15% of the amount (amount * 0.15).'
     }, {
       role: 'system',
       content: 'You will return these data in JSON format: { "amount": <amount in number>} or { "error": "error message" }'
