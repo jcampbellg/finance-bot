@@ -221,17 +221,19 @@ bot.on('message', async (msg) => {
   if (userText === '/resumen') {
     const allCategories = await prisma.category.findMany({
       where: {
-        statementId: chat.statement.id
+        statementId: chat.statement.id,
       },
       include: {
-        transactions: true
+        transactions: true,
       },
       orderBy: {
         description: 'asc'
       }
     })
 
-    const categoriesText = allCategories.map((cat, i) => {
+    const filterCategories = allCategories.filter(c => c.transactions.length > 0)
+
+    const categoriesText = filterCategories.map((cat, i) => {
       const totalHNL = cat.transactions.reduce((acc, t) => {
         if (t.currency === 'HNL') {
           if (t.type === 'INCOME') {
@@ -1320,20 +1322,22 @@ bot.on('message', async (msg) => {
   if (chat.chatSubject === 'resumen') {
     if (userText.match(/^\/\d+$/)) {
       if (chat.chatSubSubject.length === 0) {
-        const index = parseInt(userText.replace('/', '')) - 1
-        const categorySelected = await prisma.category.findFirst({
-          take: 1,
-          skip: index,
+        const allCategories = await prisma.category.findMany({
           where: {
-            statementId: chat.statement.id
+            statementId: chat.statement.id,
+          },
+          include: {
+            transactions: true,
           },
           orderBy: {
             description: 'asc'
-          },
-          include: {
-            transactions: true
           }
         })
+
+        const filterCategories = allCategories.filter(c => c.transactions.length > 0)
+
+        const index = parseInt(userText.replace('/', '')) - 1
+        const categorySelected = filterCategories[index]
 
         if (!categorySelected) {
           await bot.sendMessage(msg.chat.id, 'No se encontró la categoría.')
@@ -1342,7 +1346,7 @@ bot.on('message', async (msg) => {
 
         // Return all transactions
         const transactionsText = categorySelected.transactions.map((t, i) => {
-          return `/${i + 1}. <b>${!!t.fileUrl ? '📎 ' : ''}${t.description}</b>\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
+          return `/${i + 1}. <b>${!!t.fileUrl ? '📎 ' : ''}${t.description}</b>\n${dayjs(t.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
         }).join('\n\n')
 
         const totalHNL = categorySelected.transactions.reduce((acc, t) => {
@@ -1493,7 +1497,7 @@ bot.on('message', async (msg) => {
 
       if (!msg.photo && !msg.document) {
         await chatUpdate(msg.chat.id)
-        await bot.sendMessage(msg.chat.id, 'Envía un archivo.\nEmpieza de nuevo.')
+        await bot.sendMessage(msg.chat.id, 'Envía una foto o archivo.\nIntenta de nuevo.')
         return
       }
 
