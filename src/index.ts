@@ -214,7 +214,7 @@ bot.on('message', async (msg) => {
   if (userText === '/cambio') {
     await chatUpdate(msg.chat.id, { chatSubject: 'cambio', chatSubSubject: ['hnl o usd'] })
 
-    await bot.sendMessage(msg.chat.id, '¿Quieres establecer el cambio de moneda actual?\n\n/hnl\n/usd')
+    await bot.sendMessage(msg.chat.id, '¿Quieres establecer el cambio de moneda actual?\n\n/hnl\n\n/usd')
     return
   }
 
@@ -1273,65 +1273,47 @@ bot.on('message', async (msg) => {
   }
 
   if (chat.chatSubject === 'cambio') {
-    switch (chat.chatSubSubject[0]) {
-      case 'hnl o usd':
-        if (userText === '/hnl') {
-          await chatUpdate(msg.chat.id, { chatSubSubject: ['hnl'] })
+    if (chat.chatSubSubject[0] === 'hnl o usd') {
+      if (userText === '/hnl') {
+        await chatUpdate(msg.chat.id, { chatSubSubject: ['hnl'] })
 
-          await bot.sendMessage(msg.chat.id, '¿Cuántos dolares son un lempira?')
-          return
-        }
-        if (userText === '/usd') {
-          await chatUpdate(msg.chat.id, { chatSubSubject: ['usd'] })
-
-          await bot.sendMessage(msg.chat.id, '¿Cuántos lempiras son un dolar?')
-          return
-        }
-        break
-      case 'hnl':
-        const amountHNL = await AIAmount(userText)
-
-        if ('error' in amountHNL) {
-          await chatUpdate(msg.chat.id)
-          await bot.sendMessage(msg.chat.id, amountHNL.error)
-          return
-        }
-
-        await chatUpdate(msg.chat.id)
-
-        await prisma.statement.update({
-          where: {
-            id: chat.statement.id
-          },
-          data: {
-            hnlToDollar: amountHNL.amount
-          }
-        })
-
-        await bot.sendMessage(msg.chat.id, `Cambio de moneda actualizado.\n\n1 HNL = ${amountHNL.amount} USD`)
+        await bot.sendMessage(msg.chat.id, '¿Cuántos dolares son un lempira?')
         return
-      case 'usd':
-        const amountUSD = await AIAmount(userText)
+      }
+      if (userText === '/usd') {
+        await chatUpdate(msg.chat.id, { chatSubSubject: ['usd'] })
 
-        if ('error' in amountUSD) {
-          await chatUpdate(msg.chat.id)
-          await bot.sendMessage(msg.chat.id, amountUSD.error)
-          return
-        }
-
-        await chatUpdate(msg.chat.id)
-
-        await prisma.statement.update({
-          where: {
-            id: chat.statement.id
-          },
-          data: {
-            dollarToHNL: amountUSD.amount
-          }
-        })
-
-        await bot.sendMessage(msg.chat.id, `Cambio de moneda actualizado.\n\n1 USD = ${amountUSD.amount} HNL`)
+        await bot.sendMessage(msg.chat.id, '¿Cuántos lempiras son un dolar?')
         return
+      }
+
+      await bot.sendMessage(msg.chat.id, 'Escribe /hnl o /usd.')
+      return
+    }
+
+    if (chat.chatSubSubject[0] === 'hnl' || chat.chatSubSubject[0] === 'usd') {
+      const amount = await AIAmount(userText)
+
+      if ('error' in amount) {
+        await bot.sendMessage(msg.chat.id, amount.error)
+        return
+      }
+
+      const currency = chat.chatSubSubject[0] === 'hnl' ? 'HNL' : 'USD'
+
+      await chatUpdate(msg.chat.id)
+
+      await prisma.statement.update({
+        where: {
+          id: chat.statement.id
+        },
+        data: {
+          [currency === 'HNL' ? 'hnlToDollar' : 'dollarToHNL']: amount.amount
+        }
+      })
+
+      await bot.sendMessage(msg.chat.id, `<i>Cambio de moneda actualizado.</i>\n\n1 ${currency} = ${amount.amount} ${currency === 'HNL' ? 'USD' : 'HNL'}`, { parse_mode: 'HTML' })
+      return
     }
   }
 
