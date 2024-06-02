@@ -62,6 +62,9 @@ const commands = [{
 }, {
   command: 'ultima',
   description: 'Ver y editar la última transacción.'
+}, {
+  command: 'buscar',
+  description: 'Buscar transacciones o categorias por descripción.'
 }]
 
 bot.on('message', async (msg) => {
@@ -168,6 +171,13 @@ bot.on('message', async (msg) => {
   const userText = msg.text || ''
 
   // Comandos
+  if (userText === '/reset' || userText === '/cancelar' || userText === '/resetear' || userText === '/cancel') {
+    await chatUpdate(msg.chat.id)
+
+    await bot.sendMessage(msg.chat.id, 'Conversación terminada. Empieza de nuevo.')
+    return
+  }
+
   if (userText === '/estado') {
     await chatUpdate(msg.chat.id, { chatSubject: 'estado', chatSubSubject: [!!chat.statement ? 'queres cambiarlo' : 'mes y año'] })
 
@@ -189,6 +199,13 @@ bot.on('message', async (msg) => {
 
   const hnlToDollar = chat.statement.hnlToDollar
   const dollarToHNL = chat.statement.dollarToHNL
+
+  if (userText === '/buscar') {
+    await chatUpdate(msg.chat.id, { chatSubject: 'buscar', chatSubSubject: [], chatHistory: [] })
+
+    await bot.sendMessage(msg.chat.id, `Escribe el nombre de la transacción que quieres buscar:`)
+    return
+  }
 
   if (userText === '/nueva') {
     await chatUpdate(msg.chat.id, { chatSubject: 'nueva', chatSubSubject: ['descripción'], chatHistory: [] })
@@ -394,13 +411,6 @@ bot.on('message', async (msg) => {
 
     await chatUpdate(msg.chat.id, { chatSubject: 'fijos', chatSubSubject: [] })
     await bot.sendMessage(msg.chat.id, `<i>Presiona /# para marcar como pagado</i>\nGastos fijos:\n\n${fixedText.map(f => f.text).join('\n\n')}`, { parse_mode: 'HTML' })
-    return
-  }
-
-  if (userText === '/reset' || userText === '/cancelar' || userText === '/resetear' || userText === '/cancel') {
-    await chatUpdate(msg.chat.id)
-
-    await bot.sendMessage(msg.chat.id, 'Conversación terminada. Empieza de nuevo con.')
     return
   }
 
@@ -1571,6 +1581,44 @@ bot.on('message', async (msg) => {
 
       await chatUpdate(msg.chat.id)
       await bot.sendMessage(msg.chat.id, `Gasto fijo para ${fixedSelected.emoji} ${fixedSelected.description}\n${fixedUpdate.isPaid ? '✅ Pagado' : '❌ No pagado'}.`)
+      return
+    }
+  }
+
+  if (chat.chatSubject === 'buscar') {
+    if (chat.chatSubSubject.length === 0) {
+      const splitText = userText.split(' ')
+
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          category: {
+            statementId: chat.statement.id
+          },
+          OR: splitText.map(t => {
+            return {
+              description: {
+                contains: t,
+                mode: 'insensitive'
+              }
+            }
+          })
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      })
+
+      if (transactions.length === 0) {
+        await bot.sendMessage(msg.chat.id, 'No se encontraron transacciones.')
+        return
+      }
+
+      const transactionsText = transactions.map((t, i) => {
+        return `/${i + 1}. <b>${!!t.fileUrl ? '📎 ' : ''}${t.description}</b>\n${dayjs(t.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
+      }).join('\n\n')
+
+      await chatUpdate(msg.chat.id, { chatSubject: 'buscar', chatSubSubject: [userText] })
+      await bot.sendMessage(msg.chat.id, `Presiona el /# para ver.\n\n${transactionsText}`, { parse_mode: 'HTML' })
       return
     }
   }
