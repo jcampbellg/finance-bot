@@ -397,6 +397,13 @@ bot.on('message', async (msg) => {
     return
   }
 
+  if (userText === '/reset' || userText === '/cancelar' || userText === '/resetear' || userText === '/cancel') {
+    await chatUpdate(msg.chat.id)
+
+    await bot.sendMessage(msg.chat.id, 'Conversación terminada. Empieza de nuevo con.')
+    return
+  }
+
   // Conversaciones
   if (chat.chatSubject === 'estado') {
     if (chat.chatSubSubject[0] === 'mes y año') {
