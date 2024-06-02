@@ -310,6 +310,138 @@ bot.on('message', async (msg) => {
   const hnlToDollar = chat.statement.hnlToDollar
   const dollarToHNL = chat.statement.dollarToHNL
 
+  // Add transaction
+  if (userText === '/nueva') {
+    await chatUpdate(msg.chat.id, { chatSubject: 'nueva', chatSubSubject: ['descripción'], chatHistory: [] })
+
+    await bot.sendMessage(msg.chat.id, 'Escribe la descripción de la transacción que quieres agregar:')
+    return
+  }
+
+  const allCategories = await prisma.category.findMany({
+    where: {
+      statementId: chat.statement.id
+    },
+    orderBy: {
+      description: 'asc'
+    },
+    include: {
+      transactions: userText === '/resumen' || chat.chatSubject === 'resumen'
+    }
+  })
+
+  if (chat.chatSubject === 'nueva') {
+    if (chat.chatSubSubject[0] === 'descripción') {
+      await chatUpdate(msg.chat.id, { chatSubSubject: ['monto'], chatHistory: { push: userText } })
+
+      await bot.sendMessage(msg.chat.id, 'Escribe el monto (usa solo numeros):')
+      return
+    }
+
+    if (chat.chatSubSubject[0] === 'monto') {
+      const amount = parseFloat(userText)
+
+      if (isNaN(amount)) {
+        await chatUpdate(msg.chat.id)
+        await bot.sendMessage(msg.chat.id, 'Escribe un monto valido. Intenta de nuevo.\n\n/nueva')
+        return
+      }
+
+      await chatUpdate(msg.chat.id, { chatSubSubject: ['moneda'], chatHistory: { push: userText } })
+
+      await bot.sendMessage(msg.chat.id, '¿En qué moneda es la transacción?\n\n/hnl\n\n/usd')
+      return
+    }
+
+    if (chat.chatSubSubject[0] === 'moneda') {
+      if (userText === '/hnl' || userText === '/usd') {
+        const currency = userText === '/hnl' ? 'HNL' : 'USD'
+        await chatUpdate(msg.chat.id, { chatSubSubject: ['tipo'], chatHistory: { push: currency } })
+
+        await bot.sendMessage(msg.chat.id, '¿Es un ingreso o un gasto?\n\n/gasto\n\n/ingreso')
+        return
+      }
+
+      await chatUpdate(msg.chat.id)
+      await bot.sendMessage(msg.chat.id, 'Escribe una moneda valida. Intenta de nuevo.\n\n/nueva')
+      return
+    }
+
+    if (chat.chatSubSubject[0] === 'tipo') {
+      if (userText === '/ingreso' || userText === '/gasto') {
+        const type = userText === '/ingreso' ? 'INCOME' : 'EXPENSE'
+        await chatUpdate(msg.chat.id, { chatSubSubject: ['categoria'], chatHistory: { push: type } })
+
+        await bot.sendMessage(msg.chat.id, '¿A qué categoría pertenece la transacción?')
+        return
+      }
+
+      await chatUpdate(msg.chat.id)
+      await bot.sendMessage(msg.chat.id, 'Escribe un tipo valido. Intenta de nuevo.\n\n/nueva')
+      return
+    }
+
+    if (chat.chatSubSubject[0] === 'categoria') {
+      const categoryFromAi = await AICategory(allCategories, userText)
+
+      if ('error' in categoryFromAi) {
+        await chatUpdate(msg.chat.id)
+        await bot.sendMessage(msg.chat.id, categoryFromAi.error)
+        return
+      }
+
+      const category = allCategories.find(c => c.description === categoryFromAi.category)
+
+      if (!category) {
+        await chatUpdate(msg.chat.id)
+        await bot.sendMessage(msg.chat.id, 'No se encontró la categoría. Intenta de nuevo.\n\n/nueva')
+        return
+      }
+
+      await chatUpdate(msg.chat.id, { chatSubSubject: ['metodo'], chatHistory: { push: category.id.toString() } })
+      await bot.sendMessage(msg.chat.id, '¿Cuál es el método de pago?\n\n/efectivo\n\n/tarjeta_de_credito\n\n/tarjeta_de_debito\n\n/transferencia')
+      return
+    }
+
+    if (chat.chatSubSubject[0] === 'metodo') {
+      if (userText === '/efectivo' || userText === '/tarjeta_de_credito' || userText === '/tarjeta_de_debito' || userText === '/transferencia') {
+        const paymentMethod: PaymentMethod = userText === '/efectivo' ? 'CASH' : userText === '/tarjeta_de_credito' ? 'CREDITCARD' : userText === '/tarjeta_de_debito' ? 'DEBITCARD' : 'TRANSFER'
+
+        await chatUpdate(msg.chat.id, { chatSubSubject: ['notas'], chatHistory: { push: paymentMethod } })
+
+        await bot.sendMessage(msg.chat.id, '¿Quieres agregar notas a la transacción?\n\n/no')
+        return
+      }
+
+      await chatUpdate(msg.chat.id)
+      await bot.sendMessage(msg.chat.id, 'Escribe un método de pago valido. Intenta de nuevo.\n\n/nueva')
+      return
+    }
+
+    if (chat.chatSubSubject[0] === 'notas') {
+      const newTransaction = await prisma.transaction.create({
+        data: {
+          date: dayjs().tz(process.env.timezone).format(),
+          description: chat.chatHistory[0],
+          amount: parseFloat(chat.chatHistory[1]),
+          currency: chat.chatHistory[2] as Currency,
+          type: chat.chatHistory[3] as Type,
+          categoryId: parseInt(chat.chatHistory[4]),
+          paymentMethod: chat.chatHistory[5] as PaymentMethod,
+          notes: userText === '/no' ? null : userText
+        },
+        include: {
+          category: true
+        }
+      })
+
+      await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${newTransaction.id}`], chatHistory: [] })
+
+      await bot.sendMessage(msg.chat.id, `<i>Transacción creada.</i>\n\n<i>${dayjs(newTransaction.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${newTransaction.description}</b>\n${newTransaction.category.emoji} ${newTransaction.category.description}\n${newTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[newTransaction.paymentMethod]}\n${numeral(newTransaction.amount).format('0,0.00')} ${newTransaction.currency}${newTransaction.notes ? `\n<blockquote>${newTransaction.notes}</blockquote>` : ''}\n\n/adjuntar archivo`, { parse_mode: 'HTML' })
+      return
+    }
+  }
+
   // Ingreso
   if (userText === '/ingreso') {
     await chatUpdate(msg.chat.id, { chatSubject: 'ingreso', chatSubSubject: ['crear o ver'] })
@@ -957,18 +1089,6 @@ bot.on('message', async (msg) => {
     }
   }
 
-  const allCategories = await prisma.category.findMany({
-    where: {
-      statementId: chat.statement.id
-    },
-    orderBy: {
-      description: 'asc'
-    },
-    include: {
-      transactions: userText === '/resumen' || chat.chatSubject === 'resumen'
-    }
-  })
-
   // resumen
   if (userText === '/resumen') {
     const categoriesText = allCategories.map((cat, i) => {
@@ -1356,126 +1476,6 @@ bot.on('message', async (msg) => {
 
       await chatUpdate(msg.chat.id)
       await bot.sendMessage(msg.chat.id, `Gasto fijo para ${fixedSelected.emoji} ${fixedSelected.description}\n${fixedUpdate.isPaid ? '✅ Pagado' : '❌ No pagado'}.`)
-      return
-    }
-  }
-
-  // Add transaction
-  if (userText === '/nueva') {
-    await chatUpdate(msg.chat.id, { chatSubject: 'nueva', chatSubSubject: ['descripción'], chatHistory: [] })
-
-    await bot.sendMessage(msg.chat.id, 'Escribe la descripción de la transacción que quieres agregar:')
-    return
-  }
-
-  if (chat.chatSubject === 'nueva') {
-    if (chat.chatSubSubject[0] === 'descripción') {
-      await chatUpdate(msg.chat.id, { chatSubSubject: ['monto'], chatHistory: { push: userText } })
-
-      await bot.sendMessage(msg.chat.id, 'Escribe el monto (usa solo numeros):')
-      return
-    }
-
-    if (chat.chatSubSubject[0] === 'monto') {
-      const amount = parseFloat(userText)
-
-      if (isNaN(amount)) {
-        await chatUpdate(msg.chat.id)
-        await bot.sendMessage(msg.chat.id, 'Escribe un monto valido. Intenta de nuevo.\n\n/nueva')
-        return
-      }
-
-      await chatUpdate(msg.chat.id, { chatSubSubject: ['moneda'], chatHistory: { push: userText } })
-
-      await bot.sendMessage(msg.chat.id, '¿En qué moneda es la transacción?\n\n/hnl\n\n/usd')
-      return
-    }
-
-    if (chat.chatSubSubject[0] === 'moneda') {
-      if (userText === '/hnl' || userText === '/usd') {
-        const currency = userText === '/hnl' ? 'HNL' : 'USD'
-        await chatUpdate(msg.chat.id, { chatSubSubject: ['tipo'], chatHistory: { push: currency } })
-
-        await bot.sendMessage(msg.chat.id, '¿Es un ingreso o un gasto?\n\n/gasto\n\n/ingreso')
-        return
-      }
-
-      await chatUpdate(msg.chat.id)
-      await bot.sendMessage(msg.chat.id, 'Escribe una moneda valida. Intenta de nuevo.\n\n/nueva')
-      return
-    }
-
-    if (chat.chatSubSubject[0] === 'tipo') {
-      if (userText === '/ingreso' || userText === '/gasto') {
-        const type = userText === '/ingreso' ? 'INCOME' : 'EXPENSE'
-        await chatUpdate(msg.chat.id, { chatSubSubject: ['categoria'], chatHistory: { push: type } })
-
-        await bot.sendMessage(msg.chat.id, '¿A qué categoría pertenece la transacción?')
-        return
-      }
-
-      await chatUpdate(msg.chat.id)
-      await bot.sendMessage(msg.chat.id, 'Escribe un tipo valido. Intenta de nuevo.\n\n/nueva')
-      return
-    }
-
-    if (chat.chatSubSubject[0] === 'categoria') {
-      const categoryFromAi = await AICategory(allCategories, userText)
-
-      if ('error' in categoryFromAi) {
-        await chatUpdate(msg.chat.id)
-        await bot.sendMessage(msg.chat.id, categoryFromAi.error)
-        return
-      }
-
-      const category = allCategories.find(c => c.description === categoryFromAi.category)
-
-      if (!category) {
-        await chatUpdate(msg.chat.id)
-        await bot.sendMessage(msg.chat.id, 'No se encontró la categoría. Intenta de nuevo.\n\n/nueva')
-        return
-      }
-
-      await chatUpdate(msg.chat.id, { chatSubSubject: ['metodo'], chatHistory: { push: category.id.toString() } })
-      await bot.sendMessage(msg.chat.id, '¿Cuál es el método de pago?\n\n/efectivo\n\n/tarjeta_de_credito\n\n/tarjeta_de_debito\n\n/transferencia')
-      return
-    }
-
-    if (chat.chatSubSubject[0] === 'metodo') {
-      if (userText === '/efectivo' || userText === '/tarjeta_de_credito' || userText === '/tarjeta_de_debito' || userText === '/transferencia') {
-        const paymentMethod: PaymentMethod = userText === '/efectivo' ? 'CASH' : userText === '/tarjeta_de_credito' ? 'CREDITCARD' : userText === '/tarjeta_de_debito' ? 'DEBITCARD' : 'TRANSFER'
-
-        await chatUpdate(msg.chat.id, { chatSubSubject: ['notas'], chatHistory: { push: paymentMethod } })
-
-        await bot.sendMessage(msg.chat.id, '¿Quieres agregar notas a la transacción?\n\n/no')
-        return
-      }
-
-      await chatUpdate(msg.chat.id)
-      await bot.sendMessage(msg.chat.id, 'Escribe un método de pago valido. Intenta de nuevo.\n\n/nueva')
-      return
-    }
-
-    if (chat.chatSubSubject[0] === 'notas') {
-      const newTransaction = await prisma.transaction.create({
-        data: {
-          date: dayjs().tz(process.env.timezone).format(),
-          description: chat.chatHistory[0],
-          amount: parseFloat(chat.chatHistory[1]),
-          currency: chat.chatHistory[2] as Currency,
-          type: chat.chatHistory[3] as Type,
-          categoryId: parseInt(chat.chatHistory[4]),
-          paymentMethod: chat.chatHistory[5] as PaymentMethod,
-          notes: userText === '/no' ? null : userText
-        },
-        include: {
-          category: true
-        }
-      })
-
-      await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${newTransaction.id}`], chatHistory: [] })
-
-      await bot.sendMessage(msg.chat.id, `<i>Transacción creada.</i>\n\n<i>${dayjs(newTransaction.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${newTransaction.description}</b>\n${newTransaction.category.emoji} ${newTransaction.category.description}\n${newTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[newTransaction.paymentMethod]}\n${numeral(newTransaction.amount).format('0,0.00')} ${newTransaction.currency}${newTransaction.notes ? `\n<blockquote>${newTransaction.notes}</blockquote>` : ''}\n\n/adjuntar archivo`, { parse_mode: 'HTML' })
       return
     }
   }
