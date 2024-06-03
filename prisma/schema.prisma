@@ -59,6 +59,7 @@ model Transaction {
   currency      Currency
   type          Type
   paymentMethod PaymentMethod
+  fileId        String?
   fileUrl       String?
   fileType      FileType?
   createdAt     DateTime      @default(now())
@@ -75,6 +76,7 @@ model Category {
   isPaid       Boolean       @default(false)
   notes        String?
   limit        Float
+  fileId       String?
   fileUrl      String?
   fileType     FileType?
   statement    Statement     @relation(fields: [statementId], references: [id])

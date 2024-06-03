@@ -1130,6 +1130,7 @@ bot.on('message', async (msg) => {
             id: categoryEditing.id
           },
           data: {
+            fileId: fileId,
             fileUrl: fileUrl,
             fileType: fileType
           }
@@ -1432,6 +1433,7 @@ bot.on('message', async (msg) => {
           id: lastTransaction.id
         },
         data: {
+          fileId: fileId,
           fileUrl: fileUrl,
           fileType: fileType
         }
