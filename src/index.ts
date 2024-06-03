@@ -242,7 +242,11 @@ bot.on('message', async (msg) => {
         statementId: chat.statement.id,
       },
       include: {
-        transactions: true,
+        transactions: {
+          orderBy: {
+            date: 'desc'
+          }
+        },
       },
       orderBy: {
         description: 'asc'
@@ -1265,7 +1269,11 @@ bot.on('message', async (msg) => {
             statementId: chat.statement.id,
           },
           include: {
-            transactions: true,
+            transactions: {
+              orderBy: {
+                date: 'desc'
+              }
+            },
           },
           orderBy: {
             description: 'asc'
@@ -1632,6 +1640,7 @@ bot.on('message', async (msg) => {
       })
 
       const transactions = await prisma.transaction.findMany({
+        take: 4,
         where: {
           category: {
             statementId: chat.statement.id
@@ -1642,7 +1651,7 @@ bot.on('message', async (msg) => {
           category: true
         },
         orderBy: {
-          createdAt: 'desc'
+          date: 'desc'
         }
       })
 
