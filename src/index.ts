@@ -350,26 +350,6 @@ bot.on('message', async (msg) => {
     }
 
     const fixedText = fixedCategories.map((cat, i) => {
-      const totalHNL = cat.transactions.reduce((acc, t) => {
-        if (t.currency === 'HNL') {
-          if (t.type === 'INCOME') {
-            return acc - t.amount
-          }
-          return acc + t.amount
-        }
-        return acc
-      }, 0)
-
-      const totalUSD = cat.transactions.reduce((acc, t) => {
-        if (t.currency === 'USD') {
-          if (t.type === 'INCOME') {
-            return acc - t.amount
-          }
-          return acc + t.amount
-        }
-        return acc
-      }, 0)
-
       const totalSpend = cat.transactions.reduce((acc, t) => {
         if (cat.currency === 'HNL') {
           if (t.type === 'INCOME') {
@@ -389,13 +369,13 @@ bot.on('message', async (msg) => {
       }, 0)
 
       return {
-        text: `/${i + 1}. <b>${cat.emoji} ${cat.description}</b>\n${numeral(totalHNL).format('0,0.00')} HNL\n${numeral(totalUSD).format('0,0.00')} USD\n${numeral(totalSpend).format('0,0.00')} / ${numeral(cat.limit).format('0,0.00')} ${cat.currency}\n${cat.isPaid ? '✅ Pagado' : '❌ No se ha pagado'}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`,
+        text: `/${i + 1}. <b>${cat.emoji} ${cat.description}</b>\n${numeral(totalSpend).format('0,0.00')} / ${numeral(cat.limit).format('0,0.00')} ${cat.currency}\n${cat.isPaid ? '✅ Pagado' : '❌ No se ha pagado'}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`,
         isPaid: cat.isPaid,
       }
     }).sort((a, b) => a.isPaid === b.isPaid ? 0 : a.isPaid ? 1 : -1)
 
     await chatUpdate(msg.chat.id, { chatSubject: 'fijos', chatSubSubject: [] })
-    await bot.sendMessage(msg.chat.id, `<i>Presiona /# para marcar como pagado</i>\nGastos fijos:\n\n${fixedText.map(f => f.text).join('\n\n')}`, { parse_mode: 'HTML' })
+    await bot.sendMessage(msg.chat.id, `<i>Presiona /# para marcar como pagado</i>\n\n<b>Gastos fijos:</b>\n\n${fixedText.map(f => f.text).join('\n\n')}`, { parse_mode: 'HTML' })
     return
   }
 
