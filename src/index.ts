@@ -1584,19 +1584,35 @@ bot.on('message', async (msg) => {
     if (chat.chatSubSubject.length === 0) {
       const splitText = userText.split(' ')
 
+      const orWhereD: Prisma.TransactionWhereInput[] = splitText.map(t => {
+        return {
+          description: {
+            contains: t,
+            mode: 'insensitive'
+          }
+        }
+      })
+
+      const orWhereC: Prisma.TransactionWhereInput[] = splitText.map(t => {
+        return {
+          category: {
+            description: {
+              contains: t,
+              mode: 'insensitive'
+            }
+          }
+        }
+      })
+
       const transactions = await prisma.transaction.findMany({
         where: {
           category: {
             statementId: chat.statement.id
           },
-          OR: splitText.map(t => {
-            return {
-              description: {
-                contains: t,
-                mode: 'insensitive'
-              }
-            }
-          })
+          OR: [...orWhereD, ...orWhereC]
+        },
+        include: {
+          category: true
         },
         orderBy: {
           createdAt: 'desc'
@@ -1609,11 +1625,83 @@ bot.on('message', async (msg) => {
       }
 
       const transactionsText = transactions.map((t, i) => {
-        return `/${i + 1}. <b>${!!t.fileUrl ? '📎 ' : ''}${t.description}</b>\n${dayjs(t.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
+        return `/${i + 1}. <b>${!!t.fileUrl ? '📎 ' : ''}${t.description}</b>\n<i>${dayjs(t.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n${t.category.emoji} ${t.category.description}\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
       }).join('\n\n')
 
       await chatUpdate(msg.chat.id, { chatSubject: 'buscar', chatSubSubject: [userText] })
       await bot.sendMessage(msg.chat.id, `Presiona el /# para ver.\n\n${transactionsText}`, { parse_mode: 'HTML' })
+      return
+    }
+
+    if (userText.match(/^\/\d+$/)) {
+      const splitText = chat.chatSubSubject[0].split(' ')
+
+      const orWhereD: Prisma.TransactionWhereInput[] = splitText.map(t => {
+        return {
+          description: {
+            contains: t,
+            mode: 'insensitive'
+          }
+        }
+      })
+
+      const orWhereC: Prisma.TransactionWhereInput[] = splitText.map(t => {
+        return {
+          category: {
+            description: {
+              contains: t,
+              mode: 'insensitive'
+            }
+          }
+        }
+      })
+
+      const index = parseInt(userText.replace('/', '')) - 1
+
+      const transactionSearch = await prisma.transaction.findFirst({
+        skip: index,
+        where: {
+          category: {
+            statementId: chat.statement.id
+          },
+          OR: [...orWhereD, ...orWhereC]
+        },
+        include: {
+          category: true
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      })
+
+      if (!transactionSearch) {
+        await bot.sendMessage(msg.chat.id, 'No se encontró la transacción.')
+        return
+      }
+
+      await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${transactionSearch.id}`] })
+
+      const caption = `<i>${dayjs(transactionSearch.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!transactionSearch.fileUrl ? '📎 ' : ''}${transactionSearch.description}</b>\n${transactionSearch.category.emoji} ${transactionSearch.category.description}\n${transactionSearch.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transactionSearch.paymentMethod]}\n${numeral(transactionSearch.amount).format('0,0.00')} ${transactionSearch.currency}${transactionSearch.notes ? `\n<blockquote>${transactionSearch.notes}</blockquote>` : ''}\n\n/adjuntar archivo\n\n/eliminar`
+
+      if (!!transactionSearch.fileUrl) {
+        // get buffer
+        const res = await fetch(transactionSearch.fileUrl)
+
+        if (res.ok) {
+          const arrayBuffer = await res.arrayBuffer()
+          const buffer = Buffer.from(arrayBuffer)
+
+          if (transactionSearch.fileType === 'PHOTO') {
+            await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+          } else {
+            await bot.sendDocument(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+          }
+          return
+        }
+        await bot.sendMessage(msg.chat.id, 'No se encontró el archivo adjunto.')
+      }
+
+      await bot.sendMessage(msg.chat.id, caption, { parse_mode: 'HTML' })
       return
     }
   }
