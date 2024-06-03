@@ -8,7 +8,7 @@ import * as dotenv from 'dotenv'
 import prisma from '@utils/prisma'
 import { AIAmount, AICategory, AIStatement } from '@utils/AI'
 import { Currency, FileType, PaymentMethod, Prisma, Type } from '@prisma/client'
-import { formatTransactionOne } from '@utils/format'
+import { formatCategoryOne, formatTransactionOne } from '@utils/format'
 dotenv.config()
 
 if (process.env.botToken === undefined) {
@@ -169,7 +169,7 @@ bot.on('message', async (msg) => {
     return
   }
 
-  const userText = msg.text || ''
+  const userText = msg.text?.trim() || ''
 
   // Comandos
   if (userText === '/reset' || userText === '/cancelar' || userText === '/resetear' || userText === '/cancel') {
@@ -321,7 +321,7 @@ bot.on('message', async (msg) => {
 
     await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`] })
 
-    formatTransactionOne({ msg, bot }, lastTransaction)
+    await formatTransactionOne({ msg, bot }, lastTransaction)
     return
   }
 
@@ -990,69 +990,7 @@ bot.on('message', async (msg) => {
 
         await chatUpdate(msg.chat.id, { chatSubSubject: ['editar', `${categoryToEdit.id}`] })
 
-        const spendHNL = categoryToEdit.transactions.reduce((acc, t) => {
-          if (t.currency === 'HNL') {
-            if (t.type === 'INCOME') {
-              return acc - t.amount
-            }
-            return acc + t.amount
-          }
-          return acc
-        }, 0)
-
-        const spendUSD = categoryToEdit.transactions.reduce((acc, t) => {
-          if (t.currency === 'USD') {
-            if (t.type === 'INCOME') {
-              return acc - t.amount
-            }
-            return acc + t.amount
-          }
-          return acc
-        }, 0)
-
-        const spendTotal = categoryToEdit.transactions.reduce((acc, t) => {
-          if (categoryToEdit.currency === 'HNL') {
-            if (t.type === 'INCOME') {
-              if (t.currency === 'USD') return acc - (t.amount * dollarToHNL)
-              return acc - t.amount
-            }
-            if (t.currency === 'USD') return acc + (t.amount * dollarToHNL)
-            return acc + t.amount
-          } else {
-            if (t.type === 'INCOME') {
-              if (t.currency === 'HNL') return acc - (t.amount * hnlToDollar)
-              return acc - t.amount
-            }
-            if (t.currency === 'HNL') return acc + (t.amount * hnlToDollar)
-            return acc + t.amount
-          }
-        }, 0)
-
-        const spendText = `Gasto:\n${numeral(spendHNL).format('0,0.00')} HNL\n${numeral(spendUSD).format('0,0.00')} USD\n`
-        const limitText = `Límite:\n${numeral(spendTotal).format('0,0.00')} / ${numeral(categoryToEdit.limit).format('0,0.00')} ${categoryToEdit.currency}${categoryToEdit.isFixed ? '\n<i>Gasto Fijo</i>' : ''}`
-        const notesText = categoryToEdit.notes ? `\n\n<blockquote>${categoryToEdit.notes}</blockquote>` : ''
-
-        const caption = `<b>${categoryToEdit.emoji} ${categoryToEdit.description}</b>\n\n${spendText}\n${limitText}${notesText}\n\n¿Qué quieres hacer?\n\n/renombrar\n\n/editar limite\n\n${categoryToEdit.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n\n/notas\n\n/adjuntar archivo\n\n/eliminar`
-
-        if (categoryToEdit.fileUrl) {
-          // get buffer
-          const res = await fetch(categoryToEdit.fileUrl)
-
-          if (res.ok) {
-            const arrayBuffer = await res.arrayBuffer()
-            const buffer = Buffer.from(arrayBuffer)
-
-            if (categoryToEdit.fileType === 'PHOTO') {
-              await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
-            } else {
-              await bot.sendDocument(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
-            }
-            return
-          }
-          await bot.sendMessage(msg.chat.id, 'No se encontró el archivo adjunto.')
-        }
-
-        await bot.sendMessage(msg.chat.id, caption, { parse_mode: 'HTML' })
+        await formatCategoryOne({ msg, bot, hnlToDollar, dollarToHNL }, categoryToEdit)
         return
       }
     }
@@ -1415,7 +1353,7 @@ bot.on('message', async (msg) => {
         }
         await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${transactionSelected.id}`] })
 
-        formatTransactionOne({ msg, bot }, { ...transactionSelected, category: categorySelected })
+        await formatTransactionOne({ msg, bot }, { ...transactionSelected, category: categorySelected })
         return
       }
     }
