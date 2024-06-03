@@ -1,7 +1,5 @@
 import { Category, Statement } from '@prisma/client'
 import openAi from '@utils/openAi'
-import dayjs from 'dayjs'
-import 'dayjs/locale/es'
 
 type ErrorJSON = {
   error: string
@@ -19,13 +17,8 @@ type AmountJSON = {
 }
 
 export async function AIStatement(userReply: string): Promise<StatementJSON | ErrorJSON> {
-  const today = dayjs().tz(process.env.timezone).format('YYYY-MM-DD HH:mm:ss')
-
   const botAI = await openAi.chat.completions.create({
     messages: [{
-      role: 'system',
-      content: `Today is: ${today}`
-    }, {
       role: 'system',
       content: 'Reply in spanish'
     }, {

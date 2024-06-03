@@ -8,6 +8,7 @@ import * as dotenv from 'dotenv'
 import prisma from '@utils/prisma'
 import { AIAmount, AICategory, AIStatement } from '@utils/AI'
 import { Currency, FileType, PaymentMethod, Prisma, Type } from '@prisma/client'
+import { formatTransactionOne } from '@utils/format'
 dotenv.config()
 
 if (process.env.botToken === undefined) {
@@ -320,27 +321,7 @@ bot.on('message', async (msg) => {
 
     await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`] })
 
-    const caption = `<i>${dayjs(lastTransaction.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!lastTransaction.fileUrl ? '📎 ' : ''}${lastTransaction.description}</b>\n${lastTransaction.category.emoji} ${lastTransaction.category.description}\n${lastTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[lastTransaction.paymentMethod]}\n${numeral(lastTransaction.amount).format('0,0.00')} ${lastTransaction.currency}${lastTransaction.notes ? `\n<blockquote>${lastTransaction.notes}</blockquote>` : ''}\n\n/adjuntar archivo\n\n/eliminar`
-
-    if (!!lastTransaction.fileUrl) {
-      // get buffer
-      const res = await fetch(lastTransaction.fileUrl)
-
-      if (res.ok) {
-        const arrayBuffer = await res.arrayBuffer()
-        const buffer = Buffer.from(arrayBuffer)
-
-        if (lastTransaction.fileType === 'PHOTO') {
-          await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
-        } else {
-          await bot.sendDocument(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
-        }
-        return
-      }
-      await bot.sendMessage(msg.chat.id, 'No se encontró el archivo adjunto.')
-    }
-
-    await bot.sendMessage(msg.chat.id, caption, { parse_mode: 'HTML' })
+    formatTransactionOne({ msg, bot }, lastTransaction)
     return
   }
 
@@ -1410,6 +1391,7 @@ bot.on('message', async (msg) => {
         await bot.sendMessage(msg.chat.id, `<b>${categorySelected.emoji} ${categorySelected.description}</b>\nPresiona el /# para editar.\n\n${transactionsText}\n\n${totalsText}`, { parse_mode: 'HTML' })
         return
       } else {
+        // Return one transaction
         const categorySelected = await prisma.category.findUnique({
           where: {
             id: parseInt(chat.chatSubSubject[0])
@@ -1433,27 +1415,7 @@ bot.on('message', async (msg) => {
         }
         await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${transactionSelected.id}`] })
 
-        const caption = `<i>${dayjs(transactionSelected.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!transactionSelected.fileUrl ? '📎 ' : ''}${transactionSelected.description}</b>\n${categorySelected.emoji} ${categorySelected.description}\n${transactionSelected.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transactionSelected.paymentMethod]}\n${numeral(transactionSelected.amount).format('0,0.00')} ${transactionSelected.currency}${transactionSelected.notes ? `\n<blockquote>${transactionSelected.notes}</blockquote>` : ''}\n\n/adjuntar archivo\n\n/eliminar`
-
-        if (!!transactionSelected.fileUrl) {
-          // get buffer
-          const res = await fetch(transactionSelected.fileUrl)
-
-          if (res.ok) {
-            const arrayBuffer = await res.arrayBuffer()
-            const buffer = Buffer.from(arrayBuffer)
-
-            if (transactionSelected.fileType === 'PHOTO') {
-              await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
-            } else {
-              await bot.sendDocument(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
-            }
-            return
-          }
-          await bot.sendMessage(msg.chat.id, 'No se encontró el archivo adjunto.')
-        }
-
-        await bot.sendMessage(msg.chat.id, caption, { parse_mode: 'HTML' })
+        formatTransactionOne({ msg, bot }, { ...transactionSelected, category: categorySelected })
         return
       }
     }
