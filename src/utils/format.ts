@@ -34,26 +34,28 @@ type TransactionWithCategory = Transaction & { category: Category }
 type CategoryWithTransactions = Category & { transactions: Transaction[] }
 
 export async function formatTransactionOne({ msg, bot }: Props, transaction: TransactionWithCategory) {
-  const fileUrl = !!transaction.fileId ? await bot.getFileLink(transaction.fileId) : null
+  const caption = `<i>${dayjs(transaction.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!transaction.fileId ? '📎 ' : ''}${transaction.description}</b>\n${transaction.category.emoji} ${transaction.category.description}\n${transaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transaction.paymentMethod]}\n${numeral(transaction.amount).format('0,0.00')} ${transaction.currency}${transaction.notes ? `\n<blockquote>${transaction.notes}</blockquote>` : ''}\n\n/renombrar\n\n/notas\n\n/adjuntar archivo\n\n/eliminar`
 
-  const caption = `<i>${dayjs(transaction.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!fileUrl ? '📎 ' : ''}${transaction.description}</b>\n${transaction.category.emoji} ${transaction.category.description}\n${transaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transaction.paymentMethod]}\n${numeral(transaction.amount).format('0,0.00')} ${transaction.currency}${transaction.notes ? `\n<blockquote>${transaction.notes}</blockquote>` : ''}\n\n/renombrar\n\n/notas\n\n/adjuntar archivo\n\n/eliminar`
+  if (!!transaction.fileId) {
+    const fileUrl = !!transaction.fileId ? await bot.getFileLink(transaction.fileId) : null
 
-  if (!!fileUrl) {
-    // get buffer
-    const res = await fetch(fileUrl)
+    if (!!fileUrl) {
+      // get buffer
+      const res = await fetch(fileUrl)
 
-    if (res.ok) {
-      const arrayBuffer = await res.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
+      if (res.ok) {
+        const arrayBuffer = await res.arrayBuffer()
+        const buffer = Buffer.from(arrayBuffer)
 
-      if (transaction.fileType === 'PHOTO') {
-        await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
-      } else {
-        await bot.sendDocument(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+        if (transaction.fileType === 'PHOTO') {
+          await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+        } else {
+          await bot.sendDocument(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+        }
+        return
       }
-      return
+      await bot.sendMessage(msg.chat.id, 'No se encontró el archivo adjunto.')
     }
-    await bot.sendMessage(msg.chat.id, 'No se encontró el archivo adjunto.')
   }
 
   await bot.sendMessage(msg.chat.id, caption, { parse_mode: 'HTML' })
@@ -102,25 +104,28 @@ export async function formatCategoryOne({ msg, bot, dollarToHNL, hnlToDollar }: 
   const limitText = `Límite:\n${numeral(spendTotal).format('0,0.00')} / ${numeral(category.limit).format('0,0.00')} ${category.currency}${category.isFixed ? '\n<i>Gasto Fijo</i>' : ''}`
   const notesText = category.notes ? `\n\n<blockquote>${category.notes}</blockquote>` : ''
 
-  const fileUrl = !!category.fileId ? await bot.getFileLink(category.fileId) : null
-  const caption = `<b>${!!fileUrl ? '📎 ' : ''}${category.emoji} ${category.description}</b>\n\n${spendText}\n${limitText}${notesText}\n\n¿Qué quieres hacer?\n\n/renombrar\n\n/editar limite\n\n${category.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n\n/notas\n\n/adjuntar archivo\n\n/eliminar`
+  const caption = `<b>${!!category.fileId ? '📎 ' : ''}${category.emoji} ${category.description}</b>\n\n${spendText}\n${limitText}${notesText}\n\n¿Qué quieres hacer?\n\n/renombrar\n\n/editar limite\n\n${category.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n\n/notas\n\n/adjuntar archivo\n\n/eliminar`
 
-  if (fileUrl) {
-    // get buffer
-    const res = await fetch(fileUrl)
+  if (!!category.fileId) {
+    const fileUrl = !!category.fileId ? await bot.getFileLink(category.fileId) : null
 
-    if (res.ok) {
-      const arrayBuffer = await res.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
+    if (!!fileUrl) {
+      // get buffer
+      const res = await fetch(fileUrl)
 
-      if (category.fileType === 'PHOTO') {
-        await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
-      } else {
-        await bot.sendDocument(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+      if (res.ok) {
+        const arrayBuffer = await res.arrayBuffer()
+        const buffer = Buffer.from(arrayBuffer)
+
+        if (category.fileType === 'PHOTO') {
+          await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+        } else {
+          await bot.sendDocument(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
+        }
+        return
       }
-      return
+      await bot.sendMessage(msg.chat.id, 'No se encontró el archivo adjunto.')
     }
-    await bot.sendMessage(msg.chat.id, 'No se encontró el archivo adjunto.')
   }
 
   await bot.sendMessage(msg.chat.id, caption, { parse_mode: 'HTML' })
