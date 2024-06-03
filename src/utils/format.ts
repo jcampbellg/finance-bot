@@ -34,11 +34,13 @@ type TransactionWithCategory = Transaction & { category: Category }
 type CategoryWithTransactions = Category & { transactions: Transaction[] }
 
 export async function formatTransactionOne({ msg, bot }: Props, transaction: TransactionWithCategory) {
-  const caption = `<i>${dayjs(transaction.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!transaction.fileUrl ? '📎 ' : ''}${transaction.description}</b>\n${transaction.category.emoji} ${transaction.category.description}\n${transaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transaction.paymentMethod]}\n${numeral(transaction.amount).format('0,0.00')} ${transaction.currency}${transaction.notes ? `\n<blockquote>${transaction.notes}</blockquote>` : ''}\n\n/adjuntar archivo\n\n/eliminar`
+  const fileUrl = !!transaction.fileId ? await bot.getFileLink(transaction.fileId) : null
 
-  if (!!transaction.fileUrl) {
+  const caption = `<i>${dayjs(transaction.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!fileUrl ? '📎 ' : ''}${transaction.description}</b>\n${transaction.category.emoji} ${transaction.category.description}\n${transaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transaction.paymentMethod]}\n${numeral(transaction.amount).format('0,0.00')} ${transaction.currency}${transaction.notes ? `\n<blockquote>${transaction.notes}</blockquote>` : ''}\n\n/renombrar\n\n/notas\n\n/adjuntar archivo\n\n/eliminar`
+
+  if (!!fileUrl) {
     // get buffer
-    const res = await fetch(transaction.fileUrl)
+    const res = await fetch(fileUrl)
 
     if (res.ok) {
       const arrayBuffer = await res.arrayBuffer()
@@ -100,11 +102,12 @@ export async function formatCategoryOne({ msg, bot, dollarToHNL, hnlToDollar }: 
   const limitText = `Límite:\n${numeral(spendTotal).format('0,0.00')} / ${numeral(category.limit).format('0,0.00')} ${category.currency}${category.isFixed ? '\n<i>Gasto Fijo</i>' : ''}`
   const notesText = category.notes ? `\n\n<blockquote>${category.notes}</blockquote>` : ''
 
-  const caption = `<b>${category.emoji} ${category.description}</b>\n\n${spendText}\n${limitText}${notesText}\n\n¿Qué quieres hacer?\n\n/renombrar\n\n/editar limite\n\n${category.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n\n/notas\n\n/adjuntar archivo\n\n/eliminar`
+  const fileUrl = !!category.fileId ? await bot.getFileLink(category.fileId) : null
+  const caption = `<b>${!!fileUrl ? '📎 ' : ''}${category.emoji} ${category.description}</b>\n\n${spendText}\n${limitText}${notesText}\n\n¿Qué quieres hacer?\n\n/renombrar\n\n/editar limite\n\n${category.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n\n/notas\n\n/adjuntar archivo\n\n/eliminar`
 
-  if (category.fileUrl) {
+  if (fileUrl) {
     // get buffer
-    const res = await fetch(category.fileUrl)
+    const res = await fetch(fileUrl)
 
     if (res.ok) {
       const arrayBuffer = await res.arrayBuffer()

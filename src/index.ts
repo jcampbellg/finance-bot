@@ -842,7 +842,7 @@ bot.on('message', async (msg) => {
         }
 
         const categoriesText = categories.map((cat, i) => {
-          return `/${i + 1}. <b>${!!cat.fileUrl ? '📎 ' : ''}${cat.emoji} ${cat.description}</b>\nLimite: ${numeral(cat.limit).format('0,0.00')}${cat.currency}${cat.isFixed ? '\nGasto Fijo' : ''}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`
+          return `/${i + 1}. <b>${!!cat.fileId ? '📎 ' : ''}${cat.emoji} ${cat.description}</b>\nLimite: ${numeral(cat.limit).format('0,0.00')}${cat.currency}${cat.isFixed ? '\nGasto Fijo' : ''}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`
         }).join('\n\n')
 
         const incomes = await prisma.income.findMany({
@@ -1044,7 +1044,7 @@ bot.on('message', async (msg) => {
       if (userText === '/adjuntar') {
         await chatUpdate(msg.chat.id, { chatSubSubject: ['editar', categoryEditing.id.toString(), 'adjuntar'] })
 
-        await bot.sendMessage(msg.chat.id, `Envía el archivo que quieres adjuntar para <b>${categoryEditing.emoji} ${categoryEditing.description}.</b>${!!categoryEditing.fileUrl ? '\n\n/quitar el archivo adjunto' : ''}`, { parse_mode: 'HTML' })
+        await bot.sendMessage(msg.chat.id, `Envía el archivo que quieres adjuntar para <b>${categoryEditing.emoji} ${categoryEditing.description}.</b>${!!categoryEditing.fileId ? '\n\n/quitar el archivo adjunto' : ''}`, { parse_mode: 'HTML' })
         return
       }
 
@@ -1054,6 +1054,7 @@ bot.on('message', async (msg) => {
             id: categoryEditing.id
           },
           data: {
+            fileId: null,
             fileUrl: null,
             fileType: null
           }
@@ -1283,7 +1284,7 @@ bot.on('message', async (msg) => {
 
         // Return all transactions
         const transactionsText = categorySelected.transactions.map((t, i) => {
-          return `/${i + 1}. <b>${!!t.fileUrl ? '📎 ' : ''}${t.description}</b>\n${dayjs(t.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
+          return `/${i + 1}. <b>${!!t.fileId ? '📎 ' : ''}${t.description}</b>\n${dayjs(t.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
         }).join('\n\n')
 
         const totalHNL = categorySelected.transactions.reduce((acc, t) => {
@@ -1372,6 +1373,20 @@ bot.on('message', async (msg) => {
       return
     }
 
+    if (userText === '/renombrar') {
+      await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`, 'renombrar'] })
+
+      await bot.sendMessage(msg.chat.id, `Escribe el nuevo nombre para <b>${lastTransaction.description}:</b>`, { parse_mode: 'HTML' })
+      return
+    }
+
+    if (userText === '/notas') {
+      await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`, 'notas'] })
+
+      await bot.sendMessage(msg.chat.id, `Escribe la nota para <b>${lastTransaction.description}:</b> \n\n/quitar la nota.`, { parse_mode: 'HTML' })
+      return
+    }
+
     if (userText === '/eliminar') {
       await prisma.transaction.delete({
         where: {
@@ -1387,7 +1402,7 @@ bot.on('message', async (msg) => {
     if (userText === '/adjuntar') {
       await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`, 'adjuntar'] })
 
-      await bot.sendMessage(msg.chat.id, `Envía el archivo que quieres adjuntar para <b>${lastTransaction.description}.</b>${!!lastTransaction.fileUrl ? '\n\n/quitar el archivo adjunto' : ''}`, { parse_mode: 'HTML' })
+      await bot.sendMessage(msg.chat.id, `Envía el archivo que quieres adjuntar para <b>${lastTransaction.description}.</b>${!!lastTransaction.fileId ? '\n\n/quitar el archivo adjunto' : ''}`, { parse_mode: 'HTML' })
       return
     }
 
@@ -1398,6 +1413,7 @@ bot.on('message', async (msg) => {
             id: lastTransaction.id
           },
           data: {
+            fileId: null,
             fileUrl: null,
             fileType: null
           }
@@ -1440,6 +1456,51 @@ bot.on('message', async (msg) => {
       })
 
       await bot.sendMessage(msg.chat.id, `Archivo adjuntado para <b>${lastTransaction.description}.</b>`, { parse_mode: 'HTML' })
+      return
+    }
+
+    if (chat.chatSubSubject[1] === 'renombrar') {
+      const newName = await prisma.transaction.update({
+        where: {
+          id: lastTransaction.id
+        },
+        data: {
+          description: userText
+        }
+      })
+
+      await chatUpdate(msg.chat.id)
+      await bot.sendMessage(msg.chat.id, `Nombre actualizado\n\n<s>${lastTransaction.description}</s>\n<b>${newName.description}.</b>`, { parse_mode: 'HTML' })
+      return
+    }
+
+    if (chat.chatSubSubject[1] === 'notas') {
+      if (userText === '/quitar') {
+        await prisma.transaction.update({
+          where: {
+            id: lastTransaction.id
+          },
+          data: {
+            notes: null
+          }
+        })
+
+        await chatUpdate(msg.chat.id)
+        await bot.sendMessage(msg.chat.id, `Nota eliminada para <b>${lastTransaction.description}.</b>`, { parse_mode: 'HTML' })
+        return
+      }
+
+      await prisma.transaction.update({
+        where: {
+          id: lastTransaction.id
+        },
+        data: {
+          notes: userText
+        }
+      })
+
+      await chatUpdate(msg.chat.id)
+      await bot.sendMessage(msg.chat.id, `Nota actualizada para <b>${lastTransaction.description}.</b>`, { parse_mode: 'HTML' })
       return
     }
   }
@@ -1527,7 +1588,7 @@ bot.on('message', async (msg) => {
       }
 
       const transactionsText = transactions.map((t, i) => {
-        return `/${i + 1}. <b>${!!t.fileUrl ? '📎 ' : ''}${t.description}</b>\n<i>${dayjs(t.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n${t.category.emoji} ${t.category.description}\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
+        return `/${i + 1}. <b>${!!t.fileId ? '📎 ' : ''}${t.description}</b>\n<i>${dayjs(t.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n${t.category.emoji} ${t.category.description}\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
       }).join('\n\n')
 
       await chatUpdate(msg.chat.id, { chatSubject: 'buscar', chatSubSubject: [userText] })
@@ -1583,27 +1644,7 @@ bot.on('message', async (msg) => {
 
       await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${transactionSearch.id}`] })
 
-      const caption = `<i>${dayjs(transactionSearch.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!transactionSearch.fileUrl ? '📎 ' : ''}${transactionSearch.description}</b>\n${transactionSearch.category.emoji} ${transactionSearch.category.description}\n${transactionSearch.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transactionSearch.paymentMethod]}\n${numeral(transactionSearch.amount).format('0,0.00')} ${transactionSearch.currency}${transactionSearch.notes ? `\n<blockquote>${transactionSearch.notes}</blockquote>` : ''}\n\n/adjuntar archivo\n\n/eliminar`
-
-      if (!!transactionSearch.fileUrl) {
-        // get buffer
-        const res = await fetch(transactionSearch.fileUrl)
-
-        if (res.ok) {
-          const arrayBuffer = await res.arrayBuffer()
-          const buffer = Buffer.from(arrayBuffer)
-
-          if (transactionSearch.fileType === 'PHOTO') {
-            await bot.sendPhoto(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
-          } else {
-            await bot.sendDocument(msg.chat.id, buffer, { caption, parse_mode: 'HTML' })
-          }
-          return
-        }
-        await bot.sendMessage(msg.chat.id, 'No se encontró el archivo adjunto.')
-      }
-
-      await bot.sendMessage(msg.chat.id, caption, { parse_mode: 'HTML' })
+      await formatTransactionOne({ msg, bot }, transactionSearch)
       return
     }
   }
