@@ -182,7 +182,7 @@ bot.on('message', async (msg) => {
     await chatUpdate(msg.chat.id, { chatSubject: 'estado', chatSubSubject: [!!chat.statement ? 'queres cambiarlo' : 'mes y año'] })
 
     if (!!chat.statement) {
-      const monthInSpanish = dayjs().locale('es').month(chat.statement.month - 1).format('MMMM')
+      const monthInSpanish = dayjs().tz(process.env.timezone).locale('es').month(chat.statement.month - 1).format('MMMM')
       const year = chat.statement.year
       await bot.sendMessage(msg.chat.id, `Tu estado de cuenta actual es para el mes de ${monthInSpanish} del año ${year}.\n\n¿Quieres cambiarlo?\n\n/si\n\n/no`)
       return
@@ -320,7 +320,7 @@ bot.on('message', async (msg) => {
 
     await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`] })
 
-    const caption = `<i>${dayjs(lastTransaction.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!lastTransaction.fileUrl ? '📎 ' : ''}${lastTransaction.description}</b>\n${lastTransaction.category.emoji} ${lastTransaction.category.description}\n${lastTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[lastTransaction.paymentMethod]}\n${numeral(lastTransaction.amount).format('0,0.00')} ${lastTransaction.currency}${lastTransaction.notes ? `\n<blockquote>${lastTransaction.notes}</blockquote>` : ''}\n\n/adjuntar archivo\n\n/eliminar`
+    const caption = `<i>${dayjs(lastTransaction.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!lastTransaction.fileUrl ? '📎 ' : ''}${lastTransaction.description}</b>\n${lastTransaction.category.emoji} ${lastTransaction.category.description}\n${lastTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[lastTransaction.paymentMethod]}\n${numeral(lastTransaction.amount).format('0,0.00')} ${lastTransaction.currency}${lastTransaction.notes ? `\n<blockquote>${lastTransaction.notes}</blockquote>` : ''}\n\n/adjuntar archivo\n\n/eliminar`
 
     if (!!lastTransaction.fileUrl) {
       // get buffer
@@ -434,7 +434,7 @@ bot.on('message', async (msg) => {
         }
       })
 
-      const monthInSpanish = dayjs().locale('es').month(month - 1).format('MMMM')
+      const monthInSpanish = dayjs().tz(process.env.timezone).locale('es').month(month - 1).format('MMMM')
 
       if (!!statementExists) {
         await chatUpdate(msg.chat.id, { statementId: statementExists.id, chatSubject: '', chatSubSubject: [], chatHistory: [] })
@@ -639,7 +639,7 @@ bot.on('message', async (msg) => {
 
       await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${newTransaction.id}`], chatHistory: [] })
 
-      await bot.sendMessage(msg.chat.id, `<i>Transacción creada.</i>\n\n<i>${dayjs(newTransaction.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${newTransaction.description}</b>\n${newTransaction.category.emoji} ${newTransaction.category.description}\n${newTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[newTransaction.paymentMethod]}\n${numeral(newTransaction.amount).format('0,0.00')} ${newTransaction.currency}${newTransaction.notes ? `\n<blockquote>${newTransaction.notes}</blockquote>` : ''}\n\n/adjuntar archivo`, { parse_mode: 'HTML' })
+      await bot.sendMessage(msg.chat.id, `<i>Transacción creada.</i>\n\n<i>${dayjs(newTransaction.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${newTransaction.description}</b>\n${newTransaction.category.emoji} ${newTransaction.category.description}\n${newTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[newTransaction.paymentMethod]}\n${numeral(newTransaction.amount).format('0,0.00')} ${newTransaction.currency}${newTransaction.notes ? `\n<blockquote>${newTransaction.notes}</blockquote>` : ''}\n\n/adjuntar archivo`, { parse_mode: 'HTML' })
       return
     }
   }
@@ -1363,7 +1363,7 @@ bot.on('message', async (msg) => {
 
         // Return all transactions
         const transactionsText = categorySelected.transactions.map((t, i) => {
-          return `/${i + 1}. <b>${!!t.fileUrl ? '📎 ' : ''}${t.description}</b>\n${dayjs(t.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
+          return `/${i + 1}. <b>${!!t.fileUrl ? '📎 ' : ''}${t.description}</b>\n${dayjs(t.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
         }).join('\n\n')
 
         const totalHNL = categorySelected.transactions.reduce((acc, t) => {
@@ -1406,18 +1406,13 @@ bot.on('message', async (msg) => {
 
         const totalsText = `<b>Totales:</b>\n${numeral(totalHNL).format('0,0.00')} HNL\n${numeral(totalUSD).format('0,0.00')} USD\n${numeral(totalSpend).format('0,0.00')} / ${numeral(categorySelected.limit).format('0,0.00')} ${categorySelected.currency}\n${categorySelected.notes ? `<blockquote>${categorySelected.notes}</blockquote>` : ''}`
 
-        await chatUpdate(msg.chat.id, { chatSubject: 'resumen', chatSubSubject: [`${index}`] })
+        await chatUpdate(msg.chat.id, { chatSubject: 'resumen', chatSubSubject: [`${categorySelected.id}`] })
         await bot.sendMessage(msg.chat.id, `<b>${categorySelected.emoji} ${categorySelected.description}</b>\nPresiona el /# para editar.\n\n${transactionsText}\n\n${totalsText}`, { parse_mode: 'HTML' })
         return
       } else {
-        const categorySelected = await prisma.category.findFirst({
-          take: 1,
-          skip: parseInt(chat.chatSubSubject[0]),
+        const categorySelected = await prisma.category.findUnique({
           where: {
-            statementId: chat.statement.id
-          },
-          orderBy: {
-            description: 'asc'
+            id: parseInt(chat.chatSubSubject[0])
           },
           include: {
             transactions: true
@@ -1438,7 +1433,7 @@ bot.on('message', async (msg) => {
         }
         await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${transactionSelected.id}`] })
 
-        const caption = `<i>${dayjs(transactionSelected.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!transactionSelected.fileUrl ? '📎 ' : ''}${transactionSelected.description}</b>\n${categorySelected.emoji} ${categorySelected.description}\n${transactionSelected.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transactionSelected.paymentMethod]}\n${numeral(transactionSelected.amount).format('0,0.00')} ${transactionSelected.currency}${transactionSelected.notes ? `\n<blockquote>${transactionSelected.notes}</blockquote>` : ''}\n\n/adjuntar archivo\n\n/eliminar`
+        const caption = `<i>${dayjs(transactionSelected.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!transactionSelected.fileUrl ? '📎 ' : ''}${transactionSelected.description}</b>\n${categorySelected.emoji} ${categorySelected.description}\n${transactionSelected.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transactionSelected.paymentMethod]}\n${numeral(transactionSelected.amount).format('0,0.00')} ${transactionSelected.currency}${transactionSelected.notes ? `\n<blockquote>${transactionSelected.notes}</blockquote>` : ''}\n\n/adjuntar archivo\n\n/eliminar`
 
         if (!!transactionSelected.fileUrl) {
           // get buffer
@@ -1614,7 +1609,7 @@ bot.on('message', async (msg) => {
       }
 
       const transactionsText = transactions.map((t, i) => {
-        return `/${i + 1}. <b>${!!t.fileUrl ? '📎 ' : ''}${t.description}</b>\n${dayjs(t.date).locale('es').format('dddd, MMMM D, YYYY h:mm A')}\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
+        return `/${i + 1}. <b>${!!t.fileUrl ? '📎 ' : ''}${t.description}</b>\n${dayjs(t.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
       }).join('\n\n')
 
       await chatUpdate(msg.chat.id, { chatSubject: 'buscar', chatSubSubject: [userText] })
