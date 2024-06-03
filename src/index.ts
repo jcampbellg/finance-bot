@@ -1387,6 +1387,50 @@ bot.on('message', async (msg) => {
       return
     }
 
+    if (userText === '/editar') {
+      await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`, 'monto'] })
+
+      await bot.sendMessage(msg.chat.id, `Escribe el nuevo monto sin la moneda para <b>${lastTransaction.description}</b>:`, { parse_mode: 'HTML' })
+      return
+    }
+
+    if (chat.chatSubSubject[1] === 'monto') {
+      const amount = await AIAmount(userText)
+
+      if ('error' in amount) {
+        await bot.sendMessage(msg.chat.id, amount.error)
+        return
+      }
+
+      await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`, 'moneda'], chatHistory: [numeral(amount.amount).format('0.00')] })
+
+      await bot.sendMessage(msg.chat.id, `<b>${numeral(amount.amount).format('0,0.00')}</b>\n¿En qué moneda es la transacción?\n\n/hnl\n\n/usd`, { parse_mode: 'HTML' })
+      return
+    }
+
+    if (chat.chatSubSubject[1] === 'moneda') {
+      if (userText === '/hnl' || userText === '/usd') {
+        const currency = userText === '/hnl' ? 'HNL' : 'USD'
+
+        const editedTransaction = await prisma.transaction.update({
+          where: {
+            id: lastTransaction.id
+          },
+          data: {
+            amount: parseFloat(chat.chatHistory[0]),
+            currency: currency
+          }
+        })
+
+        await chatUpdate(msg.chat.id)
+        await bot.sendMessage(msg.chat.id, `Monto actualizado para <b>${editedTransaction.description}.</b>\n\n${numeral(editedTransaction.amount).format('0,0.00')} ${editedTransaction.currency}`, { parse_mode: 'HTML' })
+        return
+      }
+
+      await bot.sendMessage(msg.chat.id, 'Escribe una moneda valida. Intenta de nuevo.\n\n/nueva')
+      return
+    }
+
     if (userText === '/eliminar') {
       await prisma.transaction.delete({
         where: {

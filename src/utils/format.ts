@@ -34,7 +34,7 @@ type TransactionWithCategory = Transaction & { category: Category }
 type CategoryWithTransactions = Category & { transactions: Transaction[] }
 
 export async function formatTransactionOne({ msg, bot }: Props, transaction: TransactionWithCategory) {
-  const caption = `<i>${dayjs(transaction.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!transaction.fileId ? '📎 ' : ''}${transaction.description}</b>\n${transaction.category.emoji} ${transaction.category.description}\n${transaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transaction.paymentMethod]}\n${numeral(transaction.amount).format('0,0.00')} ${transaction.currency}${transaction.notes ? `\n<blockquote>${transaction.notes}</blockquote>` : ''}\n\n/renombrar\n\n/notas\n\n/adjuntar archivo\n\n/eliminar`
+  const caption = `<i>${dayjs(transaction.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${!!transaction.fileId ? '📎 ' : ''}${transaction.description}</b>\n${transaction.category.emoji} ${transaction.category.description}\n${transaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[transaction.paymentMethod]}\n${numeral(transaction.amount).format('0,0.00')} ${transaction.currency}${transaction.notes ? `\n<blockquote>${transaction.notes}</blockquote>` : ''}\n\n/renombrar\n\n/editar monto\n\n/notas\n\n/adjuntar archivo\n\n/eliminar`
 
   if (!!transaction.fileId) {
     try {
