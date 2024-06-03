@@ -1611,12 +1611,32 @@ bot.on('message', async (msg) => {
         }
       })
 
+      const orWhereN: Prisma.TransactionWhereInput[] = splitText.map(t => {
+        return {
+          notes: {
+            contains: t,
+            mode: 'insensitive'
+          }
+        }
+      })
+
+      const orWhereCN: Prisma.TransactionWhereInput[] = splitText.map(t => {
+        return {
+          category: {
+            notes: {
+              contains: t,
+              mode: 'insensitive'
+            }
+          }
+        }
+      })
+
       const transactions = await prisma.transaction.findMany({
         where: {
           category: {
             statementId: chat.statement.id
           },
-          OR: [...orWhereD, ...orWhereC]
+          OR: [...orWhereD, ...orWhereC, ...orWhereN, ...orWhereCN]
         },
         include: {
           category: true
@@ -1663,6 +1683,26 @@ bot.on('message', async (msg) => {
         }
       })
 
+      const orWhereN: Prisma.TransactionWhereInput[] = splitText.map(t => {
+        return {
+          notes: {
+            contains: t,
+            mode: 'insensitive'
+          }
+        }
+      })
+
+      const orWhereCN: Prisma.TransactionWhereInput[] = splitText.map(t => {
+        return {
+          category: {
+            notes: {
+              contains: t,
+              mode: 'insensitive'
+            }
+          }
+        }
+      })
+
       const index = parseInt(userText.replace('/', '')) - 1
 
       const transactionSearch = await prisma.transaction.findFirst({
@@ -1671,7 +1711,7 @@ bot.on('message', async (msg) => {
           category: {
             statementId: chat.statement.id
           },
-          OR: [...orWhereD, ...orWhereC]
+          OR: [...orWhereD, ...orWhereC, ...orWhereN, ...orWhereCN]
         },
         include: {
           category: true
