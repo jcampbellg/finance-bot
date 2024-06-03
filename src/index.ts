@@ -294,7 +294,9 @@ bot.on('message', async (msg) => {
         }
       }, 0)
 
-      return `<b>/${i + 1} ${cat.emoji} ${cat.description}</b>\n${numeral(totalHNL).format('0,0.00')} HNL\n${numeral(totalUSD).format('0,0.00')} USD\n${numeral(totalSpend).format('0,0.00')} / ${numeral(cat.limit).format('0,0.00')} ${cat.currency}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`
+      const passLimit = totalSpend > cat.limit
+
+      return `<b>/${i + 1} ${cat.emoji} ${cat.description}</b>${!!totalHNL ? `\n${numeral(totalHNL).format('0,0.00')} HNL` : ''}${!!totalUSD ? `\n${numeral(totalUSD).format('0,0.00')} USD` : ''}\n${passLimit ? '⚠️ ' : ''}${numeral(totalSpend).format('0,0.00')} / ${numeral(cat.limit).format('0,0.00')} ${cat.currency}${cat.notes ? `\n<blockquote>${cat.notes}</blockquote>` : ''}`
     }).join('\n\n')
 
     await chatUpdate(msg.chat.id, { chatSubject: 'resumen', chatSubSubject: [] })

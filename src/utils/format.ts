@@ -105,11 +105,14 @@ export async function formatCategoryOne({ msg, bot, dollarToHNL, hnlToDollar }: 
     }
   }, 0)
 
-  const spendText = `Gasto:\n${numeral(spendHNL).format('0,0.00')} HNL\n${numeral(spendUSD).format('0,0.00')} USD\n`
-  const limitText = `Límite:\n${numeral(spendTotal).format('0,0.00')} / ${numeral(category.limit).format('0,0.00')} ${category.currency}${category.isFixed ? '\n<i>Gasto Fijo</i>' : ''}`
+  const passLimit = spendTotal > category.limit
+
+  const spendText = (!!spendHNL || !!spendUSD) ? `\n\nGasto:${!!spendHNL ? `\n${numeral(spendHNL).format('0,0.00')} HNL` : ''}${!!spendUSD ? `\n${numeral(spendUSD).format('0,0.00')} USD` : ''}` : ''
+  const limitText = `Límite:\n${passLimit ? '⚠️ ' : ''}${numeral(spendTotal).format('0,0.00')} / ${numeral(category.limit).format('0,0.00')} ${category.currency}${category.isFixed ? '\n<i>Gasto Fijo</i>' : ''}`
   const notesText = category.notes ? `\n\n<blockquote>${category.notes}</blockquote>` : ''
 
-  const caption = `<b>${!!category.fileId ? '📎 ' : ''}${category.emoji} ${category.description}</b>\n\n${spendText}\n${limitText}${notesText}\n\n¿Qué quieres hacer?\n\n/renombrar\n\n/editar limite\n\n${category.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n\n/notas\n\n/adjuntar archivo\n\n/eliminar`
+
+  const caption = `<b>${!!category.fileId ? '📎 ' : ''}${category.emoji} ${category.description}</b>${spendText}\n\n${limitText}${notesText}\n\n¿Qué quieres hacer?\n\n/renombrar\n\n/editar limite\n\n${category.isFixed ? '/quitar de gasto fijos' : '/poner en gastos fijos'}\n\n/notas\n\n/adjuntar archivo\n\n/eliminar`
 
   if (!!category.fileId) {
     try {
