@@ -606,7 +606,7 @@ bot.on('message', async (msg) => {
 
       await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${newTransaction.id}`], chatHistory: [] })
 
-      await bot.sendMessage(msg.chat.id, `<i>Transacción creada.</i>\n\n<i>${dayjs(newTransaction.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}</i>\n<b>${newTransaction.description}</b>\n${newTransaction.category.emoji} ${newTransaction.category.description}\n${newTransaction.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[newTransaction.paymentMethod]}\n${numeral(newTransaction.amount).format('0,0.00')} ${newTransaction.currency}${newTransaction.notes ? `\n<blockquote>${newTransaction.notes}</blockquote>` : ''}\n\n/adjuntar archivo`, { parse_mode: 'HTML' })
+      await bot.sendMessage(msg.chat.id, `<i>Transacción creada.</i>\n\n<i>${formatTransactionOne({ msg, bot }, newTransaction)}`, { parse_mode: 'HTML' })
       return
     }
   }
@@ -937,12 +937,15 @@ bot.on('message', async (msg) => {
               limit: parseFloat(chat.chatHistory[4]),
               currency: currency,
               statementId: chat.statement.id
+            },
+            include: {
+              transactions: true
             }
           })
 
           await chatUpdate(msg.chat.id)
 
-          await bot.sendMessage(msg.chat.id, `Categoría creada: <b>${category.emoji} ${category.description}.</b>\n\n${numeral(category.limit).format('0,0.00')} ${category.currency}`, { parse_mode: 'HTML' })
+          await bot.sendMessage(msg.chat.id, `Categoría creada: ${formatCategoryOne({ msg, bot, dollarToHNL, hnlToDollar }, category)}`, { parse_mode: 'HTML' })
           return
         }
 
