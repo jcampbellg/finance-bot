@@ -8,7 +8,7 @@ import * as dotenv from 'dotenv'
 import prisma from '@utils/prisma'
 import { AIAmount, AICategory, AIStatement } from '@utils/AI'
 import { Currency, FileType, PaymentMethod, Prisma, Type } from '@prisma/client'
-import { formatCategoryOne, formatTransactionOne } from '@utils/format'
+import { formatCategoryOne, formatCategoryOneWithTransactions, formatTransactionOne } from '@utils/format'
 dotenv.config()
 
 if (process.env.botToken === undefined) {
@@ -65,7 +65,7 @@ const commands = [{
   description: 'Ver y editar la última transacción.'
 }, {
   command: 'buscar',
-  description: 'Buscar transacciones o categorias por descripción.'
+  description: 'Buscar transacciones o categorías por descripción.'
 }]
 
 bot.on('message', async (msg) => {
@@ -562,8 +562,7 @@ bot.on('message', async (msg) => {
       const category = allCategories.find(c => c.description === categoryFromAi.category)
 
       if (!category) {
-        await chatUpdate(msg.chat.id)
-        await bot.sendMessage(msg.chat.id, 'No se encontró la categoría. Intenta de nuevo.\n\n/nueva')
+        await bot.sendMessage(msg.chat.id, 'No se encontró la categoría. Intenta de nuevo.')
         return
       }
 
@@ -1274,54 +1273,9 @@ bot.on('message', async (msg) => {
           await bot.sendMessage(msg.chat.id, 'No se encontró la categoría.')
           return
         }
-
-        // Return all transactions
-        const transactionsText = categorySelected.transactions.map((t, i) => {
-          return `/${i + 1}. <b>${!!t.fileId ? '📎 ' : ''}${t.description}</b>\n${dayjs(t.date).tz(process.env.timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')}\n${t.type === 'INCOME' ? 'Ingreso' : 'Gasto'} ${paymentMethod[t.paymentMethod]}\n${numeral(t.amount).format('0,0.00')} ${t.currency}${t.notes ? `\n<blockquote>${t.notes}</blockquote>` : ''}`
-        }).join('\n\n')
-
-        const totalHNL = categorySelected.transactions.reduce((acc, t) => {
-          if (t.currency === 'HNL') {
-            if (t.type === 'INCOME') {
-              return acc - t.amount
-            }
-            return acc + t.amount
-          }
-          return acc
-        }, 0)
-
-        const totalUSD = categorySelected.transactions.reduce((acc, t) => {
-          if (t.currency === 'USD') {
-            if (t.type === 'INCOME') {
-              return acc - t.amount
-            }
-            return acc + t.amount
-          }
-          return acc
-        }, 0)
-
-        const totalSpend = categorySelected.transactions.reduce((acc, t) => {
-          if (categorySelected.currency === 'HNL') {
-            if (t.type === 'INCOME') {
-              if (t.currency === 'USD') return acc - (t.amount * dollarToHNL)
-              return acc - t.amount
-            }
-            if (t.currency === 'USD') return acc + (t.amount * dollarToHNL)
-            return acc + t.amount
-          } else {
-            if (t.type === 'INCOME') {
-              if (t.currency === 'HNL') return acc - (t.amount * hnlToDollar)
-              return acc - t.amount
-            }
-            if (t.currency === 'HNL') return acc + (t.amount * hnlToDollar)
-            return acc + t.amount
-          }
-        }, 0)
-
-        const totalsText = `<b>Totales:</b>\n${numeral(totalHNL).format('0,0.00')} HNL\n${numeral(totalUSD).format('0,0.00')} USD\n${numeral(totalSpend).format('0,0.00')} / ${numeral(categorySelected.limit).format('0,0.00')} ${categorySelected.currency}\n${categorySelected.notes ? `<blockquote>${categorySelected.notes}</blockquote>` : ''}`
-
         await chatUpdate(msg.chat.id, { chatSubject: 'resumen', chatSubSubject: [`${categorySelected.id}`] })
-        await bot.sendMessage(msg.chat.id, `<b>${categorySelected.emoji} ${categorySelected.description}</b>\nPresiona el /# para editar.\n\n${transactionsText}\n\n${totalsText}`, { parse_mode: 'HTML' })
+
+        await formatCategoryOneWithTransactions({ msg, bot, dollarToHNL, hnlToDollar }, categorySelected)
         return
       } else {
         // Return one transaction
@@ -1366,6 +1320,35 @@ bot.on('message', async (msg) => {
       return
     }
 
+    if (userText === '/cambiar') {
+      await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`, 'cambiar categoria'] })
+
+      await bot.sendMessage(msg.chat.id, `Escribe la nueva categoria para <b>${lastTransaction.description}:</b>`, { parse_mode: 'HTML' })
+      return
+    }
+
+    if (userText === '/ver') {
+      // Load Category
+      await chatUpdate(msg.chat.id, { chatSubject: 'resumen', chatSubSubject: [`${lastTransaction.categoryId}`] })
+
+      const category = await prisma.category.findUnique({
+        where: {
+          id: lastTransaction.categoryId
+        },
+        include: {
+          transactions: true
+        }
+      })
+
+      if (!category) {
+        await bot.sendMessage(msg.chat.id, 'No se encontró la categoría.')
+        return
+      }
+
+      await formatCategoryOneWithTransactions({ msg, bot, dollarToHNL, hnlToDollar }, category)
+      return
+    }
+
     if (userText === '/renombrar') {
       await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`, 'renombrar'] })
 
@@ -1384,6 +1367,44 @@ bot.on('message', async (msg) => {
       await chatUpdate(msg.chat.id, { chatSubject: 'ultima', chatSubSubject: [`${lastTransaction.id}`, 'monto'] })
 
       await bot.sendMessage(msg.chat.id, `Escribe el nuevo monto sin la moneda para <b>${lastTransaction.description}</b>:`, { parse_mode: 'HTML' })
+      return
+    }
+
+    if (chat.chatSubSubject[1] === 'cambiar categoria') {
+      const allCategories = await prisma.category.findMany({
+        where: {
+          statementId: chat.statement.id
+        },
+        orderBy: {
+          description: 'asc'
+        }
+      })
+
+      const categoryFromAi = await AICategory(allCategories, userText)
+
+      if ('error' in categoryFromAi) {
+        await bot.sendMessage(msg.chat.id, categoryFromAi.error)
+        return
+      }
+
+      const category = allCategories.find(c => c.description === categoryFromAi.category)
+
+      if (!category) {
+        await bot.sendMessage(msg.chat.id, 'No se encontró la categoría. Intenta de nuevo.')
+        return
+      }
+
+      const editedTransaction = await prisma.transaction.update({
+        where: {
+          id: lastTransaction.id
+        },
+        data: {
+          categoryId: category.id
+        }
+      })
+
+      await chatUpdate(msg.chat.id)
+      await bot.sendMessage(msg.chat.id, `Categoría cambiada para <b>${editedTransaction.description}.</b>\n\n${category.emoji} ${category.description}`, { parse_mode: 'HTML' })
       return
     }
 
