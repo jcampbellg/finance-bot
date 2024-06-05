@@ -1,4 +1,4 @@
-import { Category, Statement } from '@prisma/client'
+import { Category } from '@prisma/client'
 import openAi from '@utils/openAi'
 
 type ErrorJSON = {
@@ -6,7 +6,10 @@ type ErrorJSON = {
   reset?: boolean
 }
 
-type StatementJSON = Pick<Statement, 'month' | 'year'>
+type StatementJSON = {
+  month: number
+  year: number
+}
 
 type CategoryJSON = {
   category: string
@@ -40,7 +43,14 @@ export async function AIStatement(userReply: string): Promise<StatementJSON | Er
   const botMessage = botAI.choices[0].message.content?.trim() || '{"error": "No se pudo procesar la información.", "reset": true}'
   const botMessageJSON: StatementJSON | ErrorJSON = JSON.parse(botMessage)
 
-  return botMessageJSON
+  if ('error' in botMessageJSON) {
+    return botMessageJSON
+  }
+
+  return {
+    month: parseInt(botMessageJSON.month.toString()),
+    year: parseInt(botMessageJSON.year.toString())
+  }
 }
 
 export async function AIAmount(amount: string): Promise<AmountJSON | ErrorJSON> {

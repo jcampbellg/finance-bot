@@ -76,6 +76,12 @@ bot.on('message', async (msg) => {
 
   bot.sendChatAction(msg.chat.id, 'typing')
 
+  if (msg.text === '/date') {
+    await bot.sendMessage(msg.chat.id, `${process.env.timezone}:\n${dayjs().tz(process.env.timezone).format()}`)
+    await bot.sendMessage(msg.chat.id, `UTC:\n${dayjs().format()}`)
+    return
+  }
+
   if (msg.text === '/start') {
     await bot.setMyCommands(commands, {
       scope: {
