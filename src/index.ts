@@ -948,9 +948,10 @@ bot.on('message', async (msg) => {
             }
           })
 
-          await chatUpdate(msg.chat.id)
+          await chatUpdate(msg.chat.id, { chatSubSubject: ['editar', `${category.id}`] })
 
-          await bot.sendMessage(msg.chat.id, `Categoría creada: ${formatCategoryOne({ msg, bot, dollarToHNL, hnlToDollar }, category)}`, { parse_mode: 'HTML' })
+          await bot.sendMessage(msg.chat.id, `<i>Categoría creada:</i>`, { parse_mode: 'HTML' })
+          await formatCategoryOne({ msg, bot, dollarToHNL, hnlToDollar }, category)
           return
         }
 
