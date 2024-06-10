@@ -46,8 +46,8 @@ const commands = [{
   command: 'estado',
   description: 'Crear o edita tus estados de cuentas mensuales.'
 }, {
-  command: 'ingreso',
-  description: 'Crear o edita tus ingresos mensuales.'
+  command: 'salario',
+  description: 'Crear o edita tus salarios mensuales.'
 }, {
   command: 'categoria',
   description: 'Crear o edita tus categorías de gastos.'
@@ -221,10 +221,10 @@ bot.on('message', async (msg) => {
     return
   }
 
-  if (userText === '/ingreso') {
-    await chatUpdate(msg.chat.id, { chatSubject: 'ingreso', chatSubSubject: ['crear o ver'] })
+  if (userText === '/salario') {
+    await chatUpdate(msg.chat.id, { chatSubject: 'salario', chatSubSubject: ['crear o ver'] })
 
-    await bot.sendMessage(msg.chat.id, '¿Quieres crear un ingreso o ver los ingresos actuales?\n\n/crear\n\n/ver')
+    await bot.sendMessage(msg.chat.id, '¿Quieres crear un salario o ver los salarios actuales?\n\n/crear\n\n/ver')
     return
   }
 
@@ -616,12 +616,12 @@ bot.on('message', async (msg) => {
     }
   }
 
-  if (chat.chatSubject === 'ingreso') {
+  if (chat.chatSubject === 'salario') {
     if (chat.chatSubSubject[0] === 'crear o ver') {
       if (userText === '/crear') {
         await chatUpdate(msg.chat.id, { chatSubSubject: ['crear', 'fuente'] })
 
-        await bot.sendMessage(msg.chat.id, '¿Cuál es la fuente de tu ingreso?')
+        await bot.sendMessage(msg.chat.id, 'Descripción del salario:')
         return
       }
       if (userText === '/ver') {
@@ -637,7 +637,7 @@ bot.on('message', async (msg) => {
         })
 
         if (incomes.length === 0) {
-          await bot.sendMessage(msg.chat.id, 'No tienes ingresos registrados.')
+          await bot.sendMessage(msg.chat.id, 'No tienes salarios registrados.')
           return
         }
 
@@ -668,7 +668,7 @@ bot.on('message', async (msg) => {
       if (chat.chatSubSubject[1] === 'fuente') {
         await chatUpdate(msg.chat.id, { chatSubSubject: ['crear', 'monto'], chatHistory: [userText] })
 
-        await bot.sendMessage(msg.chat.id, 'Escibe el monto, sin la moneda, del ingreso:')
+        await bot.sendMessage(msg.chat.id, 'Escibe el monto, sin la moneda:')
         return
       }
 
@@ -700,7 +700,7 @@ bot.on('message', async (msg) => {
           })
           await chatUpdate(msg.chat.id)
 
-          await bot.sendMessage(msg.chat.id, `Ingreso creado para ${income.source}.\n\n${numeral(income.amount).format('0,0.00')} ${income.currency}`)
+          await bot.sendMessage(msg.chat.id, `Salario creado para ${income.source}.\n\n${numeral(income.amount).format('0,0.00')} ${income.currency}`)
           return
         }
 
@@ -726,7 +726,7 @@ bot.on('message', async (msg) => {
 
         if (!incomeToEdit) {
           await chatUpdate(msg.chat.id)
-          await bot.sendMessage(msg.chat.id, 'No se encontró el ingreso.')
+          await bot.sendMessage(msg.chat.id, 'No se encontró el salario.')
           return
         }
 
@@ -745,7 +745,7 @@ bot.on('message', async (msg) => {
       })
 
       if (!incomeEditing) {
-        await bot.sendMessage(msg.chat.id, 'No se encontró el ingreso.')
+        await bot.sendMessage(msg.chat.id, 'No se encontró el salario.')
         return
       }
 
@@ -803,7 +803,7 @@ bot.on('message', async (msg) => {
 
         await chatUpdate(msg.chat.id)
 
-        await bot.sendMessage(msg.chat.id, `Ingreso eliminado: <b>${incomeEditing.source}.</b>`, { parse_mode: 'HTML' })
+        await bot.sendMessage(msg.chat.id, `Salario eliminado: <b>${incomeEditing.source}.</b>`, { parse_mode: 'HTML' })
         return
       }
     }
