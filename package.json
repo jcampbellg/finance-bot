@@ -24,11 +24,14 @@
   "dependencies": {
     "@prisma/client": "^5.14.0",
     "@types/node-telegram-bot-api": "^0.64.6",
+    "@types/nodemailer": "^6.4.15",
     "@types/numeral": "^2.0.5",
     "dayjs": "^1.11.11",
     "dotenv": "^16.4.5",
     "node-telegram-bot-api": "^0.65.1",
+    "nodemailer": "^6.9.13",
     "numeral": "^2.0.6",
-    "openai": "^4.40.2"
+    "openai": "^4.40.2",
+    "zod": "^3.23.8"
   }
 }

@@ -14,97 +14,22 @@ datasource db {
 }
 
 enum FileType {
-  PHOTO
-  DOCUMENT
-}
-
-enum Currency {
-  HNL
-  USD
+  photo
+  document
 }
 
 enum Type {
-  INCOME
-  EXPENSE
+  income
+  expense
 }
 
-enum PaymentMethod {
-  CASH
-  CREDITCARD
-  DEBITCARD
-  TRANSFER
+enum Language {
+  en
+  es
 }
 
 model Chat {
-  id             Int        @id @default(autoincrement())
-  chatId         BigInt     @unique
-  fullName       String
-  chatSubject    String
-  chatSubSubject String[]
-  chatHistory    String[]
-  statement      Statement? @relation(fields: [statementId], references: [id])
-  statementId    Int?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-}
-
-model Transaction {
-  id            Int           @id @default(autoincrement())
-  amount        Float
-  description   String
-  date          DateTime
-  category      Category      @relation(fields: [categoryId], references: [id])
-  categoryId    Int
-  notes         String?
-  currency      Currency
-  type          Type
-  paymentMethod PaymentMethod
-  fileId        String?
-  fileUrl       String?
-  fileType      FileType?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-}
-
-model Category {
-  id           Int           @id @default(autoincrement())
-  description  String
-  emoji        String
-  transactions Transaction[]
-  currency     Currency
-  isFixed      Boolean
-  isPaid       Boolean       @default(false)
-  notes        String?
-  limit        Float
-  fileId       String?
-  fileUrl      String?
-  fileType     FileType?
-  statement    Statement     @relation(fields: [statementId], references: [id])
-  statementId  Int
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-}
-
-model Statement {
-  id          Int        @id @default(autoincrement())
-  month       Int
-  year        Int
-  chat        Chat[]
-  incomes     Income[]
-  categories  Category[]
-  dollarToHNL Float      @default(24.6)
-  hnlToDollar Float      @default(0.04)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-}
-
-model Income {
-  id          Int       @id @default(autoincrement())
-  source      String
-  amount      Float
-  currency    Currency
-  statement   Statement @relation(fields: [statementId], references: [id])
-  statementId Int
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  chatId   BigInt   @id @unique
+  language Language
+  email    String
 }
