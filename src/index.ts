@@ -1,6 +1,7 @@
 import botReply from '@utils/botReply'
 import TelegramBot from 'node-telegram-bot-api'
 import { z } from 'zod'
+import mailOTP from '@utils/mailOTP'
 import dotenv from 'dotenv'
 dotenv.config()
 
@@ -57,6 +58,7 @@ bot.on('text', async (msg) => {
     try {
       z.string().email().parse(text)
       await bot.sendMessage(chatId, botReply.onboarding.email.sendOTP[lang])
+      await mailOTP(msg.chat.first_name || msg.chat.title || msg.chat.username || msg.from?.first_name || '', text)
       return
     } catch (err) {
       await bot.sendMessage(chatId, botReply.onboarding.email.invalid[lang])
