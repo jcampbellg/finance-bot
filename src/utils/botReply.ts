@@ -1,25 +1,46 @@
+import { Book } from '@prisma/client'
+
+const hi = (name?: string) => {
+  if (name) {
+    return `Hola ${name}. Usa tu botón de comandos a la izquierda para empezar.`
+  }
+  return `Hola. Usa tu botón de comandos a la izquierda para empezar.`
+}
+
 const botReply = {
-  start: `Hi, in what language do you want me to speak?\n\nHola, ¿en qué idioma quieres que hable?\n\n/en\n/es`,
-  language: {
-    please: `Please, select a language\n\nPor favor, selecciona un idioma\n\n/en\n/es`,
-    en: `You selected English.`,
-    es: `Seleccionaste Español.`
+  noChatUser: 'Usa el commando /start para empezar.',
+  start: {
+    noUser: () => `Bienvenido a Bync Bot.\n¿Cuál es tu zona horaria?`,
+    user: hi
   },
   onboarding: {
-    welcome: {
-      en: `Welcome to the onboarding process.\n\nPlease, provide your email address this chat will be link to.`,
-      es: `Bienvenido al proceso de integración.\n\nPor favor, proporciona tu dirección de correo electrónico con la que se vinculará este chat.`
+    timezone: {
+      ask: '¿Cuál es tu zona horaria?',
+      confirm: (timezone: string) => `¿${timezone} es tu zona horaria?\nSino vuelve a escribirla.\n\n/si`,
+      error: 'Por favor, introduce una zona horaria válida.'
     },
-    email: {
-      sendOTP: {
-        en: `We sent you a one-time password to the email address you provided. Please, enter it here.`,
-        es: `Te hemos enviado una contraseña de un solo uso a la dirección de correo electrónico que proporcionaste. Por favor, introdúcela aquí.`
-      },
-      invalid: {
-        en: `Invalid email address. Please, try again.`,
-        es: `Dirección de correo electrónico inválida. Por favor, inténtalo de nuevo.`
+    success: hi
+  },
+  ask: '¿Qué quieres hacer?',
+  book: {
+    list: (books: Book[]) => {
+      if (books.length === 0) {
+        return 'No tienes libros contables.\n\nUsa /crear para empezar.'
       }
+
+      return `/crear un libro.\n\nSelecciona un libro:`
+    },
+    notFound: 'No se ha encontrado el libro seleccionado.',
+    noSelected: 'Selecciona un libro para empezar.\n\nUsa /libros para ver tus libros contables.',
+    one: (book: Book) => {
+      return `Has seleccionado el libro <b>${book.description}.</b>\n\n¿Qué quieres hacer?`
+    },
+    create: {
+      description: '¿Cuál es la descripción de tu libro?\n<i>Ej: Finanzas del hogar</i>',
     }
+  },
+  validationErrors: {
+    string: (min: number, max: number) => `La descripción debe tener entre ${min} y ${max} caracteres.`
   }
 }
 

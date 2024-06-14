@@ -18,18 +18,152 @@ enum FileType {
   document
 }
 
-enum Type {
-  income
-  expense
+model ChatGroup {
+  id        BigInt   @id @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  book      Book     @relation(fields: [bookId], references: [id])
+  bookId    String
 }
 
-enum Language {
-  en
-  es
+model ChatUser {
+  id         BigInt      @id @unique
+  timezone   String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  book       Book[]
+  expenses   Expense[]
+  budgets    Budget[]
+  shareBooks ShareBook[]
 }
 
-model Chat {
-  chatId   BigInt   @id @unique
-  language Language
-  email    String
+model Currency {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  book      Book     @relation(fields: [bookId], references: [id])
+  bookId    String
+}
+
+model ConversionRate {
+  id        Int      @id @default(autoincrement())
+  from      String
+  to        String
+  amount    Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  book      Book     @relation(fields: [bookId], references: [id])
+  bookId    String
+}
+
+model ShareBook {
+  id        Int      @id @default(autoincrement())
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id])
+  userId    BigInt
+  user      ChatUser @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Book {
+  id             String           @id @unique @default(uuid())
+  description    String
+  ownerId        BigInt
+  owner          ChatUser         @relation(fields: [ownerId], references: [id])
+  share          ShareBook[]
+  accounts       Account[]
+  budgets        Budget[]
+  expenses       Expense[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  conversionRate ConversionRate[]
+  chatGroup      ChatGroup[]
+  currency       Currency[]
+}
+
+model Account {
+  id        Int       @id @default(autoincrement())
+  Expense   Expense[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  book      Book      @relation(fields: [bookId], references: [id])
+  bookId    String
+}
+
+model Expense {
+  id          Int      @id @default(autoincrement())
+  description String
+  categoryId  Int
+  category    Category @relation(fields: [categoryId], references: [id])
+  accountId   Int
+  account     Account  @relation(fields: [accountId], references: [id])
+  amount      Float
+  fileId      String?
+  fileType    FileType
+  notes       String?
+  createdById BigInt
+  createdBy   ChatUser @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Book        Book?    @relation(fields: [bookId], references: [id])
+  bookId      String
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  limits    Limit[]
+  expenses  Expense[]
+}
+
+model AmountCurrency {
+  id        Int       @id @default(autoincrement())
+  amount    Float
+  currency  String
+  limit     Limit[]
+  payment   Payment[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Limit {
+  id             Int            @id @default(autoincrement())
+  budgetId       Int
+  budget         Budget         @relation(fields: [budgetId], references: [id])
+  categoryId     Int
+  category       Category       @relation(fields: [categoryId], references: [id])
+  limitId        Int
+  limit          AmountCurrency @relation(fields: [limitId], references: [id])
+  ignoreInBudget Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model Payment {
+  id             Int            @id @default(autoincrement())
+  Budget         Budget?        @relation(fields: [budgetId], references: [id])
+  budgetId       Int?
+  description    String
+  amountId       Int
+  amount         AmountCurrency @relation(fields: [amountId], references: [id])
+  ignoreInBudget Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model Budget {
+  id          Int       @id @default(autoincrement())
+  ownerId     BigInt
+  owner       ChatUser  @relation(fields: [ownerId], references: [id])
+  description String
+  limit       Limit[]
+  payments    Payment[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  book        Book      @relation(fields: [bookId], references: [id])
+  bookId      String
 }

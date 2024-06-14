@@ -46,6 +46,7 @@
     "node_modules"
   ],
   "include": [
-    "./src/**/*.ts"
+    "./src/**/*.ts",
+    "./types/Intl.d.ts"
   ]
 }
