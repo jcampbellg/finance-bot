@@ -4,6 +4,11 @@ import z from 'zod'
 import { prisma } from '@utils/prisma'
 import { Book, ChatUser } from '@prisma/client'
 import setMyCommands, { clearMyCommands } from '@utils/setMyCommands'
+import dayjs from 'dayjs'
+import 'dayjs/locale/es'
+import timezone from 'dayjs/plugin/timezone'
+import utc from 'dayjs/plugin/utc'
+
 dotenv.config()
 
 if (!process.env.TELEGRAM_BOT_TOKEN) {
@@ -11,15 +16,18 @@ if (!process.env.TELEGRAM_BOT_TOKEN) {
   process.exit(1)
 }
 
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true })
 
-const conversation: Record<number, { subject: 'timezone' }> = {}
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true })
 
 bot.on('text', async (msg) => {
   const chatId = msg.chat.id
   const text = msg.text?.trim() || ''
 
   if (!msg.from || msg.from?.is_bot || msg.chat.type !== 'private') return
+  const user = msg.from
 
   bot.sendChatAction(chatId, 'typing')
 
@@ -36,11 +44,53 @@ bot.on('text', async (msg) => {
     })
   }
 
+  const userExists = await prisma.chatUser.findUnique({
+    where: {
+      id: user.id
+    }
+  })
+
+  if (!userExists) {
+    return await bot.sendMessage(chatId, 'No tienes una cuenta. Por favor, crea una cuenta primero.', {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'Crear Cuenta', callback_data: 'user_create' }]
+        ]
+      }
+    })
+  }
+
+  if (text === '/libros') {
+    const books = await prisma.book.findMany({
+      where: {
+        ownerId: user.id
+      },
+      include: {
+        BookSelected: true
+      }
+    })
+
+    return await bot.sendMessage(chatId, `Selecciona, edita o crea un libro contable.`, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'Crear Nuevo Libro', callback_data: 'book_create' }],
+          ...books.map(book => ([{
+            text: `${book.BookSelected.length > 0 ? '⦿ ' : ''}${book.description}`,
+            callback_data: `book_${book.id}`
+          }]))
+        ]
+      }
+    })
+  }
+
   return bot.sendMessage(chatId, 'No entiendo lo que quieres decir. ¿Puedes intentar de nuevo?')
 })
 
 bot.on('callback_query', async (query) => {
-  const chatId = query.message?.chat.id || 0
+  if (!query.message) {
+    return
+  }
+  const chatId = query.message.chat.id
   const data = query.data || ''
 
   if (data === 'user_create') {
@@ -68,8 +118,6 @@ bot.on('callback_query', async (query) => {
 
       const timezones = Intl.supportedValuesOf('timeZone').filter(tz => tz.startsWith(continent))
 
-      console.log({ page, timezones })
-
       const pageSize = 10
 
       const paginatedTimezones = timezones.slice((page - 1) * pageSize, page * pageSize)
@@ -92,7 +140,7 @@ bot.on('callback_query', async (query) => {
     }
 
     const timezone = data.replace('timezone_', '')
-    await prisma.chatUser.upsert({
+    const newUser = await prisma.chatUser.upsert({
       where: {
         id: chatId
       },
@@ -102,14 +150,72 @@ bot.on('callback_query', async (query) => {
       },
       update: {
         timezone: timezone
+      },
+      include: {
+        books: true
       }
     })
 
-    return await bot.sendMessage(chatId, `¡Perfecto ${query.from.first_name}! Tu zona horaria es ${timezone}.`)
+    if (newUser.books.length === 0) {
+      const newBook = await prisma.book.create({
+        data: {
+          description: `Finanzas de ${query.from.first_name}`,
+          ownerId: query.from.id
+        }
+      })
+
+      await prisma.bookSelected.create({
+        data: {
+          bookId: newBook.id,
+          chatId: chatId
+        }
+      })
+    }
+
+    const spanishDate = dayjs().tz(timezone).locale('es').format('dddd, MMMM D, YYYY h:mm A')
+
+    setMyCommands(bot, { from: query.from, chat: query.message.chat })
+    return await bot.sendMessage(chatId, `¡Perfecto ${query.from.first_name}! Tu zona horaria es <b>${timezone}</b>.\n\nLa fecha y hora actual en tu zona horaria es:\n${spanishDate}.\n\nUsa el botón de Menu para acceder a los comandos disponibles.`, { parse_mode: 'HTML' })
   }
 
   if (data === 'user_login') {
-    return await bot.sendMessage(chatId, '¡Vamos a iniciar sesión!')
+    const user = await prisma.chatUser.findUnique({
+      where: {
+        id: chatId
+      }
+    })
+
+    if (!user) {
+      return await bot.sendMessage(chatId, 'No tienes una cuenta. Por favor, crea una cuenta primero.', {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Crear Cuenta', callback_data: 'user_create' }]
+          ]
+        }
+      })
+    }
+
+    setMyCommands(bot, { from: query.from, chat: query.message.chat })
+    return await bot.sendMessage(chatId, 'Bienvenido de vuelta. Usa el botón de Menu para acceder a los comandos disponibles.')
+  }
+
+  if (data === 'book_create') {
+
+  }
+
+  if (data.startsWith('book_')) {
+    const bookId = data.replace('book_', '')
+    const book = await prisma.book.findUnique({
+      where: {
+        id: bookId
+      }
+    })
+
+    if (!book) {
+      return await bot.sendMessage(chatId, '¡Ups! No se encontró el libro.')
+    }
+
+    return await bot.sendMessage(chatId, `Libro deseleccionado: <b>${book.description}</b>`)
   }
 
   return await bot.sendMessage(chatId, '¡Ups! Algo salió mal')

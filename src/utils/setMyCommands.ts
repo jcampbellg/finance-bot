@@ -16,8 +16,13 @@ const commands = [
   }
 ]
 
-export default async function setMyCommands(bot: TelegramBot, msg: TelegramBot.Message) {
-  if (!msg.from || msg.from?.is_bot || msg.chat.type !== 'private') return
+type Msg = {
+  from: TelegramBot.Message['from']
+  chat: TelegramBot.Message['chat']
+}
+
+export default async function setMyCommands(bot: TelegramBot, msg: Msg) {
+  if (!msg.from || msg.from?.is_bot) return
 
   await bot.setMyCommands(commands, {
     scope: {
@@ -36,7 +41,7 @@ export default async function setMyCommands(bot: TelegramBot, msg: TelegramBot.M
 }
 
 export async function clearMyCommands(bot: TelegramBot, msg: TelegramBot.Message) {
-  if (!msg.from || msg.from?.is_bot || msg.chat.type !== 'private') return
+  if (!msg.from || msg.from?.is_bot) return
 
   await bot.setMyCommands([], {
     scope: {

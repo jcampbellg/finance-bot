@@ -26,12 +26,21 @@ model ChatGroup {
   bookId    String
 }
 
+model BookSelected {
+  id        Int      @id @default(autoincrement())
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id])
+  chatId    BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model ChatUser {
   id         BigInt      @id @unique
   timezone   String
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
-  book       Book[]
+  books      Book[]
   expenses   Expense[]
   budgets    Budget[]
   shareBooks ShareBook[]
@@ -81,6 +90,7 @@ model Book {
   conversionRate ConversionRate[]
   chatGroup      ChatGroup[]
   currency       Currency[]
+  BookSelected   BookSelected[]
 }
 
 model Account {
