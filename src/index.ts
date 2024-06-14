@@ -204,7 +204,8 @@ bot.on('callback_query', async (query) => {
   }
 
   if (data.startsWith('book_')) {
-    const bookId = data.replace('book_', '')
+    const splitData = data.split('_')
+    const bookId = splitData[splitData.length - 1]
     const book = await prisma.book.findUnique({
       where: {
         id: bookId
@@ -215,7 +216,50 @@ bot.on('callback_query', async (query) => {
       return await bot.sendMessage(chatId, '¡Ups! No se encontró el libro.')
     }
 
-    return await bot.sendMessage(chatId, `Libro deseleccionado: <b>${book.description}</b>`)
+    if (data.startsWith('book_delete_')) {
+      const booksCount = await prisma.book.count({
+        where: {
+          ownerId: query.from.id
+        }
+      })
+
+      if (booksCount === 1) {
+        return await bot.sendMessage(chatId, 'No puedes eliminar tu único libro.')
+      }
+
+      await prisma.bookSelected.deleteMany({
+        where: {
+          bookId: book.id,
+          chatId: chatId
+        }
+      })
+
+      return await bot.sendMessage(chatId, `Libro eliminado: ⦿ <b>${book.description}</b>`)
+    }
+
+    await prisma.bookSelected.deleteMany({
+      where: {
+        bookId: book.id,
+        chatId: chatId
+      }
+    })
+
+    await prisma.bookSelected.create({
+      data: {
+        bookId: book.id,
+        chatId: chatId
+      }
+    })
+
+    return await bot.sendMessage(chatId, `Libro seleccionado: ⦿ <b>${book.description}</b>\n\n¿Qué quieres hacer?`, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'Editar Libro', callback_data: `book_edit_${book.id}` }, { text: 'Eliminar Libro', callback_data: `book_delete_${book.id}` }],
+          [{ text: 'Crear Moneda', callback_data: `book_currency_create_${book.id}` }, { text: 'Crear Cambio de Moneda', callback_data: `book_currency_list_${book.id}` }],
+        ]
+      }
+    })
   }
 
   return await bot.sendMessage(chatId, '¡Ups! Algo salió mal')
