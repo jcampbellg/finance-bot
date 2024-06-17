@@ -18,6 +18,32 @@ enum FileType {
   document
 }
 
+enum ConversationState {
+  waitingForCommand
+  onboarding_timezone
+  books
+}
+
+enum ConversationType {
+  group
+  private
+}
+
+model Files {
+  id        Int      @id @default(autoincrement())
+  fileId    String
+  fileType  FileType
+  aiItems   String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Limit     Limit?   @relation(fields: [limitId], references: [id])
+  limitId   Int?
+  Expense   Expense? @relation(fields: [expenseId], references: [id])
+  expenseId Int?
+  Payment   Payment? @relation(fields: [paymentId], references: [id])
+  paymentId Int?
+}
+
 model ChatGroup {
   id        BigInt   @id @unique
   createdAt DateTime @default(now())
@@ -35,7 +61,16 @@ model BookSelected {
   updatedAt DateTime @updatedAt
 }
 
-model ChatUser {
+model Conversation {
+  chatId    BigInt            @id @unique
+  state     ConversationState @default(waitingForCommand)
+  data      Json
+  type      ConversationType
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+model User {
   id         BigInt      @id @unique
   timezone   String
   createdAt  DateTime    @default(now())
@@ -44,15 +79,6 @@ model ChatUser {
   expenses   Expense[]
   budgets    Budget[]
   shareBooks ShareBook[]
-}
-
-model Currency {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  book      Book     @relation(fields: [bookId], references: [id])
-  bookId    String
 }
 
 model ConversionRate {
@@ -71,7 +97,7 @@ model ShareBook {
   bookId    String
   book      Book     @relation(fields: [bookId], references: [id])
   userId    BigInt
-  user      ChatUser @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -79,18 +105,19 @@ model ShareBook {
 model Book {
   id             String           @id @unique @default(uuid())
   description    String
+  timezone       String
   ownerId        BigInt
-  owner          ChatUser         @relation(fields: [ownerId], references: [id])
+  owner          User             @relation(fields: [ownerId], references: [id])
   share          ShareBook[]
   accounts       Account[]
   budgets        Budget[]
   expenses       Expense[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
+  currency       String?
   conversionRate ConversionRate[]
   chatGroup      ChatGroup[]
-  currency       Currency[]
-  BookSelected   BookSelected[]
+  bookSelected   BookSelected[]
 }
 
 model Account {
@@ -110,11 +137,10 @@ model Expense {
   accountId   Int
   account     Account  @relation(fields: [accountId], references: [id])
   amount      Float
-  fileId      String?
-  fileType    FileType
+  files       Files[]
   notes       String?
   createdById BigInt
-  createdBy   ChatUser @relation(fields: [createdById], references: [id])
+  createdBy   User     @relation(fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   Book        Book?    @relation(fields: [bookId], references: [id])
@@ -122,22 +148,24 @@ model Expense {
 }
 
 model Category {
-  id        Int       @id @default(autoincrement())
-  name      String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  limits    Limit[]
-  expenses  Expense[]
+  id          Int       @id @default(autoincrement())
+  description String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  Budget      Budget?   @relation(fields: [budgetId], references: [id])
+  budgetId    Int?
+  limits      Limit[]
+  expenses    Expense[]
 }
 
 model AmountCurrency {
-  id        Int       @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   amount    Float
   currency  String
-  limit     Limit[]
-  payment   Payment[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  limit     Limit?
+  payment   Payment?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Limit {
@@ -146,8 +174,9 @@ model Limit {
   budget         Budget         @relation(fields: [budgetId], references: [id])
   categoryId     Int
   category       Category       @relation(fields: [categoryId], references: [id])
-  limitId        Int
+  limitId        Int            @unique
   limit          AmountCurrency @relation(fields: [limitId], references: [id])
+  files          Files[]
   ignoreInBudget Boolean        @default(false)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -158,22 +187,24 @@ model Payment {
   Budget         Budget?        @relation(fields: [budgetId], references: [id])
   budgetId       Int?
   description    String
-  amountId       Int
+  amountId       Int            @unique
   amount         AmountCurrency @relation(fields: [amountId], references: [id])
+  files          Files[]
   ignoreInBudget Boolean        @default(false)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 }
 
 model Budget {
-  id          Int       @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   ownerId     BigInt
-  owner       ChatUser  @relation(fields: [ownerId], references: [id])
+  owner       User       @relation(fields: [ownerId], references: [id])
   description String
-  limit       Limit[]
+  categories  Category[]
+  limits      Limit[]
   payments    Payment[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  book        Book      @relation(fields: [bookId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  book        Book       @relation(fields: [bookId], references: [id])
   bookId      String
 }

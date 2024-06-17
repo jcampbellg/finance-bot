@@ -39,7 +39,10 @@
       ],
       "@utils/*": [
         "src/utils/*"
-      ]
+      ],
+      "@conversations/*": [
+        "src/conversations/*"
+      ],
     }
   },
   "exclude": [
@@ -47,6 +50,6 @@
   ],
   "include": [
     "./src/**/*.ts",
-    "./types/Intl.d.ts"
+    "src/types/Intl.d.ts"
   ]
 }
