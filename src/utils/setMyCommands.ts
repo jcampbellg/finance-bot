@@ -9,8 +9,8 @@ const commands = [
     command: 'libros',
     description: 'Muestra tus libros contables'
   }, {
-    command: 'configurar',
-    description: 'Configura tu libro'
+    command: 'presupuesto',
+    description: 'Prepara el prespuesto para el libro selecionado'
   }, {
     command: 'cancelar',
     description: 'Termina la conversación actual'

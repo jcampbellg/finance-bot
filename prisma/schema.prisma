@@ -22,6 +22,9 @@ enum ConversationState {
   waitingForCommand
   onboarding
   books
+  settings
+  new
+  transactions
 }
 
 model Files {

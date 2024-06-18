@@ -422,6 +422,45 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
       return
     }
 
+    if (btnPress === 'select') {
+      await prisma.bookSelected.deleteMany({
+        where: {
+          chatId: userId,
+          book: {
+            ownerId: userId
+          }
+        }
+      })
+
+      await prisma.bookSelected.create({
+        data: {
+          bookId: bookToEdit.id,
+          chatId: userId
+        }
+      })
+
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'books',
+          data: {
+            action: 'edit',
+            bookId: bookToEdit.id
+          }
+        }
+      })
+
+      await bot.sendMessage(userId, `Libro contable "<b>${bookToEdit.title}</b>" seleccionado con éxito.`, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: bookButtons(false)
+        }
+      })
+      return
+    }
+
     if (btnPress === 'delete') {
       if (!bookToEdit) {
         await prisma.conversation.delete({

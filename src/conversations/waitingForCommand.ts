@@ -1,8 +1,9 @@
 import { MessageFromPrivate } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
-import { booksOnStart } from './books'
-import { onboardingOnStart } from './onboarding'
+import { booksOnStart } from '@conversations/books'
+import { onboardingOnStart } from '@conversations/onboarding'
+import { budgetOnStart } from '@conversations/budget'
 
 type Props = {
   bot: TelegramBot
@@ -26,6 +27,11 @@ export default async function waitingForCommand({ bot, msg }: Props) {
 
   if (text === '/start') {
     await onboardingOnStart({ bot, msg })
+    return
+  }
+
+  if (text === '/presupuesto') {
+    await budgetOnStart({ bot, msg })
     return
   }
 
