@@ -120,18 +120,20 @@ export default async function onboardingTimezone({ bot, query, conversation }: P
     }
   })
 
-  await prisma.bookSelected.deleteMany({
+  const bookCount = await prisma.book.count({
     where: {
-      chatId
+      ownerId: chatId
     }
   })
 
-  await prisma.bookSelected.create({
-    data: {
-      chatId: chatId,
-      bookId: newUser.books[0].id
-    }
-  })
+  if (bookCount === 0) {
+    await prisma.bookSelected.create({
+      data: {
+        chatId: chatId,
+        bookId: newUser.books[0].id
+      }
+    })
+  }
 
   await setMyCommands({ bot, query })
 
