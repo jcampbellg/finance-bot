@@ -20,7 +20,7 @@ enum FileType {
 
 enum ConversationState {
   waitingForCommand
-  onboarding_timezone
+  onboarding
   books
 }
 
@@ -100,8 +100,7 @@ model ShareBook {
 
 model Book {
   id             Int              @id @default(autoincrement())
-  description    String
-  timezone       String
+  title          String
   ownerId        BigInt
   owner          User             @relation(fields: [ownerId], references: [id])
   share          ShareBook[]

@@ -1,16 +1,10 @@
-import { MessageFromPrivate, QueryFromPrivate } from '@customTypes/messageTypes'
+import { MsgAndQueryProps, MsgProps, QueryProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
-import { showContinents } from './waitingForCommand'
-import { showTimezones } from './onboardingTimezone'
+import z from 'zod'
 
-type TextProps = {
-  bot: TelegramBot
-  msg: MessageFromPrivate
-}
-
-export async function booksOnStart({ bot, msg }: TextProps) {
-  const userId = msg.chat.id
+export async function booksOnStart({ bot, msg, query }: MsgAndQueryProps) {
+  const userId = msg?.chat.id || query?.message.chat.id as number
 
   const books = await prisma.book.findMany({
     where: {
@@ -45,7 +39,7 @@ export async function booksOnStart({ bot, msg }: TextProps) {
       inline_keyboard: [
         [{ text: 'Crear Nuevo Libro', callback_data: 'create' }],
         ...books.map(book => ([{
-          text: `${book.bookSelected.length > 0 ? '⦿ ' : ''}${book.description}`,
+          text: `${book.bookSelected.length > 0 ? '⦿ ' : ''}${book.title}`,
           callback_data: `${book.id}`
         }]))
       ]
@@ -54,7 +48,7 @@ export async function booksOnStart({ bot, msg }: TextProps) {
   return
 }
 
-export async function bookOnText({ bot, msg }: TextProps) {
+export async function booksOnText({ bot, msg }: MsgProps) {
   const userId = msg.chat.id
   const text = msg.text?.trim() || ''
 
@@ -64,45 +58,95 @@ export async function bookOnText({ bot, msg }: TextProps) {
     }
   })
 
-  const data: any = conversation?.data || {}
+  const conversationData: any = conversation?.data || {}
 
-  if (data.action === 'create') {
-    if (!data.description) {
-      await prisma.conversation.update({
+  const isValid = z.string().min(3).max(50).safeParse(text)
+
+  if (!isValid.success) {
+    await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+    return
+  }
+
+  if (conversationData.action === 'create') {
+    const newBook = await prisma.book.create({
+      data: {
+        title: text,
+        ownerId: userId
+      }
+    })
+
+    await prisma.conversation.update({
+      where: {
+        chatId: userId
+      },
+      data: {
+        state: 'books',
         data: {
-          data: {
-            ...data,
-            description: text
-          }
+          action: 'edit',
+          bookId: newBook.id
+        }
+      }
+    })
+
+    await bot.sendMessage(userId, `Libro contable "<b>${newBook.title}</b>" creado con éxito.`, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: bookButtons(true)
+      }
+    })
+    return
+  }
+
+  if (conversationData.action === 'edit') {
+    if (conversationData.property === 'title') {
+      const bookId = conversationData.bookId
+
+      const oldBook = await prisma.book.findUnique({
+        where: {
+          id: bookId,
+          ownerId: userId
         },
-        where: {
-          chatId: userId
+        include: {
+          bookSelected: true
         }
       })
 
-      const user = await prisma.user.findUnique({
-        where: {
-          id: userId
-        }
-      })
-
-      if (!user) {
+      if (!oldBook) {
         await prisma.conversation.delete({
           where: {
             chatId: userId
           }
         })
-        await bot.sendMessage(userId, 'Ocurrió un error al intentar crear el libro contable.')
+        await bot.sendMessage(userId, 'No se encontró el libro contable.')
         return
       }
 
-      await bot.sendMessage(userId, `Selecciona una zona horaria para <b>${text}</b>:`, {
+      await prisma.book.update({
+        where: {
+          id: bookId
+        },
+        data: {
+          title: text
+        }
+      })
+
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'books',
+          data: {
+            action: 'edit',
+            bookId: bookId
+          }
+        }
+      })
+
+      await bot.sendMessage(userId, `Libro contable renombrado:\n\n<s>${oldBook.title}</s>\n<b>${text}</b>`, {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: [
-            [{ text: `Elegir ${user.timezone}`, callback_data: user.timezone }],
-            [{ text: 'Elegir otra zona horaria', callback_data: 'timezone' }]
-          ]
+          inline_keyboard: bookButtons(oldBook.bookSelected.length === 0)
         }
       })
       return
@@ -110,14 +154,14 @@ export async function bookOnText({ bot, msg }: TextProps) {
   }
 }
 
-type CallbackProps = {
-  bot: TelegramBot
-  query: QueryFromPrivate
-}
-
-export async function booksOnCallbackQuery({ bot, query }: CallbackProps) {
+export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
   const userId = query.from.id
   const btnPress = query.data
+
+  if (btnPress === 'back') {
+    await booksOnStart({ bot, query })
+    return
+  }
 
   if (btnPress === 'create') {
     await prisma.conversation.update({
@@ -132,7 +176,7 @@ export async function booksOnCallbackQuery({ bot, query }: CallbackProps) {
       }
     })
 
-    await bot.sendMessage(userId, 'Ingresa la descripción para el nuevo libro contable:')
+    await bot.sendMessage(userId, 'Ingresa el titulo para el nuevo libro contable:')
     return
   }
 
@@ -142,35 +186,142 @@ export async function booksOnCallbackQuery({ bot, query }: CallbackProps) {
     }
   })
 
-  if (!conversation) {
+  if (!conversation) return
+
+  const conversationData: any = conversation.data || {}
+
+  if (!conversationData.action) {
+    // btn press is a book id
+    const bookId = parseInt(btnPress)
+    if (Number.isNaN(bookId)) return
+
+    await prisma.conversation.update({
+      where: {
+        chatId: userId
+      },
+      data: {
+        state: 'books',
+        data: {
+          action: 'edit',
+          bookId: bookId
+        }
+      }
+    })
+
+    const book = await prisma.book.findUnique({
+      where: {
+        id: bookId,
+        ownerId: userId
+      },
+      include: {
+        bookSelected: true
+      }
+    })
+
+    if (!book) return
+
+    await bot.sendMessage(userId, `Editar <b>${book.title}</b>:`, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: bookButtons(book.bookSelected.length === 0)
+      }
+    })
     return
   }
 
-  const data: any = conversation?.data || {}
-
-  if (data.action === 'create') {
-    if (data.description && !data.timezone) {
-      if (btnPress === 'timezone') {
-        await prisma.conversation.update({
+  if (conversationData.action === 'edit') {
+    if (btnPress === 'title') {
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'books',
           data: {
-            data: {
-              ...data,
-              pickContinent: true
-            }
-          },
+            bookId: conversationData.bookId,
+            action: 'edit',
+            property: 'title'
+          }
+        }
+      })
+
+      await bot.sendMessage(userId, 'Ingresa el nuevo titulo para el libro contable:')
+      return
+    }
+
+    if (btnPress === 'delete') {
+      const bookToDelete = await prisma.book.findUnique({
+        where: {
+          id: conversationData.bookId,
+          ownerId: userId
+        },
+        include: {
+          bookSelected: true
+        }
+      })
+
+      if (!bookToDelete) {
+        await prisma.conversation.delete({
           where: {
             chatId: userId
           }
-
         })
-        await showContinents({ bot, query }, `Selecciona una zona horaria para <b>${data.description}</b>:`)
+        await bot.sendMessage(userId, 'No se encontró el libro contable.')
         return
       }
 
-      if (!!data.pickContinent) {
-        await showTimezones({ bot, query, conversation }, { page: data.page || 1, continent: btnPress, conversationData: data })
+      const isSelected = bookToDelete.bookSelected.length > 0
+
+      if (isSelected) {
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            state: 'books',
+            data: {
+              action: 'edit',
+              bookId: conversationData.bookId
+            }
+          }
+        })
+
+        await bot.sendMessage(userId, `El libro contable "<b>${bookToDelete.title}</b>" está seleccionado.\nNo se puede eliminar.`, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: bookButtons(false)
+          }
+        })
         return
       }
+
+      await prisma.book.delete({
+        where: {
+          id: conversationData.bookId
+        }
+      })
+
+      await bot.sendMessage(userId, `Libro contable "<b>${bookToDelete.title}</b>" eliminado con éxito.`, {
+        parse_mode: 'HTML'
+      })
+      await booksOnStart({ bot, query })
+    }
+
+    if (btnPress === 'currency') {
+
     }
   }
+}
+
+export function bookButtons(canSelect: boolean): TelegramBot.InlineKeyboardButton[][] {
+  if (canSelect) return [
+    [{ text: 'Seleccionar', callback_data: `select` }, { text: 'Renombrar', callback_data: `title` }],
+    [{ text: 'Monedas', callback_data: `currency` }, { text: 'Eliminar', callback_data: `delete` }],
+    [{ text: 'Regresar', callback_data: `back` }]
+  ]
+  return [
+    [{ text: 'Renombrar', callback_data: `title` }],
+    [{ text: 'Monedas', callback_data: `currency` }, { text: 'Eliminar', callback_data: `delete` }],
+    [{ text: 'Regresar', callback_data: `back` }]
+  ]
 }
