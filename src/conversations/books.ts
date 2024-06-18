@@ -371,7 +371,15 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
       }
     })
 
-    if (!book) return
+    if (!book) {
+      await prisma.conversation.delete({
+        where: {
+          chatId: userId
+        }
+      })
+      await bot.sendMessage(userId, 'No se encontró el libro contable.')
+      return
+    }
 
     await bot.sendMessage(userId, `Editar <b>${book.title}</b>:`, {
       parse_mode: 'HTML',
@@ -385,7 +393,7 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
   if (conversationData.action === 'edit') {
     const bookToEdit = await prisma.book.findUnique({
       where: {
-        id: conversationData.bookId,
+        id: conversationData.bookId || 0,
         ownerId: userId
       },
       include: {
@@ -462,16 +470,6 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
     }
 
     if (btnPress === 'delete') {
-      if (!bookToEdit) {
-        await prisma.conversation.delete({
-          where: {
-            chatId: userId
-          }
-        })
-        await bot.sendMessage(userId, 'No se encontró el libro contable.')
-        return
-      }
-
       const isSelected = bookToEdit.bookSelected.length > 0
 
       if (isSelected) {
@@ -497,6 +495,70 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
         return
       }
 
+      await bot.sendMessage(userId, `¿Estás seguro de eliminar el libro contable "<b>${bookToEdit.title}</b>"?\n\n<i>Se eliminaran todas tus cuentas y transacciones vinculadas a este libro.</i>`, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Si', callback_data: 'deleteYes' }, { text: 'No', callback_data: 'deleteNo' }]
+          ]
+        }
+      })
+      return
+    }
+
+    if (btnPress === 'deleteNo') {
+      await bot.sendMessage(userId, `Editar <b>${bookToEdit.title}</b>:`, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: bookButtons(bookToEdit.bookSelected.length === 0)
+        }
+      })
+      return
+    }
+
+    if (btnPress === 'deleteYes') {
+      await prisma.conversionRate.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
+      await prisma.bookSelected.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
+      await prisma.shareBook.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
+      await prisma.expense.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
+      await prisma.account.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
+      await prisma.budget.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
+      await prisma.chatGroup.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
       await prisma.book.delete({
         where: {
           id: conversationData.bookId
@@ -507,6 +569,7 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
         parse_mode: 'HTML'
       })
       await booksOnStart({ bot, query })
+      return
     }
 
     if (btnPress === 'currency') {

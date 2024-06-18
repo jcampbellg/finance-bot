@@ -125,7 +125,7 @@ model Book {
 model Account {
   id          Int       @id @default(autoincrement())
   description String
-  Expense     Expense[]
+  expenses    Expense[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   book        Book      @relation(fields: [bookId], references: [id])
