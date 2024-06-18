@@ -1,5 +1,6 @@
-import { MsgAndQueryProps } from '@customTypes/messageTypes'
+import { MsgAndQueryProps, QueryProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
+import { accountsOnStart } from './budgets/accounts'
 
 export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
@@ -9,12 +10,12 @@ export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
       chatId: userId
     },
     update: {
-      state: 'settings',
+      state: 'budget',
       data: {}
     },
     create: {
       chatId: userId,
-      state: 'settings',
+      state: 'budget',
       data: {}
     }
   })
@@ -47,6 +48,28 @@ export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
       ]
     }
   })
+  return
+}
+
+export async function bundgetOnCallbackQuery({ bot, query }: QueryProps) {
+  const userId = query.message.chat.id
+
+  const conversation = await prisma.conversation.findFirst({
+    where: {
+      chatId: userId
+    }
+  })
+
+  if (!conversation) {
+    return
+  }
+
+  const btnPress = query.data
+
+  if (btnPress === 'accounts') {
+    accountsOnStart({ bot, query })
+    return
+  }
 
   return
 }

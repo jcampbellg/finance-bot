@@ -5,6 +5,8 @@ import waitingForCommand from '@conversations/waitingForCommand'
 import { MessageFromPrivate, QueryFromPrivate } from '@customTypes/messageTypes'
 import { booksOnText, booksOnCallbackQuery } from '@conversations/books'
 import { onboardingOnCallbackQuery } from '@conversations/onboarding'
+import { bundgetOnCallbackQuery } from '@conversations/budget'
+import { accountsOnCallbackQuery, accountsOnText } from '@conversations/budgets/accounts'
 
 dotenv.config()
 
@@ -40,6 +42,7 @@ bot.on('message', async (msg) => {
       bot,
       msg: msg as MessageFromPrivate
     })
+    return
   }
 
   if (conversation.state === 'books') {
@@ -47,6 +50,15 @@ bot.on('message', async (msg) => {
       bot,
       msg: msg as MessageFromPrivate
     })
+    return
+  }
+
+  if (conversation.state === 'accounts') {
+    await accountsOnText({
+      bot,
+      msg: msg as MessageFromPrivate
+    })
+    return
   }
 })
 
@@ -78,6 +90,20 @@ bot.on('callback_query', async (query) => {
 
   if (conversation.state === 'books') {
     booksOnCallbackQuery({
+      bot,
+      query: query as QueryFromPrivate
+    })
+  }
+
+  if (conversation.state === 'budget') {
+    bundgetOnCallbackQuery({
+      bot,
+      query: query as QueryFromPrivate
+    })
+  }
+
+  if (conversation.state === 'accounts') {
+    accountsOnCallbackQuery({
       bot,
       query: query as QueryFromPrivate
     })

@@ -22,7 +22,11 @@ enum ConversationState {
   waitingForCommand
   onboarding
   books
-  settings
+  budget
+  accounts
+  categories
+  limits
+  payments
   new
   transactions
 }
@@ -119,12 +123,13 @@ model Book {
 }
 
 model Account {
-  id        Int       @id @default(autoincrement())
-  Expense   Expense[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  book      Book      @relation(fields: [bookId], references: [id])
-  bookId    Int
+  id          Int       @id @default(autoincrement())
+  description String
+  Expense     Expense[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  book        Book      @relation(fields: [bookId], references: [id])
+  bookId      Int
 }
 
 model Expense {
