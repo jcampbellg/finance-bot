@@ -60,14 +60,13 @@ export async function booksOnText({ bot, msg }: MsgProps) {
 
   const conversationData: any = conversation?.data || {}
 
-  const isValid = z.string().min(3).max(50).safeParse(text)
-
-  if (!isValid.success) {
-    await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
-    return
-  }
-
   if (conversationData.action === 'create') {
+    const isValid = z.string().min(3).max(50).safeParse(text)
+    if (!isValid.success) {
+      await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+      return
+    }
+
     const newBook = await prisma.book.create({
       data: {
         title: text,
@@ -98,26 +97,32 @@ export async function booksOnText({ bot, msg }: MsgProps) {
   }
 
   if (conversationData.action === 'edit') {
-    if (conversationData.property === 'title') {
-      const bookId = conversationData.bookId
+    const bookId = conversationData.bookId || 0
 
-      const oldBook = await prisma.book.findUnique({
+    const bookToEdit = await prisma.book.findUnique({
+      where: {
+        id: bookId,
+        ownerId: userId
+      },
+      include: {
+        bookSelected: true
+      }
+    })
+
+    if (!bookToEdit) {
+      await prisma.conversation.delete({
         where: {
-          id: bookId,
-          ownerId: userId
-        },
-        include: {
-          bookSelected: true
+          chatId: userId
         }
       })
+      await bot.sendMessage(userId, 'No se encontró el libro contable.')
+      return
+    }
 
-      if (!oldBook) {
-        await prisma.conversation.delete({
-          where: {
-            chatId: userId
-          }
-        })
-        await bot.sendMessage(userId, 'No se encontró el libro contable.')
+    if (conversationData.property === 'title') {
+      const isValid = z.string().min(3).max(50).safeParse(text)
+      if (!isValid.success) {
+        await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
         return
       }
 
@@ -143,13 +148,161 @@ export async function booksOnText({ bot, msg }: MsgProps) {
         }
       })
 
-      await bot.sendMessage(userId, `Libro contable renombrado:\n\n<s>${oldBook.title}</s>\n<b>${text}</b>`, {
+      await bot.sendMessage(userId, `Libro contable renombrado:\n\n<s>${bookToEdit.title}</s>\n<b>${text}</b>`, {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: bookButtons(oldBook.bookSelected.length === 0)
+          inline_keyboard: bookButtons(bookToEdit.bookSelected.length === 0)
         }
       })
       return
+    }
+
+    if (conversationData.property === 'currencyA' || conversationData.property === 'currencyB' || conversationData.property === 'currency') {
+      const isValid = z.string().regex(/[A-Za-z]+/g).length(3).safeParse(text)
+      if (!isValid.success) {
+        await bot.sendMessage(userId, 'La moneda debe ser en 3 letras.')
+        return
+      }
+
+      if (conversationData.property === 'currencyA') {
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            state: 'books',
+            data: {
+              action: 'edit',
+              bookId: bookId,
+              property: 'currencyB',
+              coinA: text.toUpperCase()
+            }
+          }
+        })
+
+        await bot.sendMessage(userId, 'Moneda B en 3 letras:')
+        return
+      }
+
+      if (conversationData.property === 'currencyB') {
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            state: 'books',
+            data: {
+              action: 'edit',
+              bookId: bookId,
+              property: 'changeAtoB',
+              coinA: conversationData.coinA,
+              coinB: text.toUpperCase()
+            }
+          }
+        })
+
+        await bot.sendMessage(userId, `1 ${conversationData.coinA} = X ${text.toUpperCase()}\n\nIngresa el valor de X:`)
+        return
+      }
+
+      if (conversationData.property === 'currency') {
+        await prisma.book.update({
+          where: {
+            id: bookId
+          },
+          data: {
+            currency: text.toUpperCase()
+          }
+        })
+
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            state: 'books',
+            data: {
+              action: 'edit',
+              bookId: bookId
+            }
+          }
+        })
+
+        await bot.sendMessage(userId, `Moneda asignada con éxito para libro <b>${bookToEdit.title}</b>.`, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: bookButtons(bookToEdit.bookSelected.length === 0)
+          }
+        })
+        return
+      }
+    }
+
+    if (conversationData.property === 'changeAtoB' || conversationData.property === 'changeBtoA') {
+      const number = parseFloat(text)
+      if (Number.isNaN(number) || number === 0) {
+        await bot.sendMessage(userId, 'El valor debe ser un número mayor de 0.')
+        return
+      }
+
+      if (conversationData.property === 'changeAtoB') {
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            state: 'books',
+            data: {
+              action: 'edit',
+              bookId: bookId,
+              property: 'changeBtoA',
+              coinA: conversationData.coinA,
+              coinB: conversationData.coinB,
+              changeAToB: number
+            }
+          }
+        })
+
+        await bot.sendMessage(userId, `1 ${conversationData.coinB} = X ${conversationData.coinA}\n\nIngresa el valor de X:`)
+        return
+      }
+
+      if (conversationData.property === 'changeBtoA') {
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            state: 'books',
+            data: {
+              action: 'edit',
+              bookId: bookId
+            }
+          }
+        })
+
+        await prisma.conversionRate.createMany({
+          data: [{
+            bookId: bookId,
+            from: conversationData.coinA,
+            to: conversationData.coinB,
+            amount: conversationData.changeAToB
+          }, {
+            bookId: bookId,
+            from: conversationData.coinB,
+            to: conversationData.coinA,
+            amount: number
+          }]
+        })
+
+        await bot.sendMessage(userId, `Cambio de moneda creado con éxito para libro <b>${bookToEdit.title}</b>.\n\n1 ${conversationData.coinA} = ${conversationData.changeAToB} ${conversationData.coinB}\n1 ${conversationData.coinB} = ${number} ${conversationData.coinA}`, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: bookButtons(bookToEdit.bookSelected.length === 0)
+          }
+        })
+        return
+      }
     }
   }
 }
@@ -230,6 +383,26 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
   }
 
   if (conversationData.action === 'edit') {
+    const bookToEdit = await prisma.book.findUnique({
+      where: {
+        id: conversationData.bookId,
+        ownerId: userId
+      },
+      include: {
+        bookSelected: true
+      }
+    })
+
+    if (!bookToEdit) {
+      await prisma.conversation.delete({
+        where: {
+          chatId: userId
+        }
+      })
+      await bot.sendMessage(userId, 'No se encontró el libro contable.')
+      return
+    }
+
     if (btnPress === 'title') {
       await prisma.conversation.update({
         where: {
@@ -250,17 +423,7 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
     }
 
     if (btnPress === 'delete') {
-      const bookToDelete = await prisma.book.findUnique({
-        where: {
-          id: conversationData.bookId,
-          ownerId: userId
-        },
-        include: {
-          bookSelected: true
-        }
-      })
-
-      if (!bookToDelete) {
+      if (!bookToEdit) {
         await prisma.conversation.delete({
           where: {
             chatId: userId
@@ -270,7 +433,7 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
         return
       }
 
-      const isSelected = bookToDelete.bookSelected.length > 0
+      const isSelected = bookToEdit.bookSelected.length > 0
 
       if (isSelected) {
         await prisma.conversation.update({
@@ -286,7 +449,7 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
           }
         })
 
-        await bot.sendMessage(userId, `El libro contable "<b>${bookToDelete.title}</b>" está seleccionado.\nNo se puede eliminar.`, {
+        await bot.sendMessage(userId, `El libro contable "<b>${bookToEdit.title}</b>" está seleccionado.\nNo se puede eliminar.`, {
           parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: bookButtons(false)
@@ -301,14 +464,75 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
         }
       })
 
-      await bot.sendMessage(userId, `Libro contable "<b>${bookToDelete.title}</b>" eliminado con éxito.`, {
+      await bot.sendMessage(userId, `Libro contable "<b>${bookToEdit.title}</b>" eliminado con éxito.`, {
         parse_mode: 'HTML'
       })
       await booksOnStart({ bot, query })
     }
 
     if (btnPress === 'currency') {
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'books',
+          data: {
+            action: 'edit',
+            bookId: conversationData.bookId,
+          }
+        }
+      })
 
+      await bot.sendMessage(userId, !!bookToEdit.currency ? `Moneda actual: ${bookToEdit.currency}` : 'No tiene moneda asignada.', {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Asignar Moneda', callback_data: 'assignCurrency' }, { text: 'Crear Cambio', callback_data: 'changeCurrency' }],
+            [{ text: 'Regresar', callback_data: 'back' }]
+          ]
+        }
+      })
+      return
+    }
+
+    if (btnPress === 'changeCurrency') {
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'books',
+          data: {
+            action: 'edit',
+            bookId: conversationData.bookId,
+            property: 'currencyA',
+          }
+        }
+      })
+
+      await bot.sendMessage(userId, 'Moneda A en 3 letras:')
+      return
+    }
+
+    if (btnPress === 'assignCurrency') {
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'books',
+          data: {
+            action: 'edit',
+            bookId: conversationData.bookId,
+            property: 'currency',
+          }
+        }
+      })
+
+      await bot.sendMessage(userId, '<i>Es importante que tengas los cambios de monedas listos para realizar su conversión.</i>\n\nMoneda en 3 letras:', {
+        parse_mode: 'HTML'
+      })
+      return
     }
   }
 }
@@ -316,12 +540,12 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
 export function bookButtons(canSelect: boolean): TelegramBot.InlineKeyboardButton[][] {
   if (canSelect) return [
     [{ text: 'Seleccionar', callback_data: `select` }, { text: 'Renombrar', callback_data: `title` }],
-    [{ text: 'Monedas', callback_data: `currency` }, { text: 'Eliminar', callback_data: `delete` }],
+    [{ text: 'Moneda', callback_data: `currency` }, { text: 'Eliminar', callback_data: `delete` }],
     [{ text: 'Regresar', callback_data: `back` }]
   ]
   return [
     [{ text: 'Renombrar', callback_data: `title` }],
-    [{ text: 'Monedas', callback_data: `currency` }, { text: 'Eliminar', callback_data: `delete` }],
+    [{ text: 'Moneda', callback_data: `currency` }, { text: 'Eliminar', callback_data: `delete` }],
     [{ text: 'Regresar', callback_data: `back` }]
   ]
 }
