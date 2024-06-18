@@ -2,6 +2,7 @@ import { MessageFromPrivate, QueryFromPrivate } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
 import { showContinents } from './waitingForCommand'
+import { showTimezones } from './onboardingTimezone'
 
 type TextProps = {
   bot: TelegramBot
@@ -141,12 +142,33 @@ export async function booksOnCallbackQuery({ bot, query }: CallbackProps) {
     }
   })
 
+  if (!conversation) {
+    return
+  }
+
   const data: any = conversation?.data || {}
 
   if (data.action === 'create') {
     if (data.description && !data.timezone) {
       if (btnPress === 'timezone') {
+        await prisma.conversation.update({
+          data: {
+            data: {
+              ...data,
+              pickContinent: true
+            }
+          },
+          where: {
+            chatId: userId
+          }
+
+        })
         await showContinents({ bot, query }, `Selecciona una zona horaria para <b>${data.description}</b>:`)
+        return
+      }
+
+      if (!!data.pickContinent) {
+        await showTimezones({ bot, query, conversation }, { page: data.page || 1, continent: btnPress, conversationData: data })
         return
       }
     }
