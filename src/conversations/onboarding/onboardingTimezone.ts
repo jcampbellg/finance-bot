@@ -1,19 +1,38 @@
+import { showContinents } from '@conversations/waitingForCommand'
+import { QueryFromPrivate } from '@customTypes/messageTypes'
 import { Conversation } from '@prisma/client'
 import { prisma } from '@utils/prisma'
 import setMyCommands from '@utils/setMyCommands'
 import TelegramBot from 'node-telegram-bot-api'
+import dayjs from 'dayjs'
+import 'dayjs/locale/es'
+import timezone from 'dayjs/plugin/timezone'
+import utc from 'dayjs/plugin/utc'
+import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 
-export default async function onboardingTimezone(bot: TelegramBot, msg: TelegramBot.Message, btnPress: string, conversation: Conversation) {
-  if (!msg.from || msg.chat.type === 'channel' || msg.chat.type === 'supergroup') return
+dayjs.locale('es')
+dayjs.extend(utc)
+dayjs.extend(timezone)
+dayjs.extend(LocalizedFormat)
 
-  const chatId = msg.chat.id
+type Props = {
+  bot: TelegramBot
+  query: QueryFromPrivate
+  conversation: Conversation
+}
+
+export default async function onboardingTimezone({ bot, query, conversation }: Props) {
+  const chatId = query.message.chat.id
+  const firstName = query.message.chat.first_name || query.message.chat.username || 'Usuario'
 
   const conversationData: any = conversation.data || {}
 
   let continent = conversationData.continent || null
+  const btnPress = query.data
 
   if (!conversationData.continent) {
-    continent = btnPress
+    continent = query.data
+
     await prisma.conversation.update({
       where: {
         chatId
@@ -31,7 +50,8 @@ export default async function onboardingTimezone(bot: TelegramBot, msg: Telegram
     const page = conversationData.page + 1 || 1
     const timezones = Intl.supportedValuesOf('timeZone').filter(tz => tz.startsWith(continent))
     const pageSize = 10
-
+    const lastPage = Math.ceil(timezones.length / pageSize)
+    const isOnLastPage = page === lastPage
     const paginatedTimezones = timezones.slice((page - 1) * pageSize, page * pageSize)
 
     await prisma.conversation.update({
@@ -58,10 +78,16 @@ export default async function onboardingTimezone(bot: TelegramBot, msg: Telegram
       reply_markup: {
         inline_keyboard: [
           ...groupedTimezones.map(tz => tz.map(timezone => ({ text: timezone.replace(`${continent}/`, '').replace(/_/g, ' '), callback_data: `${timezone}` }))),
-          [{ text: 'Siguiente', callback_data: 'next' }]
+          isOnLastPage ? [] : [{ text: 'Ver mas', callback_data: 'next' }],
+          [{ text: 'Cambiar', callback_data: 'continent' }]
         ]
       }
     })
+    return
+  }
+
+  if (btnPress === 'continent') {
+    await showContinents({ bot, query })
     return
   }
 
@@ -81,9 +107,10 @@ export default async function onboardingTimezone(bot: TelegramBot, msg: Telegram
     create: {
       id: chatId,
       timezone: timezone,
+      firstName: firstName,
       books: {
         create: {
-          description: `Finazas Personales`,
+          description: `Finazas de ${firstName}`,
           timezone: timezone
         }
       }
@@ -106,11 +133,12 @@ export default async function onboardingTimezone(bot: TelegramBot, msg: Telegram
     }
   })
 
-  await setMyCommands(bot, { from: msg.from, chat: msg.chat })
+  await setMyCommands({ bot, query })
 
-  await bot.sendMessage(chatId, `¡Perfecto! Tu zona horaria es <b>${timezone}</b>`, {
+  const dateInTimezone = dayjs().tz(timezone).format('LL hh:mma')
+
+  await bot.sendMessage(chatId, `¡Perfecto ${firstName}!\nTu zona horaria es:\n<b>${timezone}</b>\n\nFecha:\n${dateInTimezone}`, {
     parse_mode: 'HTML'
   })
-
   return
 }

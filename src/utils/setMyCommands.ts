@@ -1,3 +1,4 @@
+import { MessageFromPrivate, QueryFromPrivate } from '@customTypes/messageTypes'
 import TelegramBot from 'node-telegram-bot-api'
 
 const commands = [
@@ -16,75 +17,52 @@ const commands = [
   }
 ]
 
-type Msg = {
-  from: TelegramBot.Message['from']
-  chat: TelegramBot.Message['chat']
+type props = {
+  bot: TelegramBot
+  msg: MessageFromPrivate
+  query?: QueryFromPrivate
+} | {
+  bot: TelegramBot
+  msg?: MessageFromPrivate
+  query: QueryFromPrivate
 }
 
-export default async function setMyCommands(bot: TelegramBot, msg: Msg) {
-  if (!msg.from || msg.from?.is_bot) return
+export default async function setMyCommands({ bot, msg, query }: props) {
+  const chatId = msg?.chat.id || query?.message.chat.id as number
+  const from = msg?.from || query?.from as TelegramBot.User
 
   await bot.setMyCommands(commands, {
     scope: {
       type: 'all_private_chats',
     },
-    language_code: 'es'
+    language_code: from.language_code
   })
 
   await bot.setMyCommands(commands, {
     scope: {
       type: 'chat',
-      chat_id: msg.chat.id
+      chat_id: chatId
     },
-    language_code: 'es'
-  })
-
-  await bot.setMyCommands(commands, {
-    scope: {
-      type: 'all_private_chats',
-    },
-    language_code: 'en'
-  })
-
-  await bot.setMyCommands(commands, {
-    scope: {
-      type: 'chat',
-      chat_id: msg.chat.id
-    },
-    language_code: 'en'
+    language_code: from.language_code
   })
 }
 
-export async function clearMyCommands(bot: TelegramBot, msg: TelegramBot.Message) {
-  if (!msg.from || msg.from?.is_bot) return
+export async function clearMyCommands({ bot, msg, query }: props) {
+  const chatId = msg?.chat.id || query?.message.chat.id as number
+  const from = msg?.from || query?.from as TelegramBot.User
 
   await bot.setMyCommands([], {
     scope: {
       type: 'all_private_chats',
     },
-    language_code: 'es'
+    language_code: from.language_code
   })
 
   await bot.setMyCommands([], {
     scope: {
       type: 'chat',
-      chat_id: msg.chat.id
+      chat_id: chatId
     },
-    language_code: 'es'
-  })
-
-  await bot.setMyCommands([], {
-    scope: {
-      type: 'all_private_chats',
-    },
-    language_code: 'en'
-  })
-
-  await bot.setMyCommands([], {
-    scope: {
-      type: 'chat',
-      chat_id: msg.chat.id
-    },
-    language_code: 'en'
+    language_code: from.language_code
   })
 }

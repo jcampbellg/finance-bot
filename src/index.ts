@@ -1,12 +1,9 @@
 import dotenv from 'dotenv'
 import TelegramBot from 'node-telegram-bot-api'
-import dayjs from 'dayjs'
-import 'dayjs/locale/es'
-import timezone from 'dayjs/plugin/timezone'
-import utc from 'dayjs/plugin/utc'
 import { prisma } from '@utils/prisma'
 import waitingForCommand from '@conversations/waitingForCommand'
 import onboardingTimezone from '@conversations/onboarding/onboardingTimezone'
+import { MessageFromPrivate, QueryFromPrivate } from '@customTypes/messageTypes'
 
 dotenv.config()
 
@@ -15,57 +12,60 @@ if (!process.env.TELEGRAM_BOT_TOKEN) {
   process.exit(1)
 }
 
-dayjs.extend(utc)
-dayjs.extend(timezone)
-
-
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true })
 
-bot.on('text', async (msg) => {
-  if (!msg.from || msg.chat.type === 'channel' || msg.chat.type === 'supergroup') return
+bot.on('message', async (msg) => {
+  if (msg.chat.type !== 'private') return
 
-  const chatId = msg.chat.id
-  bot.sendChatAction(chatId, 'typing')
+  const userId = msg.chat.id
+
+  bot.sendChatAction(userId, 'typing')
 
   const conversation = await prisma.conversation.upsert({
     where: {
-      chatId: chatId,
+      chatId: userId,
     },
-    update: {},
     create: {
-      chatId: chatId,
+      chatId: msg.chat.id,
       state: 'waitingForCommand',
-      data: {},
-      type: msg.chat.type
-    }
+      data: {}
+    },
+    update: {}
   })
 
-  if (conversation.state === 'waitingForCommand' || msg.text === '/start') {
-    await waitingForCommand(bot, msg)
-    return
+  const text = msg.text?.trim() || ''
+
+  if (conversation.state === 'waitingForCommand' || text === '/start' || text === '/cancelar') {
+    waitingForCommand({
+      bot,
+      msg: msg as MessageFromPrivate
+    })
   }
 })
 
 bot.on('callback_query', async (query) => {
-  if (!query.from || !query.message || query.message?.chat.type === 'channel' || query.message?.chat.type === 'supergroup' || !query.data) return
-  const chatId = query.message?.chat.id
-  bot.sendChatAction(chatId, 'typing')
+  if (!query.message || !query.data) return
+
+  const userId = query.message.chat.id
+  bot.sendChatAction(userId, 'typing')
 
   const conversation = await prisma.conversation.upsert({
     where: {
-      chatId: chatId,
+      chatId: userId,
     },
-    update: {},
     create: {
-      chatId: chatId,
+      chatId: userId,
       state: 'waitingForCommand',
-      data: {},
-      type: query.message.chat.type
-    }
+      data: {}
+    },
+    update: {}
   })
 
   if (conversation.state === 'onboarding_timezone') {
-    await onboardingTimezone(bot, query.message, query.data, conversation)
-    return
+    onboardingTimezone({
+      bot,
+      query: query as QueryFromPrivate,
+      conversation
+    })
   }
 })

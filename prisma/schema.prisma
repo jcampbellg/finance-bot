@@ -24,11 +24,6 @@ enum ConversationState {
   books
 }
 
-enum ConversationType {
-  group
-  private
-}
-
 model Files {
   id        Int      @id @default(autoincrement())
   fileId    String
@@ -49,12 +44,12 @@ model ChatGroup {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   book      Book     @relation(fields: [bookId], references: [id])
-  bookId    String
+  bookId    Int
 }
 
 model BookSelected {
   id        Int      @id @default(autoincrement())
-  bookId    String
+  bookId    Int
   book      Book     @relation(fields: [bookId], references: [id])
   chatId    BigInt
   createdAt DateTime @default(now())
@@ -65,13 +60,13 @@ model Conversation {
   chatId    BigInt            @id @unique
   state     ConversationState @default(waitingForCommand)
   data      Json
-  type      ConversationType
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 }
 
 model User {
   id         BigInt      @id @unique
+  firstName  String
   timezone   String
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
@@ -89,21 +84,22 @@ model ConversionRate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   book      Book     @relation(fields: [bookId], references: [id])
-  bookId    String
+  bookId    Int
 }
 
 model ShareBook {
   id        Int      @id @default(autoincrement())
-  bookId    String
+  bookId    Int
   book      Book     @relation(fields: [bookId], references: [id])
-  userId    BigInt
-  user      User     @relation(fields: [userId], references: [id])
+  userId    BigInt?
+  user      User?    @relation(fields: [userId], references: [id])
+  shareKey  String   @unique @default(uuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Book {
-  id             String           @id @unique @default(uuid())
+  id             Int              @id @default(autoincrement())
   description    String
   timezone       String
   ownerId        BigInt
@@ -126,7 +122,7 @@ model Account {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   book      Book      @relation(fields: [bookId], references: [id])
-  bookId    String
+  bookId    Int
 }
 
 model Expense {
@@ -144,7 +140,7 @@ model Expense {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   Book        Book?    @relation(fields: [bookId], references: [id])
-  bookId      String
+  bookId      Int?
 }
 
 model Category {
@@ -206,5 +202,5 @@ model Budget {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   book        Book       @relation(fields: [bookId], references: [id])
-  bookId      String
+  bookId      Int
 }

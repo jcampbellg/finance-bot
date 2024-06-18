@@ -37,6 +37,9 @@
       "*": [
         "node_modules/*"
       ],
+      "@customTypes/*": [
+        "src/customTypes/*"
+      ],
       "@utils/*": [
         "src/utils/*"
       ],

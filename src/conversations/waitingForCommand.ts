@@ -1,39 +1,20 @@
+import { MessageFromPrivate, QueryFromPrivate } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
 
-export default async function waitingForCommand(bot: TelegramBot, msg: TelegramBot.Message) {
-  if (!msg.from || msg.chat.type === 'channel' || msg.chat.type === 'supergroup') return
+type Props = {
+  bot: TelegramBot
+  msg: MessageFromPrivate
+}
 
-  const chatId = msg.chat.id
-  const userChat = msg.from
+export default async function waitingForCommand({ bot, msg }: Props) {
+  const userId = msg.chat.id
+  const firstName = msg.chat.first_name || msg.chat.username || 'Usuario'
 
   const text = msg.text?.trim() || ''
 
   if (text === '/start') {
-    await prisma.conversation.update({
-      data: {
-        state: 'onboarding_timezone',
-        data: {}
-      },
-      where: {
-        chatId
-      }
-    })
-
-    const timezones = Intl.supportedValuesOf('timeZone')
-    const continents = [...new Set(timezones.map(tz => tz.split('/')[0]))]
-
-    const groupedContinents = continents.reduce((acc, tz, i) => {
-      const index = Math.floor(i / 2)
-      acc[index] = [...(acc[index] || []), tz]
-      return acc
-    }, [] as string[][])
-
-    await bot.sendMessage(chatId, `¡Hola ${userChat.first_name}!\n¿Cuál es tu zona horaria?`, {
-      reply_markup: {
-        inline_keyboard: groupedContinents.map(continent => continent.map(c => ({ text: c, callback_data: `${c}` })))
-      }
-    })
+    await showContinents({ bot, msg })
     return
   }
 
@@ -41,11 +22,11 @@ export default async function waitingForCommand(bot: TelegramBot, msg: TelegramB
     const books = await prisma.book.findMany({
       where: {
         OR: [
-          { ownerId: userChat.id },
+          { ownerId: userId },
           {
             share: {
               some: {
-                userId: userChat.id
+                userId: userId
               }
             }
           }
@@ -62,11 +43,11 @@ export default async function waitingForCommand(bot: TelegramBot, msg: TelegramB
         data: {}
       },
       where: {
-        chatId
+        chatId: userId
       }
     })
 
-    return await bot.sendMessage(chatId, `Selecciona, edita o crea un libro contable.`, {
+    await bot.sendMessage(userId, `Selecciona, edita o crea un libro contable.`, {
       reply_markup: {
         inline_keyboard: [
           [{ text: 'Crear Nuevo Libro', callback_data: 'create' }],
@@ -77,8 +58,61 @@ export default async function waitingForCommand(bot: TelegramBot, msg: TelegramB
         ]
       }
     })
+
+    return
   }
 
-  await bot.sendMessage(chatId, 'No entiendo ese comando.')
+  if (text === '/cancelar') {
+    await prisma.conversation.delete({
+      where: {
+        chatId: userId
+      }
+    })
+
+    await bot.sendMessage(userId, '¡Hasta luego! 👋')
+    return
+  }
+
+  await bot.sendMessage(userId, 'No entiendo ese comando.')
   return
+}
+
+type PropsContinents = {
+  bot: TelegramBot
+  msg: MessageFromPrivate
+  query?: QueryFromPrivate
+} | {
+  bot: TelegramBot
+  query: QueryFromPrivate
+  msg?: MessageFromPrivate
+}
+
+export async function showContinents({ bot, msg, query }: PropsContinents) {
+  const userId = msg?.chat.id || query?.message.chat.id as number
+  const firstName = msg?.chat.first_name || msg?.chat.username || query?.message.chat.first_name || query?.message.chat.username || 'Usuario'
+
+  await prisma.conversation.update({
+    data: {
+      state: 'onboarding_timezone',
+      data: {}
+    },
+    where: {
+      chatId: userId
+    }
+  })
+
+  const timezones = Intl.supportedValuesOf('timeZone')
+  const continents = [...new Set(timezones.map(tz => tz.split('/')[0]))]
+
+  const groupedContinents = continents.reduce((acc, tz, i) => {
+    const index = Math.floor(i / 2)
+    acc[index] = [...(acc[index] || []), tz]
+    return acc
+  }, [] as string[][])
+
+  await bot.sendMessage(userId, `¡Hola ${firstName}!\n¿Cuál es tu zona horaria?`, {
+    reply_markup: {
+      inline_keyboard: groupedContinents.map(continent => continent.map(c => ({ text: c, callback_data: `${c}` })))
+    }
+  })
 }
