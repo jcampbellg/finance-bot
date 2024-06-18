@@ -2,8 +2,9 @@ import dotenv from 'dotenv'
 import TelegramBot from 'node-telegram-bot-api'
 import { prisma } from '@utils/prisma'
 import waitingForCommand from '@conversations/waitingForCommand'
-import onboardingTimezone from '@conversations/onboarding/onboardingTimezone'
+import onboardingTimezone from '@conversations/onboardingTimezone'
 import { MessageFromPrivate, QueryFromPrivate } from '@customTypes/messageTypes'
+import { bookOnText, booksOnCallbackQuery } from '@conversations/books'
 
 dotenv.config()
 
@@ -41,6 +42,13 @@ bot.on('message', async (msg) => {
       msg: msg as MessageFromPrivate
     })
   }
+
+  if (conversation.state === 'books') {
+    bookOnText({
+      bot,
+      msg: msg as MessageFromPrivate
+    })
+  }
 })
 
 bot.on('callback_query', async (query) => {
@@ -66,6 +74,13 @@ bot.on('callback_query', async (query) => {
       bot,
       query: query as QueryFromPrivate,
       conversation
+    })
+  }
+
+  if (conversation.state === 'books') {
+    booksOnCallbackQuery({
+      bot,
+      query: query as QueryFromPrivate
     })
   }
 })

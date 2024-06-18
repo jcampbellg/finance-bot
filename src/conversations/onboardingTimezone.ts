@@ -22,7 +22,7 @@ type Props = {
 }
 
 export default async function onboardingTimezone({ bot, query, conversation }: Props) {
-  const chatId = query.message.chat.id
+  const userId = query.message.chat.id
   const firstName = query.message.chat.first_name || query.message.chat.username || 'Usuario'
 
   const conversationData: any = conversation.data || {}
@@ -35,7 +35,7 @@ export default async function onboardingTimezone({ bot, query, conversation }: P
 
     await prisma.conversation.update({
       where: {
-        chatId
+        chatId: userId
       },
       data: {
         data: {
@@ -56,7 +56,7 @@ export default async function onboardingTimezone({ bot, query, conversation }: P
 
     await prisma.conversation.update({
       where: {
-        chatId
+        chatId: userId
       },
       data: {
         data: {
@@ -73,7 +73,7 @@ export default async function onboardingTimezone({ bot, query, conversation }: P
       return acc
     }, [] as string[][])
 
-    await bot.sendMessage(chatId, `Selecciona una en <b>${continent}</b>:`, {
+    await bot.sendMessage(userId, `Selecciona una en <b>${continent}</b>:`, {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
@@ -87,7 +87,7 @@ export default async function onboardingTimezone({ bot, query, conversation }: P
   }
 
   if (btnPress === 'continent') {
-    await showContinents({ bot, query })
+    await showContinents({ bot, query }, 'Selecciona una zona horaria:')
     return
   }
 
@@ -95,23 +95,28 @@ export default async function onboardingTimezone({ bot, query, conversation }: P
 
   await prisma.conversation.delete({
     where: {
-      chatId
+      chatId: userId
     }
   })
 
-  const newUser = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: {
-      id: chatId
+      id: userId
     },
     update: {},
     create: {
-      id: chatId,
+      id: userId,
       timezone: timezone,
       firstName: firstName,
       books: {
         create: {
           description: `Finazas de ${firstName}`,
-          timezone: timezone
+          timezone: timezone,
+          bookSelected: {
+            create: {
+              chatId: userId
+            }
+          }
         }
       }
     },
@@ -120,26 +125,11 @@ export default async function onboardingTimezone({ bot, query, conversation }: P
     }
   })
 
-  const bookCount = await prisma.book.count({
-    where: {
-      ownerId: chatId
-    }
-  })
-
-  if (bookCount === 0) {
-    await prisma.bookSelected.create({
-      data: {
-        chatId: chatId,
-        bookId: newUser.books[0].id
-      }
-    })
-  }
-
   await setMyCommands({ bot, query })
 
   const dateInTimezone = dayjs().tz(timezone).format('LL hh:mma')
 
-  await bot.sendMessage(chatId, `¡Perfecto ${firstName}!\nTu zona horaria es:\n<b>${timezone}</b>\n\nFecha:\n${dateInTimezone}`, {
+  await bot.sendMessage(userId, `¡Perfecto ${firstName}!\nTu zona horaria es:\n<b>${timezone}</b>\n\nFecha:\n${dateInTimezone}`, {
     parse_mode: 'HTML'
   })
   return

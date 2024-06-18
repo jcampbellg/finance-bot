@@ -1,6 +1,7 @@
 import { MessageFromPrivate, QueryFromPrivate } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
+import { booksOnStart } from './books'
 
 type Props = {
   bot: TelegramBot
@@ -9,58 +10,7 @@ type Props = {
 
 export default async function waitingForCommand({ bot, msg }: Props) {
   const userId = msg.chat.id
-  const firstName = msg.chat.first_name || msg.chat.username || 'Usuario'
-
   const text = msg.text?.trim() || ''
-
-  if (text === '/start') {
-    await showContinents({ bot, msg })
-    return
-  }
-
-  if (text === '/libros') {
-    const books = await prisma.book.findMany({
-      where: {
-        OR: [
-          { ownerId: userId },
-          {
-            share: {
-              some: {
-                userId: userId
-              }
-            }
-          }
-        ]
-      },
-      include: {
-        bookSelected: true
-      }
-    })
-
-    await prisma.conversation.update({
-      data: {
-        state: 'books',
-        data: {}
-      },
-      where: {
-        chatId: userId
-      }
-    })
-
-    await bot.sendMessage(userId, `Selecciona, edita o crea un libro contable.`, {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: 'Crear Nuevo Libro', callback_data: 'create' }],
-          ...books.map(book => ([{
-            text: `${book.bookSelected.length > 0 ? '⦿ ' : ''}${book.description}`,
-            callback_data: `${book.id}`
-          }]))
-        ]
-      }
-    })
-
-    return
-  }
 
   if (text === '/cancelar') {
     await prisma.conversation.delete({
@@ -70,6 +20,29 @@ export default async function waitingForCommand({ bot, msg }: Props) {
     })
 
     await bot.sendMessage(userId, '¡Hasta luego! 👋')
+    return
+  }
+
+  if (text === '/start') {
+    const userId = msg?.chat.id
+
+    await prisma.conversation.update({
+      data: {
+        state: 'onboarding_timezone',
+        data: {}
+      },
+      where: {
+        chatId: userId
+      }
+    })
+
+    const firstName = msg?.chat.first_name || msg?.chat.username || 'Usuario'
+    await showContinents({ bot, msg }, `¡Hola ${firstName}!\n¿Cuál es tu zona horaria?`)
+    return
+  }
+
+  if (text === '/libros') {
+    await booksOnStart({ bot, msg })
     return
   }
 
@@ -87,19 +60,8 @@ type PropsContinents = {
   msg?: MessageFromPrivate
 }
 
-export async function showContinents({ bot, msg, query }: PropsContinents) {
+export async function showContinents({ bot, msg, query }: PropsContinents, message: string) {
   const userId = msg?.chat.id || query?.message.chat.id as number
-  const firstName = msg?.chat.first_name || msg?.chat.username || query?.message.chat.first_name || query?.message.chat.username || 'Usuario'
-
-  await prisma.conversation.update({
-    data: {
-      state: 'onboarding_timezone',
-      data: {}
-    },
-    where: {
-      chatId: userId
-    }
-  })
 
   const timezones = Intl.supportedValuesOf('timeZone')
   const continents = [...new Set(timezones.map(tz => tz.split('/')[0]))]
@@ -110,7 +72,8 @@ export async function showContinents({ bot, msg, query }: PropsContinents) {
     return acc
   }, [] as string[][])
 
-  await bot.sendMessage(userId, `¡Hola ${firstName}!\n¿Cuál es tu zona horaria?`, {
+  await bot.sendMessage(userId, message, {
+    parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: groupedContinents.map(continent => continent.map(c => ({ text: c, callback_data: `${c}` })))
     }
