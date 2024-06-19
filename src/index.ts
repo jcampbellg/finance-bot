@@ -37,7 +37,7 @@ bot.on('message', async (msg) => {
 
   const text = msg.text?.trim() || ''
 
-  if (conversation.state === 'waitingForCommand' || text === '/start' || text === '/cancelar') {
+  if (conversation.state === 'waitingForCommand' || text === '/start' || text === '/terminar') {
     waitingForCommand({
       bot,
       msg: msg as MessageFromPrivate
@@ -83,8 +83,7 @@ bot.on('callback_query', async (query) => {
   if (conversation.state === 'onboarding') {
     onboardingOnCallbackQuery({
       bot,
-      query: query as QueryFromPrivate,
-      conversation
+      query: query as QueryFromPrivate
     })
   }
 

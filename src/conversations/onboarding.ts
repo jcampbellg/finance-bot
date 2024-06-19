@@ -1,5 +1,4 @@
-import { MessageFromPrivate, QueryFromPrivate } from '@customTypes/messageTypes'
-import { Conversation } from '@prisma/client'
+import { MessageFromPrivate, QueryProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
 import setMyCommands from '@utils/setMyCommands'
 import TelegramBot from 'node-telegram-bot-api'
@@ -43,13 +42,19 @@ export async function onboardingOnStart({ bot, msg }: TextProps) {
   return
 }
 
-type CallbackProps = {
-  bot: TelegramBot
-  query: QueryFromPrivate
-  conversation: Conversation
-}
+export async function onboardingOnCallbackQuery({ bot, query }: QueryProps) {
+  const conversation = await prisma.conversation.upsert({
+    where: {
+      chatId: query.message.chat.id
+    },
+    create: {
+      chatId: query.message.chat.id,
+      state: 'waitingForCommand',
+      data: {}
+    },
+    update: {}
+  })
 
-export async function onboardingOnCallbackQuery({ bot, query, conversation }: CallbackProps) {
   const userId = query.message.chat.id
   const firstName = query.message.chat.first_name || query.message.chat.username || 'Usuario'
 
@@ -57,6 +62,28 @@ export async function onboardingOnCallbackQuery({ bot, query, conversation }: Ca
 
   let continent = conversationData.continent || null
   const btnPress = query.data
+
+  if (btnPress === 'continent') {
+    const continentsBtns = continentsButtons()
+    await prisma.conversation.update({
+      where: {
+        chatId: userId
+      },
+      data: {
+        data: {
+          continent: null,
+          page: 1
+        }
+      }
+    })
+    await bot.sendMessage(userId, `¿Cuál es tu zona horaria?`, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: continentsBtns
+      }
+    })
+    return
+  }
 
   if (!conversationData.continent) {
     continent = query.data
@@ -83,7 +110,6 @@ export async function onboardingOnCallbackQuery({ bot, query, conversation }: Ca
       },
       data: {
         data: {
-          ...conversationData,
           continent: continent,
           page: page
         }
@@ -101,37 +127,19 @@ export async function onboardingOnCallbackQuery({ bot, query, conversation }: Ca
     return
   }
 
-  if (btnPress === 'continent') {
-    const continentsBtns = continentsButtons()
-    await prisma.conversation.update({
-      where: {
-        chatId: userId
-      },
-      data: {
-        data: {
-          continent: null,
-          page: 1
-        }
-      }
-    })
-    await bot.sendMessage(userId, `¿Cuál es tu zona horaria?`, {
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: continentsBtns
-      }
-    })
-    return
-  }
-
   const timezone = btnPress
 
-  await prisma.conversation.delete({
+  await prisma.conversation.update({
     where: {
       chatId: userId
+    },
+    data: {
+      state: 'waitingForCommand',
+      data: {}
     }
   })
 
-  await prisma.user.upsert({
+  const newUser = await prisma.user.upsert({
     where: {
       id: userId
     },
@@ -145,12 +153,7 @@ export async function onboardingOnCallbackQuery({ bot, query, conversation }: Ca
       firstName: firstName,
       books: {
         create: {
-          title: `Finanzas de ${firstName}`,
-          bookSelected: {
-            create: {
-              chatId: userId
-            }
-          }
+          title: `Finanzas de ${firstName}`
         }
       }
     },
@@ -159,9 +162,20 @@ export async function onboardingOnCallbackQuery({ bot, query, conversation }: Ca
     }
   })
 
+  if (!newUser.bookSelectedId) {
+    await prisma.user.update({
+      where: {
+        id: userId
+      },
+      data: {
+        bookSelectedId: newUser.books[0].id
+      }
+    })
+  }
+
   await setMyCommands({ bot, query })
 
-  const dateInTimezone = dayjs().tz(timezone).format('LL hh:mma')
+  const dateInTimezone = dayjs().tz(timezone).format('LL hh:mma (Z)')
 
   await bot.sendMessage(userId, `¡Perfecto ${firstName}!\nTu zona horaria es:\n<b>${timezone}</b>\n\nFecha:\n${dateInTimezone}`, {
     parse_mode: 'HTML'

@@ -6,13 +6,13 @@ const commands = [
     command: 'nueva',
     description: 'Crea una nueva transacción'
   }, {
-    command: 'libros',
-    description: 'Muestra tus libros contables'
+    command: 'libro',
+    description: 'Seleccionar libro contable con que trabajar'
   }, {
     command: 'presupuesto',
-    description: 'Prepara el prespuesto para el libro selecionado'
+    description: 'Prepara tu presupuesto'
   }, {
-    command: 'cancelar',
+    command: 'terminar',
     description: 'Termina la conversación actual'
   }
 ]

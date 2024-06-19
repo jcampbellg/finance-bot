@@ -1,23 +1,21 @@
-import { MessageFromPrivate } from '@customTypes/messageTypes'
+import { MsgProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
-import TelegramBot from 'node-telegram-bot-api'
 import { booksOnStart } from '@conversations/books'
 import { onboardingOnStart } from '@conversations/onboarding'
 import { budgetOnStart } from '@conversations/budget'
 
-type Props = {
-  bot: TelegramBot
-  msg: MessageFromPrivate
-}
-
-export default async function waitingForCommand({ bot, msg }: Props) {
+export default async function waitingForCommand({ bot, msg }: MsgProps) {
   const userId = msg.chat.id
   const text = msg.text?.trim() || ''
 
-  if (text === '/cancelar') {
-    await prisma.conversation.delete({
+  if (text === '/terminar') {
+    await prisma.conversation.update({
       where: {
         chatId: userId
+      },
+      data: {
+        state: 'waitingForCommand',
+        data: {}
       }
     })
 
@@ -35,7 +33,7 @@ export default async function waitingForCommand({ bot, msg }: Props) {
     return
   }
 
-  if (text === '/libros') {
+  if (text === '/libro') {
     await booksOnStart({ bot, msg })
     return
   }

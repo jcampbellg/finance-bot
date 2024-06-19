@@ -47,20 +47,11 @@ model Files {
 }
 
 model ChatGroup {
-  id        BigInt   @id @unique
+  chatId    BigInt   @id @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   book      Book     @relation(fields: [bookId], references: [id])
   bookId    Int
-}
-
-model BookSelected {
-  id        Int      @id @default(autoincrement())
-  bookId    Int
-  book      Book     @relation(fields: [bookId], references: [id])
-  chatId    BigInt
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model Conversation {
@@ -72,15 +63,17 @@ model Conversation {
 }
 
 model User {
-  id         BigInt      @id @unique
-  firstName  String
-  timezone   String
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  books      Book[]
-  expenses   Expense[]
-  budgets    Budget[]
-  shareBooks ShareBook[]
+  id               BigInt      @id @unique
+  firstName        String
+  timezone         String
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  books            Book[]
+  bookSelectedId   Int?
+  budgetSelectedId Int?
+  expenses         Expense[]
+  budgets          Budget[]
+  shareBooks       ShareBook[]
 }
 
 model ConversionRate {
@@ -95,14 +88,13 @@ model ConversionRate {
 }
 
 model ShareBook {
-  id        Int      @id @default(autoincrement())
-  bookId    Int
-  book      Book     @relation(fields: [bookId], references: [id])
-  userId    BigInt?
-  user      User?    @relation(fields: [userId], references: [id])
-  shareKey  String   @unique @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  key             String   @id @unique @default(uuid())
+  bookId          Int
+  book            Book     @relation(fields: [bookId], references: [id])
+  shareWithUserId BigInt?
+  shareWithuser   User?    @relation(fields: [shareWithUserId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Book {
@@ -110,8 +102,9 @@ model Book {
   title          String
   ownerId        BigInt
   owner          User             @relation(fields: [ownerId], references: [id])
-  share          ShareBook[]
+  shares         ShareBook[]
   accounts       Account[]
+  categories     Category[]
   budgets        Budget[]
   expenses       Expense[]
   createdAt      DateTime         @default(now())
@@ -119,7 +112,6 @@ model Book {
   currency       String?
   conversionRate ConversionRate[]
   chatGroup      ChatGroup[]
-  bookSelected   BookSelected[]
 }
 
 model Account {
@@ -133,20 +125,21 @@ model Account {
 }
 
 model Expense {
-  id          Int      @id @default(autoincrement())
+  id          Int            @id @default(autoincrement())
   description String
   categoryId  Int
-  category    Category @relation(fields: [categoryId], references: [id])
+  category    Category       @relation(fields: [categoryId], references: [id])
   accountId   Int
-  account     Account  @relation(fields: [accountId], references: [id])
-  amount      Float
+  account     Account        @relation(fields: [accountId], references: [id])
+  amountId    Int            @unique
+  amount      AmountCurrency @relation(fields: [amountId], references: [id])
   files       Files[]
   notes       String?
   createdById BigInt
-  createdBy   User     @relation(fields: [createdById], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  Book        Book?    @relation(fields: [bookId], references: [id])
+  createdBy   User           @relation(fields: [createdById], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  book        Book?          @relation(fields: [bookId], references: [id])
   bookId      Int?
 }
 
@@ -155,10 +148,10 @@ model Category {
   description String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  Budget      Budget?   @relation(fields: [budgetId], references: [id])
-  budgetId    Int?
   limits      Limit[]
   expenses    Expense[]
+  Book        Book?     @relation(fields: [bookId], references: [id])
+  bookId      Int?
 }
 
 model AmountCurrency {
@@ -169,6 +162,7 @@ model AmountCurrency {
   payment   Payment?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  Expense   Expense?
 }
 
 model Limit {
@@ -187,8 +181,8 @@ model Limit {
 
 model Payment {
   id             Int            @id @default(autoincrement())
-  Budget         Budget?        @relation(fields: [budgetId], references: [id])
-  budgetId       Int?
+  budget         Budget         @relation(fields: [budgetId], references: [id])
+  budgetId       Int
   description    String
   amountId       Int            @unique
   amount         AmountCurrency @relation(fields: [amountId], references: [id])
@@ -199,15 +193,14 @@ model Payment {
 }
 
 model Budget {
-  id          Int        @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   ownerId     BigInt
-  owner       User       @relation(fields: [ownerId], references: [id])
+  owner       User      @relation(fields: [ownerId], references: [id])
   description String
-  categories  Category[]
   limits      Limit[]
   payments    Payment[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  book        Book       @relation(fields: [bookId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  book        Book      @relation(fields: [bookId], references: [id])
   bookId      Int
 }
