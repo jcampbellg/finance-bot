@@ -128,8 +128,8 @@ model Account {
 model Expense {
   id          Int            @id @default(autoincrement())
   description String
-  categoryId  Int
-  category    Category       @relation(fields: [categoryId], references: [id])
+  categoryId  Int?
+  category    Category?      @relation(fields: [categoryId], references: [id])
   accountId   Int
   account     Account        @relation(fields: [accountId], references: [id])
   amountId    Int            @unique
