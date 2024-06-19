@@ -1,50 +1,69 @@
 import { MsgAndQueryProps, QueryProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
-import { accountsOnStart } from './budgets/accounts'
+import { accountsOnStart } from '@conversations/budget/accounts'
 
 export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
 
-  await prisma.conversation.upsert({
+  const user = await prisma.user.findUnique({
     where: {
-      chatId: userId
-    },
-    update: {
-      state: 'budget',
-      data: {}
-    },
-    create: {
-      chatId: userId,
-      state: 'budget',
-      data: {}
-    }
-  })
-
-  const bookSelected = await prisma.bookSelected.findFirst({
-    where: {
-      book: {
-        ownerId: userId
-      },
-      chatId: userId
+      id: userId
     },
     include: {
-      book: true
+      books: {
+        where: {
+          OR: [
+            { ownerId: userId },
+            {
+              shares: {
+                some: {
+                  shareWithUserId: userId
+                }
+              }
+            }
+          ]
+        }
+      }
     }
   })
 
-  if (!bookSelected) {
-    await bot.sendMessage(userId, '¡Primero necesitas seleccionar un libro contable!')
+  if (!user) {
+    await bot.sendMessage(userId, 'No se encontró el usuario.\n\n Usa /start para comenzar.')
     return
   }
 
-  const book = bookSelected.book
+  const book = user.books.find(book => book.id === user.bookSelectedId)
+
+  if (!book) {
+    await prisma.conversation.update({
+      where: {
+        chatId: userId
+      },
+      data: {
+        state: 'waitingForCommand',
+        data: {}
+      }
+    })
+    await bot.sendMessage(userId, '<i>Primero necesitas seleccionar un libro contable. Usa /libro.</i>', { parse_mode: 'HTML' })
+    return
+  }
+
+  await prisma.conversation.update({
+    where: {
+      chatId: userId
+    },
+    data: {
+      state: 'budget',
+      data: {}
+    }
+  })
 
   await bot.sendMessage(userId, `¡Vamos a configurar el prespuesto para <b>${book.title}</b>! 📚`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
         [{ text: 'Cuentas', callback_data: 'accounts' }, { text: 'Categorias', callback_data: 'categories' }],
-        [{ text: 'Limites', callback_data: 'limits' }, { text: 'Pagos Fijos', callback_data: 'payments' }],
+        [{ text: 'Presupuestos', callback_data: 'budget' }],
       ]
     }
   })
@@ -52,18 +71,6 @@ export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
 }
 
 export async function bundgetOnCallbackQuery({ bot, query }: QueryProps) {
-  const userId = query.message.chat.id
-
-  const conversation = await prisma.conversation.findFirst({
-    where: {
-      chatId: userId
-    }
-  })
-
-  if (!conversation) {
-    return
-  }
-
   const btnPress = query.data
 
   if (btnPress === 'accounts') {

@@ -6,6 +6,16 @@ import z from 'zod'
 export async function booksOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
 
+  await prisma.conversation.update({
+    where: {
+      chatId: userId
+    },
+    data: {
+      state: 'books',
+      data: {}
+    }
+  })
+
   const user = await prisma.user.findUnique({
     where: {
       id: userId
@@ -23,6 +33,9 @@ export async function booksOnStart({ bot, msg, query }: MsgAndQueryProps) {
               }
             }
           ]
+        },
+        include: {
+          shares: true
         }
       }
     }
@@ -45,12 +58,18 @@ export async function booksOnStart({ bot, msg, query }: MsgAndQueryProps) {
 
   const books = user.books
 
+  const ownBooksCount = await prisma.book.count({
+    where: {
+      ownerId: userId
+    }
+  })
+
   await bot.sendMessage(userId, `Selecciona o crea un libro contable.`, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'Crear Nuevo Libro', callback_data: 'create' }],
+        ownBooksCount < 5 ? [{ text: 'Crear Nuevo Libro', callback_data: 'create' }] : [],
         ...books.map(book => ([{
-          text: `${user.bookSelectedId === book.id ? '⦿ ' : ''}${book.title}`,
+          text: `${user.bookSelectedId === book.id ? '⦿ ' : ''}${book.title}${book.shares.length ? ' 🤝' : ''}`,
           callback_data: `${book.id}`
         }]))
       ]
@@ -63,19 +82,13 @@ export async function booksOnText({ bot, msg }: MsgProps) {
   const userId = msg.chat.id
   const text = msg.text?.trim() || ''
 
-  const conversation = await prisma.conversation.upsert({
+  const conversation = await prisma.conversation.findUnique({
     where: {
       chatId: userId
-    },
-    create: {
-      chatId: userId,
-      state: 'waitingForCommand',
-      data: {}
-    },
-    update: {}
+    }
   })
 
-  const conversationData: any = conversation.data || {}
+  const conversationData: any = conversation?.data || {}
 
   if (conversationData.action === 'create') {
     const isValid = z.string().min(3).max(50).safeParse(text)
@@ -182,6 +195,18 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
   }
 
   if (btnPress === 'create') {
+    const ownBooksCount = await prisma.book.count({
+      where: {
+        ownerId: userId
+      }
+    })
+
+    if (ownBooksCount >= 5) {
+      await bot.sendMessage(userId, 'No puedes tener más de 5 libros contables.')
+      await booksOnStart({ bot, query })
+      return
+    }
+
     await prisma.conversation.update({
       data: {
         state: 'books',
@@ -198,19 +223,13 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
     return
   }
 
-  const conversation = await prisma.conversation.upsert({
+  const conversation = await prisma.conversation.findUnique({
     where: {
       chatId: query.message.chat.id
-    },
-    create: {
-      chatId: query.message.chat.id,
-      state: 'waitingForCommand',
-      data: {}
-    },
-    update: {}
+    }
   })
 
-  const conversationData: any = conversation.data || {}
+  const conversationData: any = conversation?.data || {}
 
   if (!conversationData.action) {
     // btn press is a book id

@@ -6,7 +6,7 @@ import { MessageFromPrivate, QueryFromPrivate } from '@customTypes/messageTypes'
 import { booksOnText, booksOnCallbackQuery } from '@conversations/books'
 import { onboardingOnCallbackQuery } from '@conversations/onboarding'
 import { bundgetOnCallbackQuery } from '@conversations/budget'
-import { accountsOnCallbackQuery, accountsOnText } from '@conversations/budgets/accounts'
+import { accountsOnCallbackQuery, accountsOnText } from '@conversations/budget/accounts'
 
 dotenv.config()
 

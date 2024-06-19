@@ -43,22 +43,15 @@ export async function onboardingOnStart({ bot, msg }: TextProps) {
 }
 
 export async function onboardingOnCallbackQuery({ bot, query }: QueryProps) {
-  const conversation = await prisma.conversation.upsert({
-    where: {
-      chatId: query.message.chat.id
-    },
-    create: {
-      chatId: query.message.chat.id,
-      state: 'waitingForCommand',
-      data: {}
-    },
-    update: {}
-  })
-
   const userId = query.message.chat.id
   const firstName = query.message.chat.first_name || query.message.chat.username || 'Usuario'
 
-  const conversationData: any = conversation.data || {}
+  const conversation = await prisma.conversation.findUnique({
+    where: {
+      chatId: userId
+    }
+  })
+  const conversationData: any = conversation?.data || {}
 
   let continent = conversationData.continent || null
   const btnPress = query.data
