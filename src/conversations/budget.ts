@@ -1,6 +1,7 @@
 import { MsgAndQueryProps, QueryProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
 import { accountsOnStart } from '@conversations/budget/accounts'
+import { categoriesOnStart } from './budget/categories'
 
 export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
@@ -78,5 +79,8 @@ export async function bundgetOnCallbackQuery({ bot, query }: QueryProps) {
     return
   }
 
-  return
+  if (btnPress === 'categories') {
+    categoriesOnStart({ bot, query })
+    return
+  }
 }

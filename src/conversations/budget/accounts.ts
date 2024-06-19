@@ -230,6 +230,7 @@ export async function accountsOnCallbackQuery({ bot, query }: QueryProps) {
     }
 
     await budgetOnStart({ bot, query })
+    return
   }
 
   if (btnPress === 'add') {

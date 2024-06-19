@@ -151,7 +151,7 @@ model Category {
   updatedAt   DateTime  @updatedAt
   limits      Limit[]
   expenses    Expense[]
-  Book        Book?     @relation(fields: [bookId], references: [id])
+  book        Book?     @relation(fields: [bookId], references: [id])
   bookId      Int?
 }
 
