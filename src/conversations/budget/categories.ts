@@ -64,21 +64,7 @@ export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
 
   const categories = await prisma.category.findMany({
     where: {
-      bookId: book.id,
-      book: {
-        OR: [
-          {
-            ownerId: userId
-          },
-          {
-            shares: {
-              some: {
-                shareWithUserId: userId
-              }
-            }
-          }
-        ]
-      }
+      bookId: book.id
     },
     orderBy: {
       description: 'asc'
@@ -95,23 +81,12 @@ export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
     }
   })
 
-  const categoriesGroups = categories.reduce((acc, curr, i) => {
-    if (i % 3 === 0) acc.push([curr])
-    else acc[acc.length - 1].push(curr)
-    return acc
-  }, [] as Category[][])
-
   await bot.sendMessage(userId, `Selecciona, edita o agrega una categoria a <b>${book.title}</b>:`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
         categories.length < maxCategories ? [{ text: 'Agregar', callback_data: 'add' }] : [],
-        ...categoriesGroups.map(group => {
-          return group.map(cat => ({
-            text: `${cat.description}`,
-            callback_data: `${cat.id}`
-          }))
-        }),
+        ...categoriesButtons(categories),
         [{ text: 'Regresar', callback_data: 'back' }]
       ]
     }
@@ -531,6 +506,21 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
       return
     }
   }
+}
+
+export function categoriesButtons(categories: Category[]): TelegramBot.InlineKeyboardButton[][] {
+  const categoriesGroups = categories.reduce((acc, curr, i) => {
+    if (i % 3 === 0) acc.push([curr])
+    else acc[acc.length - 1].push(curr)
+    return acc
+  }, [] as Category[][])
+
+  return categoriesGroups.map(group => {
+    return group.map(cat => ({
+      text: `${cat.description}`,
+      callback_data: `${cat.id}`
+    }))
+  })
 }
 
 export function categoryButtons(): TelegramBot.InlineKeyboardButton[][] {

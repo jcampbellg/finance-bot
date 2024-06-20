@@ -95,23 +95,12 @@ export async function paymentsOnStart({ bot, msg, query }: MsgAndQueryProps) {
     }
   })
 
-  const paymentsGroups = payments.reduce((acc, curr, i) => {
-    if (i % 3 === 0) acc.push([curr])
-    else acc[acc.length - 1].push(curr)
-    return acc
-  }, [] as Payment[][])
-
   await bot.sendMessage(userId, `Selecciona, edita o agrega pagos a <b>${book.title}</b>:`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
         payments.length < maxPayments ? [{ text: 'Agregar', callback_data: 'add' }] : [],
-        ...paymentsGroups.map(group => {
-          return group.map(pay => ({
-            text: `${pay.description}`,
-            callback_data: `${pay.id}`
-          }))
-        }),
+        ...paymentsButtons(payments),
         [{ text: 'Regresar', callback_data: 'back' }]
       ]
     }
@@ -572,6 +561,21 @@ export function paymentButtons(): TelegramBot.InlineKeyboardButton[][] {
     [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
     [{ text: 'Regresar', callback_data: 'back' }]
   ]
+}
+
+export function paymentsButtons(payments: Payment[]): TelegramBot.InlineKeyboardButton[][] {
+  const paymentsGroups = payments.reduce((acc, curr, i) => {
+    if (i % 3 === 0) acc.push([curr])
+    else acc[acc.length - 1].push(curr)
+    return acc
+  }, [] as Payment[][])
+
+  return paymentsGroups.map(group => {
+    return group.map(pay => ({
+      text: `${pay.description}`,
+      callback_data: `${pay.id}`
+    }))
+  })
 }
 
 export function limitsListText(limits: LimitsWithAmount[]) {

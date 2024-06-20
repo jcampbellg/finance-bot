@@ -7,3 +7,14 @@ export type LimitsWithAmount = Prisma.LimitGetPayload<{
 export type ExpenseWithAmount = Prisma.ExpenseGetPayload<{
   include: { amount: true }
 }>
+
+export type ExpenseWithAll = Prisma.ExpenseGetPayload<{
+  include: {
+    account: true,
+    amount: true,
+    category: true,
+    payment: true,
+    createdBy: true,
+    files: true
+  }
+}>
