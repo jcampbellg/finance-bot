@@ -267,7 +267,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
           }
         })
 
-        await bot.sendMessage(userId, `${limit}\n Su moneda, en 3 letras:`, {
+        await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
           parse_mode: 'HTML',
         })
         return
@@ -310,7 +310,26 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
         }
       })
 
-      await bot.sendMessage(userId, `${categoryToEdit.description}\nLimite actualizado: <b>${numeral(conversationData.limit).format('0,0.00')} ${currency}</b>`, {
+      const newLimits = await prisma.limit.findMany({
+        where: {
+          categoryId: categoryToEdit.id
+        },
+        include: {
+          amount: true
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      })
+
+      const currencyInLimits = [... new Set(newLimits.map(l => l.amount.currency))]
+
+      const limits = currencyInLimits.map(currency => {
+        const limit = newLimits.find(l => l.amount.currency === currency)
+        return `${numeral(limit?.amount.amount).format('0,0.00')} ${currency}`
+      }).join('\n')
+
+      await bot.sendMessage(userId, `<b>${categoryToEdit.description}</b>\n\nLimite actualizado:\n${limits}`, {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: categoryButtons()
