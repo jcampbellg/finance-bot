@@ -64,7 +64,7 @@ export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
     reply_markup: {
       inline_keyboard: [
         [{ text: 'Cuentas', callback_data: 'accounts' }, { text: 'Categorias', callback_data: 'categories' }],
-        [{ text: 'Presupuestos', callback_data: 'budget' }],
+        [{ text: 'Pagos Fijos', callback_data: 'payments' }],
       ]
     }
   })

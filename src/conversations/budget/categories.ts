@@ -3,6 +3,14 @@ import { MsgAndQueryProps, MsgProps, QueryProps } from '@customTypes/messageType
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
 import z from 'zod'
+import dayjs from 'dayjs'
+import 'dayjs/locale/es'
+import timezone from 'dayjs/plugin/timezone'
+import utc from 'dayjs/plugin/utc'
+import numeral from 'numeral'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
@@ -187,6 +195,18 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
   }
 
   if (conversationData.action === 'edit') {
+    const categoryToEdit = await prisma.category.findUnique({
+      where: {
+        id: conversationData.categoryId || 0
+      }
+    })
+
+    if (!categoryToEdit) {
+      await bot.sendMessage(userId, 'La categoria seleccionada ya no existe.')
+      await categoriesOnStart({ bot, msg })
+      return
+    }
+
     if (conversationData.property === 'description') {
       const isValid = z.string().min(3).max(50).safeParse(text)
       if (!isValid.success) {
@@ -222,6 +242,81 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
           inline_keyboard: categoryButtons()
         }
       })
+    }
+
+    if (conversationData.property === 'limit') {
+      if (!conversationData.limit) {
+        const limit = parseFloat(text)
+        if (Number.isNaN(limit) || limit <= 0) {
+          await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
+          return
+        }
+
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            state: 'categories',
+            data: {
+              action: 'edit',
+              categoryId: conversationData.categoryId,
+              property: 'limit',
+              limit: limit
+            }
+          }
+        })
+
+        await bot.sendMessage(userId, `${limit}\n Su moneda, en 3 letras:`, {
+          parse_mode: 'HTML',
+        })
+        return
+      }
+
+      const isValid = z.string().regex(/[a-zA-Z]+/).length(3).safeParse(text)
+      if (!isValid.success) {
+        await bot.sendMessage(userId, 'La respuesta debe ser de 3 letras.')
+        return
+      }
+
+      const currency = text.toUpperCase()
+
+      const limitAmount = await prisma.amountCurrency.create({
+        data: {
+          amount: conversationData.limit,
+          currency: currency
+        }
+      })
+
+      await prisma.limit.create({
+        data: {
+          bookId: book.id,
+          categoryId: categoryToEdit.id,
+          amountId: limitAmount.id,
+          validFrom: dayjs().utc().startOf('month').format()
+        }
+      })
+
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'categories',
+          data: {
+            action: 'edit',
+            categoryId: conversationData.categoryId
+          }
+        }
+      })
+
+      await bot.sendMessage(userId, `${categoryToEdit.description}\nLimite actualizado: <b>${numeral(conversationData.limit).format('0,0.00')} ${currency}</b>`, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: categoryButtons()
+        }
+      })
+      return
     }
   }
 }
@@ -297,6 +392,16 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
     const category = await prisma.category.findUnique({
       where: {
         id: categoryId,
+      },
+      include: {
+        limits: {
+          include: {
+            amount: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
       }
     })
 
@@ -306,7 +411,14 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
       return
     }
 
-    await bot.sendMessage(userId, `Editar <b>${category.description}</b>:`, {
+    const currencyInLimits = [... new Set(category.limits.map(l => l.amount.currency))]
+
+    const limits = currencyInLimits.map(currency => {
+      const limit = category.limits.find(l => l.amount.currency === currency)
+      return `${numeral(limit?.amount.amount).format('0,0.00')} ${currency}`
+    }).join('\n')
+
+    await bot.sendMessage(userId, `Editar <b>${category.description}</b>\n\nLimites:\n${limits}:`, {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: categoryButtons()
@@ -376,11 +488,33 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
       await bot.sendMessage(userId, 'Escribe la nueva descripción de la categoria:')
       return
     }
+
+    if (btnPress === 'limit') {
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'categories',
+          data: {
+            action: 'edit',
+            categoryId: categoryToEdit.id,
+            property: 'limit'
+          }
+        }
+      })
+
+      await bot.sendMessage(userId, `Escribe el nuevo limite para\n<b>${categoryToEdit.description}</b>:`, {
+        parse_mode: 'HTML'
+      })
+      return
+    }
   }
 }
 
 export function categoryButtons(): TelegramBot.InlineKeyboardButton[][] {
   return [
+    [{ text: 'Poner Limite', callback_data: 'limit' }],
     [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
     [{ text: 'Regresar', callback_data: 'back' }]
   ]
