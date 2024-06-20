@@ -146,7 +146,12 @@ export async function onboardingOnCallbackQuery({ bot, query }: QueryProps) {
       firstName: firstName,
       books: {
         create: {
-          title: `Finanzas de ${firstName}`
+          title: `Finanzas de ${firstName}`,
+          accounts: {
+            create: {
+              description: 'Efectivo'
+            }
+          }
         }
       }
     },

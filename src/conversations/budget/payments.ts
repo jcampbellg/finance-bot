@@ -9,14 +9,14 @@ import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import numeral from 'numeral'
 import { LimitsWithAmount } from '@customTypes/prismaTypes'
-import { Category } from '@prisma/client'
+import { Payment } from '@prisma/client'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
-const maxCategories = 50
+const maxPayments = 50
 
-export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
+export async function paymentsOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
 
   const user = await prisma.user.findUnique({
@@ -62,7 +62,7 @@ export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
     return
   }
 
-  const categories = await prisma.category.findMany({
+  const payments = await prisma.payment.findMany({
     where: {
       bookId: book.id,
       book: {
@@ -90,26 +90,26 @@ export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
       chatId: userId
     },
     data: {
-      state: 'categories',
+      state: 'payments',
       data: {}
     }
   })
 
-  const categoriesGroups = categories.reduce((acc, curr, i) => {
+  const paymentsGroups = payments.reduce((acc, curr, i) => {
     if (i % 3 === 0) acc.push([curr])
     else acc[acc.length - 1].push(curr)
     return acc
-  }, [] as Category[][])
+  }, [] as Payment[][])
 
-  await bot.sendMessage(userId, `Selecciona, edita o agrega una categoria a <b>${book.title}</b>:`, {
+  await bot.sendMessage(userId, `Selecciona, edita o agrega pagos a <b>${book.title}</b>:`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        categories.length < maxCategories ? [{ text: 'Agregar', callback_data: 'add' }] : [],
-        ...categoriesGroups.map(group => {
-          return group.map(cat => ({
-            text: `${cat.description}`,
-            callback_data: `${cat.id}`
+        payments.length < maxPayments ? [{ text: 'Agregar', callback_data: 'add' }] : [],
+        ...paymentsGroups.map(group => {
+          return group.map(pay => ({
+            text: `${pay.description}`,
+            callback_data: `${pay.id}`
           }))
         }),
         [{ text: 'Regresar', callback_data: 'back' }]
@@ -119,7 +119,7 @@ export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
   return
 }
 
-export async function categoriesOnText({ bot, msg }: MsgProps) {
+export async function paymentsOnText({ bot, msg }: MsgProps) {
   const userId = msg?.chat.id
   const text = msg?.text?.trim() || ''
 
@@ -175,16 +175,79 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
   }
 
   if (conversationData.action === 'add') {
-    const isValid = z.string().min(3).max(50).safeParse(text)
-    if (!isValid.success) {
-      await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+    if (conversationData.description === undefined) {
+      const isValid = z.string().min(3).max(50).safeParse(text)
+      if (!isValid.success) {
+        await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+        return
+      }
+
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'payments',
+          data: {
+            action: 'add',
+            description: text
+          }
+        }
+      })
+
+      await bot.sendMessage(userId, `Escribe el monto o limite de pago para <b>${text}</b>:`, {
+        parse_mode: 'HTML'
+      })
       return
     }
 
-    const newCategory = await prisma.category.create({
+    if (conversationData.amount === undefined) {
+      const amount = parseFloat(text)
+      if (Number.isNaN(amount) || amount <= 0) {
+        await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
+        return
+      }
+
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'payments',
+          data: {
+            action: 'add',
+            description: conversationData.description,
+            amount: amount
+          }
+        }
+      })
+
+      await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
+        parse_mode: 'HTML',
+      })
+      return
+    }
+
+    const isValid = z.string().regex(/[a-zA-Z]+/).length(3).safeParse(text)
+    if (!isValid.success) {
+      await bot.sendMessage(userId, 'La respuesta debe ser de 3 letras.')
+      return
+    }
+
+    const currency = text.toUpperCase()
+
+    const amount = await prisma.amountCurrency.create({
       data: {
-        description: text,
-        bookId: book.id
+        amount: conversationData.amount,
+        currency: currency
+      }
+    })
+
+    const newPayment = await prisma.payment.create({
+      data: {
+        description: conversationData.description,
+        bookId: book.id,
+        amountId: amount.id
       }
     })
 
@@ -193,32 +256,35 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
         chatId: userId
       },
       data: {
-        state: 'categories',
+        state: 'payments',
         data: {
           action: 'edit',
-          categoryId: newCategory.id
+          paymentId: newPayment.id
         }
       }
     })
 
-    await bot.sendMessage(userId, `Categoria <b>${text}</b> agregada.`, {
+    await bot.sendMessage(userId, `Pago <b>${newPayment.description}</b> agregada con monto de ${numeral(amount.amount).format('0,0.00')} ${amount.currency}`, {
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: categoryButtons()
+        inline_keyboard: paymentButtons()
       }
     })
   }
 
   if (conversationData.action === 'edit') {
-    const categoryToEdit = await prisma.category.findUnique({
+    const paymentToEdit = await prisma.payment.findUnique({
       where: {
-        id: conversationData.categoryId || 0
+        id: conversationData.paymentId || 0
+      },
+      include: {
+        amount: true
       }
     })
 
-    if (!categoryToEdit) {
-      await bot.sendMessage(userId, 'La categoria seleccionada ya no existe.')
-      await categoriesOnStart({ bot, msg })
+    if (!paymentToEdit) {
+      await bot.sendMessage(userId, 'El pago seleccionado ya no existe.')
+      await paymentsOnStart({ bot, msg })
       return
     }
 
@@ -229,41 +295,41 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
         return
       }
 
-      const category = await prisma.category.findUnique({
+      const payment = await prisma.payment.findUnique({
         where: {
-          id: conversationData.categoryId || 0
+          id: conversationData.paymentId || 0
         }
       })
 
-      if (!category) {
-        await bot.sendMessage(userId, 'La categoria seleccionada ya no existe.')
+      if (!payment) {
+        await bot.sendMessage(userId, 'El pago seleccionado ya no existe.')
         // @ts-ignore
-        await categoriesOnStart({ bot, query, msg })
+        await paymentsOnStart({ bot, query, msg })
         return
       }
 
-      await prisma.category.update({
+      await prisma.payment.update({
         where: {
-          id: category.id
+          id: payment.id
         },
         data: {
           description: text
         }
       })
 
-      await bot.sendMessage(userId, `Categoria actualizada: <b>${text}</b>`, {
+      await bot.sendMessage(userId, `Pago actualizado: <b>${text}</b>\nMonto: ${numeral(paymentToEdit.amount.amount).format('0,0.00')} ${paymentToEdit.amount.currency}`, {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: categoryButtons()
+          inline_keyboard: paymentButtons()
         }
       })
     }
 
-    if (conversationData.property === 'limit') {
-      if (conversationData.limit === undefined) {
-        const limit = parseFloat(text)
-        if (Number.isNaN(limit) || limit < 0) {
-          await bot.sendMessage(userId, 'La respuesta debe ser un número mayor o igual a 0.')
+    if (conversationData.property === 'amount') {
+      if (conversationData.amount === undefined) {
+        const amount = parseFloat(text)
+        if (Number.isNaN(amount) || amount <= 0) {
+          await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
           return
         }
 
@@ -272,12 +338,12 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
             chatId: userId
           },
           data: {
-            state: 'categories',
+            state: 'payments',
             data: {
               action: 'edit',
-              categoryId: conversationData.categoryId,
-              property: 'limit',
-              limit: limit
+              paymentId: paymentToEdit.id,
+              property: 'amount',
+              amount: amount
             }
           }
         })
@@ -296,19 +362,13 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
 
       const currency = text.toUpperCase()
 
-      const limitAmount = await prisma.amountCurrency.create({
+      await prisma.amountCurrency.update({
+        where: {
+          id: paymentToEdit.amountId
+        },
         data: {
-          amount: conversationData.limit,
+          amount: conversationData.amount,
           currency: currency
-        }
-      })
-
-      await prisma.limit.create({
-        data: {
-          bookId: book.id,
-          categoryId: categoryToEdit.id,
-          amountId: limitAmount.id,
-          validFrom: dayjs().utc().startOf('month').format()
         }
       })
 
@@ -317,30 +377,18 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
           chatId: userId
         },
         data: {
-          state: 'categories',
+          state: 'payments',
           data: {
             action: 'edit',
-            categoryId: conversationData.categoryId
+            paymentId: paymentToEdit.id
           }
         }
       })
 
-      const newLimits = await prisma.limit.findMany({
-        where: {
-          categoryId: categoryToEdit.id
-        },
-        include: {
-          amount: true
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      })
-
-      await bot.sendMessage(userId, `<b>${categoryToEdit.description}</b>${limitsListText(newLimits)}`, {
+      await bot.sendMessage(userId, `<b>${paymentToEdit.description}</b>\nMonto Actualizado: ${numeral(conversationData.amount).format('0,0.00')} ${currency}`, {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: categoryButtons()
+          inline_keyboard: paymentButtons()
         }
       })
       return
@@ -348,7 +396,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
   }
 }
 
-export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
+export async function paymentsOnCallbackQuery({ bot, query }: QueryProps) {
   const userId = query.message.chat.id
   const btnPress = query.data
 
@@ -361,7 +409,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
 
   if (btnPress === 'back') {
     if (conversationData.action === 'edit') {
-      await categoriesOnStart({ bot, query })
+      await paymentsOnStart({ bot, query })
       return
     }
 
@@ -370,15 +418,15 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
   }
 
   if (btnPress === 'add') {
-    const categoriesCount = await prisma.category.count({
+    const paymentsCount = await prisma.payment.count({
       where: {
         bookId: conversationData.bookId
       }
     })
 
-    if (categoriesCount >= maxCategories) {
-      await bot.sendMessage(userId, `No puedes agregar más de ${maxCategories} categorias.`)
-      await categoriesOnStart({ bot, query })
+    if (paymentsCount >= maxPayments) {
+      await bot.sendMessage(userId, `No puedes agregar más de ${maxPayments} pagos.`)
+      await paymentsOnStart({ bot, query })
       return
     }
 
@@ -387,107 +435,92 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
         chatId: userId
       },
       data: {
-        state: 'categories',
+        state: 'payments',
         data: {
           action: 'add'
         }
       }
     })
 
-    await bot.sendMessage(userId, 'Escribe la descripción de la categoria a agregar.')
+    await bot.sendMessage(userId, 'Escribe la descripción del pago a agregar.')
     return
   }
 
   if (!conversationData.action) {
-    // btn press is a category id
-    const categoryId = parseInt(btnPress)
-    if (Number.isNaN(categoryId)) return
+    // btn press is a paymentId
+    const paymentId = parseInt(btnPress)
+    if (Number.isNaN(paymentId)) return
 
     await prisma.conversation.update({
       where: {
         chatId: userId
       },
       data: {
-        state: 'categories',
+        state: 'payments',
         data: {
           action: 'edit',
-          categoryId: categoryId
+          paymentId: paymentId
         }
       }
     })
 
-    const category = await prisma.category.findUnique({
+    const payment = await prisma.payment.findUnique({
       where: {
-        id: categoryId,
+        id: paymentId,
       },
       include: {
-        limits: {
-          include: {
-            amount: true
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        }
+        amount: true
       }
     })
 
-    if (!category) {
-      await bot.sendMessage(userId, 'La categoria seleccionada ya no existe.')
-      await categoriesOnStart({ bot, query })
+    if (!payment) {
+      await bot.sendMessage(userId, 'El pago seleccionado ya no existe.')
+      await paymentsOnStart({ bot, query })
       return
     }
 
-    await bot.sendMessage(userId, `Editar <b>${category.description}</b>${limitsListText(category.limits)}`, {
+    await bot.sendMessage(userId, `Editar <b>${payment.description}</b>\nMonto: ${numeral(payment.amount.amount).format('0,0.00')} ${payment.amount.currency}`, {
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: categoryButtons()
+        inline_keyboard: paymentButtons()
       }
     })
     return
   }
 
   if (conversationData.action === 'edit') {
-    const categoryToEdit = await prisma.category.findUnique({
+    const paymentToEdit = await prisma.payment.findUnique({
       where: {
-        id: conversationData.categoryId || 0
+        id: conversationData.paymentId || 0
       }
     })
 
-    if (!categoryToEdit) {
-      await bot.sendMessage(userId, 'La categoria seleccionada ya no existe.')
-      await categoriesOnStart({ bot, query })
+    if (!paymentToEdit) {
+      await bot.sendMessage(userId, 'El pago seleccionado ya no existe.')
+      await paymentsOnStart({ bot, query })
       return
     }
 
     if (btnPress === 'delete') {
-      await prisma.limit.deleteMany({
+      await prisma.expense.updateMany({
         where: {
-          categoryId: categoryToEdit.id
-        }
-      })
-
-      await prisma.category.update({
-        where: {
-          id: categoryToEdit.id
+          paymentId: paymentToEdit.id
         },
         data: {
-          expenses: {
-            set: []
-          }
+          paymentId: null
         }
       })
 
-      await prisma.category.delete({
+      await prisma.payment.delete({
         where: {
-          id: categoryToEdit.id
+          id: paymentToEdit.id
         }
       })
 
-      await bot.sendMessage(userId, `Categoria con sus limites eliminada: <b>${categoryToEdit.description}</b>`, {
+      await bot.sendMessage(userId, `Pago eliminado: <b>${paymentToEdit.description}</b>`, {
         parse_mode: 'HTML'
       })
-      await categoriesOnStart({ bot, query })
+      await paymentsOnStart({ bot, query })
       return
     }
 
@@ -497,35 +530,35 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
           chatId: userId
         },
         data: {
-          state: 'categories',
+          state: 'payments',
           data: {
             action: 'edit',
-            categoryId: categoryToEdit.id,
+            paymentId: paymentToEdit.id,
             property: 'description'
           }
         }
       })
 
-      await bot.sendMessage(userId, 'Escribe la nueva descripción de la categoria:')
+      await bot.sendMessage(userId, 'Escribe la nueva descripción del pago:')
       return
     }
 
-    if (btnPress === 'limit') {
+    if (btnPress === 'amount') {
       await prisma.conversation.update({
         where: {
           chatId: userId
         },
         data: {
-          state: 'categories',
+          state: 'payments',
           data: {
             action: 'edit',
-            categoryId: categoryToEdit.id,
-            property: 'limit'
+            paymentId: paymentToEdit.id,
+            property: 'amount'
           }
         }
       })
 
-      await bot.sendMessage(userId, `Escribe el nuevo limite para\n<b>${categoryToEdit.description}</b>:`, {
+      await bot.sendMessage(userId, `Escribe el nuevo monto para\n<b>${paymentToEdit.description}</b>:`, {
         parse_mode: 'HTML'
       })
       return
@@ -533,9 +566,9 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
   }
 }
 
-export function categoryButtons(): TelegramBot.InlineKeyboardButton[][] {
+export function paymentButtons(): TelegramBot.InlineKeyboardButton[][] {
   return [
-    [{ text: 'Poner Limite', callback_data: 'limit' }],
+    [{ text: 'Cambiar Monto', callback_data: 'amount' }],
     [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
     [{ text: 'Regresar', callback_data: 'back' }]
   ]

@@ -1,5 +1,6 @@
 import { budgetOnStart } from '@conversations/budget'
 import { MsgAndQueryProps, QueryProps } from '@customTypes/messageTypes'
+import { Account } from '@prisma/client'
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
 import z from 'zod'
@@ -55,6 +56,9 @@ export async function accountsOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const accounts = await prisma.account.findMany({
     where: {
       bookId: book.id
+    },
+    orderBy: {
+      description: 'asc'
     }
   })
 
@@ -68,15 +72,23 @@ export async function accountsOnStart({ bot, msg, query }: MsgAndQueryProps) {
     }
   })
 
+  const accountsGroups = accounts.reduce((acc, curr, i) => {
+    if (i % 3 === 0) acc.push([curr])
+    else acc[acc.length - 1].push(curr)
+    return acc
+  }, [] as Account[][])
+
   await bot.sendMessage(userId, `Selecciona, edita o agrega una cuenta a <b>${book.title}</b>:`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
         accounts.length < maxAccounts ? [{ text: 'Agregar', callback_data: 'add' }] : [],
-        ...accounts.map(a => ([{
-          text: `${a.description}`,
-          callback_data: `${a.id}`
-        }])),
+        ...accountsGroups.map(group => {
+          return group.map(acc => ({
+            text: `${acc.description}`,
+            callback_data: `${acc.id}`
+          }))
+        }),
         [{ text: 'Regresar', callback_data: 'back' }]
       ]
     }
@@ -317,6 +329,18 @@ export async function accountsOnCallbackQuery({ bot, query }: QueryProps) {
     }
 
     if (btnPress === 'delete') {
+      const accountsCount = await prisma.account.count({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
+      if (accountsCount <= 1) {
+        await bot.sendMessage(userId, 'No puedes eliminar la única cuenta del libro.')
+        await accountsOnStart({ bot, query })
+        return
+      }
+
       const expensesCount = await prisma.expense.count({
         where: {
           accountId: accountToEdit.id

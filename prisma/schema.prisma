@@ -133,6 +133,8 @@ model Expense {
   account     Account        @relation(fields: [accountId], references: [id])
   amountId    Int            @unique
   amount      AmountCurrency @relation(fields: [amountId], references: [id])
+  paymentId   Int?
+  payment     Payment?       @relation(fields: [paymentId], references: [id])
   files       Files[]
   notes       String?
   createdById BigInt
@@ -191,4 +193,5 @@ model Payment {
   ignoreInBudget Boolean        @default(false)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  Expense        Expense[]
 }

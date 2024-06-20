@@ -8,6 +8,7 @@ import { onboardingOnCallbackQuery } from '@conversations/onboarding'
 import { bundgetOnCallbackQuery } from '@conversations/budget'
 import { accountsOnCallbackQuery, accountsOnText } from '@conversations/budget/accounts'
 import { categoriesOnCallbackQuery, categoriesOnText } from '@conversations/budget/categories'
+import { paymentsOnCallbackQuery, paymentsOnText } from '@conversations/budget/payments'
 
 dotenv.config()
 
@@ -69,6 +70,14 @@ bot.on('message', async (msg) => {
     })
     return
   }
+
+  if (conversation.state === 'payments') {
+    await paymentsOnText({
+      bot,
+      msg: msg as MessageFromPrivate
+    })
+    return
+  }
 })
 
 bot.on('callback_query', async (query) => {
@@ -119,6 +128,13 @@ bot.on('callback_query', async (query) => {
 
   if (conversation.state === 'categories') {
     categoriesOnCallbackQuery({
+      bot,
+      query: query as QueryFromPrivate
+    })
+  }
+
+  if (conversation.state === 'payments') {
+    paymentsOnCallbackQuery({
       bot,
       query: query as QueryFromPrivate
     })
