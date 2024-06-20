@@ -8,16 +8,6 @@ const maxBooks = 10
 export async function booksOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
 
-  await prisma.conversation.update({
-    where: {
-      chatId: userId
-    },
-    data: {
-      state: 'books',
-      data: {}
-    }
-  })
-
   const user = await prisma.user.findUnique({
     where: {
       id: userId

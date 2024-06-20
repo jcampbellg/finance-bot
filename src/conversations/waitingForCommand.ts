@@ -3,6 +3,7 @@ import { prisma } from '@utils/prisma'
 import { booksOnStart } from '@conversations/books'
 import { onboardingOnStart } from '@conversations/onboarding'
 import { budgetOnStart } from '@conversations/budget'
+import { expenseOnStart } from './expense'
 
 export default async function waitingForCommand({ bot, msg }: MsgProps) {
   const userId = msg.chat.id
@@ -35,6 +36,11 @@ export default async function waitingForCommand({ bot, msg }: MsgProps) {
 
   if (text === '/libro') {
     await booksOnStart({ bot, msg })
+    return
+  }
+
+  if (text === '/nueva') {
+    await expenseOnStart({ bot, msg })
     return
   }
 

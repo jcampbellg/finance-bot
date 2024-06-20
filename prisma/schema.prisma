@@ -28,7 +28,8 @@ enum ConversationState {
   categories
   limits
   payments
-  new
+  newExpense
+  expenses
   transactions
 }
 

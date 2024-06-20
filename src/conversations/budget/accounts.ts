@@ -53,15 +53,6 @@ export async function accountsOnStart({ bot, msg, query }: MsgAndQueryProps) {
     return
   }
 
-  const accounts = await prisma.account.findMany({
-    where: {
-      bookId: book.id
-    },
-    orderBy: {
-      description: 'asc'
-    }
-  })
-
   await prisma.conversation.update({
     where: {
       chatId: userId
@@ -72,23 +63,21 @@ export async function accountsOnStart({ bot, msg, query }: MsgAndQueryProps) {
     }
   })
 
-  const accountsGroups = accounts.reduce((acc, curr, i) => {
-    if (i % 3 === 0) acc.push([curr])
-    else acc[acc.length - 1].push(curr)
-    return acc
-  }, [] as Account[][])
+  const accounts = await prisma.account.findMany({
+    where: {
+      bookId: book.id
+    },
+    orderBy: {
+      description: 'asc'
+    }
+  })
 
   await bot.sendMessage(userId, `Selecciona, edita o agrega una cuenta a <b>${book.title}</b>:`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
         accounts.length < maxAccounts ? [{ text: 'Agregar', callback_data: 'add' }] : [],
-        ...accountsGroups.map(group => {
-          return group.map(acc => ({
-            text: `${acc.description}`,
-            callback_data: `${acc.id}`
-          }))
-        }),
+        ...accountsButtons(accounts),
         [{ text: 'Regresar', callback_data: 'back' }]
       ]
     }
@@ -408,4 +397,19 @@ export function accountButtons(): TelegramBot.InlineKeyboardButton[][] {
     [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
     [{ text: 'Regresar', callback_data: 'back' }]
   ]
+}
+
+export function accountsButtons(accounts: Account[]): TelegramBot.InlineKeyboardButton[][] {
+  const accountsGroups = accounts.reduce((acc, curr, i) => {
+    if (i % 3 === 0) acc.push([curr])
+    else acc[acc.length - 1].push(curr)
+    return acc
+  }, [] as Account[][])
+
+  return accountsGroups.map(group => {
+    return group.map(acc => ({
+      text: `${acc.description}`,
+      callback_data: `${acc.id}`
+    }))
+  })
 }
