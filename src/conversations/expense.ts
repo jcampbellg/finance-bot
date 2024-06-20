@@ -1,7 +1,10 @@
-import { MsgAndQueryProps, MsgProps, QueryProps } from '@customTypes/messageTypes'
+import { MsgAndQueryProps, MsgProps, QueryFromPrivate, QueryProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
 import z from 'zod'
 import { accountsButtons } from './budget/accounts'
+import TelegramBot from 'node-telegram-bot-api'
+import numeral from 'numeral'
+import { waitingForCommandOnStart } from './waitingForCommand'
 
 export async function expenseOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
@@ -80,19 +83,6 @@ export async function expenseOnStart({ bot, msg, query }: MsgAndQueryProps) {
       }
     }
   })
-
-  await prisma.conversation.update({
-    where: {
-      chatId: userId
-    },
-    data: {
-      state: 'newExpense',
-      data: {}
-    }
-  })
-
-  await bot.sendMessage(userId, '¡Vamos a registrar un gasto! 📝\nDescripción del gasto:')
-  return
 }
 
 export async function expenseOnText({ bot, msg }: MsgProps) {
@@ -149,42 +139,6 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
   })
 
   const conversationData: any = conversation?.data || {}
-
-  if (!conversationData.description) {
-    const isValid = z.string().min(3).max(50).safeParse(text)
-    if (!isValid.success) {
-      await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
-      return
-    }
-
-    await prisma.conversation.update({
-      where: {
-        chatId: userId
-      },
-      data: {
-        data: {
-          ...conversationData,
-          description: msg.text
-        }
-      }
-    })
-
-    const accounts = await prisma.account.findMany({
-      where: {
-        bookId: book.id
-      },
-      orderBy: {
-        description: 'asc'
-      }
-    })
-
-    await bot.sendMessage(userId, '¿De que cuenta salió el gasto?', {
-      reply_markup: {
-        inline_keyboard: accountsButtons(accounts)
-      }
-    })
-    return
-  }
 }
 
 export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
@@ -198,51 +152,46 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
   })
   const conversationData: any = conversation?.data || {}
 
-  if (conversationData.description && !conversationData.accountId) {
-    const accountId = parseInt(btnPress)
-    if (Number.isNaN(accountId)) return
-
-    await prisma.conversation.update({
+  if (conversationData.action === 'edit') {
+    const expenseToEdit = await prisma.expense.findUnique({
       where: {
-        chatId: userId
+        id: conversationData.expenseId || 0
       },
-      data: {
-        state: 'newExpense',
-        data: {
-          ...conversationData,
-          accountId
-        }
+      include: {
+        account: true,
+        amount: true,
+        category: true,
+        payment: true,
+        createdBy: true
       }
     })
 
-    await bot.sendMessage(userId, '¿Es una categoría o un pago fijo?', {
+    if (!expenseToEdit) {
+      await bot.sendMessage(userId, 'No se encontró el gasto.')
+      await waitingForCommandOnStart({
+        bot,
+        query: query as QueryFromPrivate
+      })
+      return
+    }
+
+    const category = expenseToEdit.category ? `\nCategoria: ${expenseToEdit.category.description}` : '\nSin categoría'
+    const payment = expenseToEdit.payment ? `\nPago: ${expenseToEdit.payment.description}` : ''
+
+    await bot.sendMessage(userId, `<b>${expenseToEdit.description}</b>\nCuenta: ${expenseToEdit.account.description}\nMonto: ${numeral(expenseToEdit.amount.amount).format('0,0.00')} ${expenseToEdit.amount.currency}${category}${payment}\n\n¿Qué deseas hacer con este gasto?`, {
+      parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: [
-          [
-            { text: 'Categoría', callback_data: 'category' },
-            { text: 'Pago fijo', callback_data: 'payment' }
-          ]
-        ]
+        inline_keyboard: expenseButtons()
       }
     })
     return
   }
+}
 
-  if (btnPress === 'category' || btnPress === 'payment') {
-    await prisma.conversation.update({
-      where: {
-        chatId: userId
-      },
-      data: {
-        state: 'newExpense',
-        data: {
-          ...conversationData,
-          type: btnPress
-        }
-      }
-    })
-
-    await bot.sendMessage(userId, 'Monto del gasto:')
-    return
-  }
+export function expenseButtons(): TelegramBot.InlineKeyboardButton[][] {
+  return [
+    [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Adjuntar', callback_data: 'file' }, { text: 'Eliminar', callback_data: 'delete' }],
+    [{ text: 'Categorizar', callback_data: 'category' }, { text: 'Asignar a Pago', callback_data: 'payment' }],
+    [{ text: 'Regresar', callback_data: 'back' }]
+  ]
 }

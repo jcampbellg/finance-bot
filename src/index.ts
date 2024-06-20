@@ -9,7 +9,7 @@ import { bundgetOnCallbackQuery } from '@conversations/budget'
 import { accountsOnCallbackQuery, accountsOnText } from '@conversations/budget/accounts'
 import { categoriesOnCallbackQuery, categoriesOnText } from '@conversations/budget/categories'
 import { paymentsOnCallbackQuery, paymentsOnText } from '@conversations/budget/payments'
-import { expenseOnCallbackQuery, expenseOnText } from '@conversations/expense'
+import { newExpenseOnCallbackQuery, newExpenseOnText } from '@conversations/newExpense'
 
 dotenv.config()
 
@@ -40,7 +40,7 @@ bot.on('message', async (msg) => {
 
   const text = msg.text?.trim() || ''
 
-  if (conversation.state === 'waitingForCommand' || text === '/start' || text === '/terminar') {
+  if (conversation.state === 'waitingForCommand' || text.startsWith('/')) {
     waitingForCommand({
       bot,
       msg: msg as MessageFromPrivate
@@ -81,7 +81,7 @@ bot.on('message', async (msg) => {
   }
 
   if (conversation.state === 'newExpense') {
-    await expenseOnText({
+    await newExpenseOnText({
       bot,
       msg: msg as MessageFromPrivate
     })
@@ -150,7 +150,7 @@ bot.on('callback_query', async (query) => {
   }
 
   if (conversation.state === 'newExpense') {
-    expenseOnCallbackQuery({
+    newExpenseOnCallbackQuery({
       bot,
       query: query as QueryFromPrivate
     })

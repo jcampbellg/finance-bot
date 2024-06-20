@@ -1,26 +1,33 @@
-import { MsgProps } from '@customTypes/messageTypes'
+import { MsgAndQueryProps, MsgProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
 import { booksOnStart } from '@conversations/books'
 import { onboardingOnStart } from '@conversations/onboarding'
 import { budgetOnStart } from '@conversations/budget'
-import { expenseOnStart } from './expense'
+import { newExpenseOnStart } from './newExpense'
+
+export async function waitingForCommandOnStart({ bot, msg, query }: MsgAndQueryProps) {
+  const userId = msg?.chat.id || query?.message.chat.id as number
+
+  await prisma.conversation.update({
+    where: {
+      chatId: userId
+    },
+    data: {
+      state: 'waitingForCommand',
+      data: {}
+    }
+  })
+
+  await bot.sendMessage(userId, '¡Hasta luego! 👋')
+  return
+}
 
 export default async function waitingForCommand({ bot, msg }: MsgProps) {
   const userId = msg.chat.id
   const text = msg.text?.trim() || ''
 
   if (text === '/terminar') {
-    await prisma.conversation.update({
-      where: {
-        chatId: userId
-      },
-      data: {
-        state: 'waitingForCommand',
-        data: {}
-      }
-    })
-
-    await bot.sendMessage(userId, '¡Hasta luego! 👋')
+    await waitingForCommandOnStart({ bot, msg })
     return
   }
 
@@ -40,7 +47,7 @@ export default async function waitingForCommand({ bot, msg }: MsgProps) {
   }
 
   if (text === '/nueva') {
-    await expenseOnStart({ bot, msg })
+    await newExpenseOnStart({ bot, msg })
     return
   }
 
