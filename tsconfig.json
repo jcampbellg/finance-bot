@@ -53,6 +53,6 @@
   ],
   "include": [
     "./src/**/*.ts",
-    "src/types/Intl.d.ts"
+    "./src/types/*.d.ts"
   ]
 }

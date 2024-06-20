@@ -3,6 +3,8 @@ import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
 import z from 'zod'
 
+const maxBooks = 10
+
 export async function booksOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
 
@@ -67,7 +69,7 @@ export async function booksOnStart({ bot, msg, query }: MsgAndQueryProps) {
   await bot.sendMessage(userId, `Selecciona o crea un libro contable.`, {
     reply_markup: {
       inline_keyboard: [
-        ownBooksCount < 5 ? [{ text: 'Crear Nuevo Libro', callback_data: 'create' }] : [],
+        ownBooksCount < maxBooks ? [{ text: 'Crear Nuevo Libro', callback_data: 'create' }] : [],
         ...books.map(book => ([{
           text: `${user.bookSelectedId === book.id ? '⦿ ' : ''}${book.title}${book.shares.length ? ' 🤝' : ''}`,
           callback_data: `${book.id}`
@@ -201,8 +203,8 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
       }
     })
 
-    if (ownBooksCount >= 5) {
-      await bot.sendMessage(userId, 'No puedes tener más de 5 libros contables.')
+    if (ownBooksCount >= maxBooks) {
+      await bot.sendMessage(userId, `No puedes tener más de ${maxBooks} libros contables.`)
       await booksOnStart({ bot, query })
       return
     }
@@ -402,25 +404,37 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
         }
       })
 
+      await prisma.chatGroup.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
       await prisma.expense.deleteMany({
         where: {
           bookId: conversationData.bookId
         }
       })
 
+      await prisma.limit.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
+      await prisma.payment.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
+      await prisma.category.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
       await prisma.account.deleteMany({
-        where: {
-          bookId: conversationData.bookId
-        }
-      })
-
-      await prisma.budget.deleteMany({
-        where: {
-          bookId: conversationData.bookId
-        }
-      })
-
-      await prisma.chatGroup.deleteMany({
         where: {
           bookId: conversationData.bookId
         }

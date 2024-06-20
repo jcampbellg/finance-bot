@@ -8,9 +8,12 @@ import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import numeral from 'numeral'
+import { LimitsWithAmount } from '@customTypes/prismaTypes'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
+
+const maxCategories = 50
 
 export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
@@ -92,7 +95,7 @@ export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        categories.length < 50 ? [{ text: 'Agregar', callback_data: 'add' }] : [],
+        categories.length < maxCategories ? [{ text: 'Agregar', callback_data: 'add' }] : [],
         ...categories.map(a => ([{
           text: `${a.description}`,
           callback_data: `${a.id}`
@@ -245,10 +248,10 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
     }
 
     if (conversationData.property === 'limit') {
-      if (!conversationData.limit) {
+      if (conversationData.limit === undefined) {
         const limit = parseFloat(text)
-        if (Number.isNaN(limit) || limit <= 0) {
-          await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
+        if (Number.isNaN(limit) || limit < 0) {
+          await bot.sendMessage(userId, 'La respuesta debe ser un número mayor o igual a 0.')
           return
         }
 
@@ -322,14 +325,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
         }
       })
 
-      const currencyInLimits = [... new Set(newLimits.map(l => l.amount.currency))]
-
-      const limits = currencyInLimits.map(currency => {
-        const limit = newLimits.find(l => l.amount.currency === currency)
-        return `${numeral(limit?.amount.amount).format('0,0.00')} ${currency}`
-      }).join('\n')
-
-      await bot.sendMessage(userId, `<b>${categoryToEdit.description}</b>\n\nLimite actualizado:\n${limits}`, {
+      await bot.sendMessage(userId, `<b>${categoryToEdit.description}</b>${limitsListText(newLimits)}`, {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: categoryButtons()
@@ -368,8 +364,8 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
       }
     })
 
-    if (categoriesCount >= 50) {
-      await bot.sendMessage(userId, 'No puedes agregar más de 50 categorias.')
+    if (categoriesCount >= maxCategories) {
+      await bot.sendMessage(userId, `No puedes agregar más de ${maxCategories} categorias.`)
       await categoriesOnStart({ bot, query })
       return
     }
@@ -430,14 +426,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
       return
     }
 
-    const currencyInLimits = [... new Set(category.limits.map(l => l.amount.currency))]
-
-    const limits = currencyInLimits.map(currency => {
-      const limit = category.limits.find(l => l.amount.currency === currency)
-      return `${numeral(limit?.amount.amount).format('0,0.00')} ${currency}`
-    }).join('\n')
-
-    await bot.sendMessage(userId, `Editar <b>${category.description}</b>\n\nLimites:\n${limits}:`, {
+    await bot.sendMessage(userId, `Editar <b>${category.description}</b>${limitsListText(category.limits)}`, {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: categoryButtons()
@@ -460,6 +449,12 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
     }
 
     if (btnPress === 'delete') {
+      await prisma.limit.deleteMany({
+        where: {
+          categoryId: categoryToEdit.id
+        }
+      })
+
       await prisma.category.update({
         where: {
           id: categoryToEdit.id
@@ -467,11 +462,6 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
         data: {
           expenses: {
             set: []
-          },
-          limits: {
-            deleteMany: {
-              categoryId: categoryToEdit.id
-            }
           }
         }
       })
@@ -537,4 +527,19 @@ export function categoryButtons(): TelegramBot.InlineKeyboardButton[][] {
     [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
     [{ text: 'Regresar', callback_data: 'back' }]
   ]
+}
+
+export function limitsListText(limits: LimitsWithAmount[]) {
+  const currencyInLimits = [... new Set(limits.map(l => l.amount.currency))]
+
+  const lastLimits = currencyInLimits.map(currency => {
+    const limit = limits.find(l => l.amount.currency === currency)
+    return limit
+  }).filter(l => l && l?.amount.amount > 0)
+
+  if (lastLimits.length === 0) return ''
+
+  return `\n\nLimites:\n` + lastLimits.map(l => {
+    return `${numeral(l?.amount.amount || 0).format('0,0.00')} ${l?.amount.currency}`
+  }).join('\n')
 }

@@ -4,6 +4,8 @@ import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
 import z from 'zod'
 
+const maxAccounts = 10
+
 export async function accountsOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
 
@@ -70,7 +72,7 @@ export async function accountsOnStart({ bot, msg, query }: MsgAndQueryProps) {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        accounts.length < 10 ? [{ text: 'Agregar', callback_data: 'add' }] : [],
+        accounts.length < maxAccounts ? [{ text: 'Agregar', callback_data: 'add' }] : [],
         ...accounts.map(a => ([{
           text: `${a.description}`,
           callback_data: `${a.id}`
@@ -240,8 +242,8 @@ export async function accountsOnCallbackQuery({ bot, query }: QueryProps) {
       }
     })
 
-    if (accountsCount >= 10) {
-      await bot.sendMessage(userId, 'No puedes agregar más de 10 cuentas.')
+    if (accountsCount >= maxAccounts) {
+      await bot.sendMessage(userId, `No puedes agregar más de ${maxAccounts} cuentas.`)
       await accountsOnStart({ bot, query })
       return
     }

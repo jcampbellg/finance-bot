@@ -152,7 +152,7 @@ model Category {
   expenses    Expense[]
   book        Book?     @relation(fields: [bookId], references: [id])
   bookId      Int?
-  Files       Files[]
+  files       Files[]
 }
 
 model AmountCurrency {
