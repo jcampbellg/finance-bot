@@ -1,8 +1,31 @@
 import { MsgAndQueryProps } from '@customTypes/messageTypes'
-import * as PImage from 'pureimage'
 import fs from 'fs'
 import { prisma } from '@utils/prisma'
 import numeral from 'numeral'
+import emojiRegex from 'emoji-regex'
+import PDFDocument from 'pdfkit'
+import blobStream from 'blob-stream'
+import { AlignmentEnum, AsciiTable3 } from 'ascii-table3'
+import dayjs from 'dayjs'
+import 'dayjs/locale/es'
+import timezone from 'dayjs/plugin/timezone'
+import utc from 'dayjs/plugin/utc'
+import LocalizedFormat from 'dayjs/plugin/localizedFormat'
+
+dayjs.locale('es')
+dayjs.extend(utc)
+dayjs.extend(timezone)
+dayjs.extend(LocalizedFormat)
+
+const regex = emojiRegex()
+
+const fonts = {
+  regular: 'src/assets/font/Roboto-Regular.ttf',
+  bold: 'src/assets/font/Roboto-Bold.ttf',
+  light: 'src/assets/font/Roboto-Light.ttf',
+  black: 'src/assets/font/Roboto-Black.ttf',
+  telegrama: 'src/assets/font/telegrama_raw.otf'
+}
 
 export async function summaryBudgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
@@ -50,24 +73,23 @@ export async function summaryBudgetOnStart({ bot, msg, query }: MsgAndQueryProps
     return
   }
 
-  // Create image
-  const font = PImage.registerFont('src/assets/font/telegrama_raw.otf', 'monofonto')
-  await font.load()
-
-  let imgs: PImage.Bitmap[] = []
-  const header = await drawHeader('Resumen de Presupuesto')
-  const catSubHeader = await drawSubHeader('Categorías')
-  const paySubHeader = await drawSubHeader('Pagos Fijos')
+  const summaryMonth = dayjs().utc().startOf('month')
 
   const categories = await prisma.category.findMany({
     where: {
-      bookId: book.id
+      bookId: book.id,
+      isPayment: false
     },
     orderBy: {
       description: 'asc'
     },
     include: {
       limits: {
+        where: {
+          validFrom: {
+            lte: summaryMonth.format()
+          }
+        },
         include: {
           amount: true
         }
@@ -75,94 +97,102 @@ export async function summaryBudgetOnStart({ bot, msg, query }: MsgAndQueryProps
     }
   })
 
-  imgs.push(header, catSubHeader)
-  for (let i = 0; i < categories.length; i++) {
-    const cat = categories[i]
-    var img = await drawItem(cat.description, '$0.00 00 0')
-    imgs.push(img)
-  }
-  imgs.push(paySubHeader)
-
-  const payments = await prisma.payment.findMany({
+  const payments = await prisma.category.findMany({
     where: {
-      bookId: book.id
+      bookId: book.id,
+      isPayment: true
     },
     orderBy: {
       description: 'asc'
     },
     include: {
-      amount: true
+      limits: {
+        where: {
+          validFrom: {
+            lte: summaryMonth.format()
+          }
+        },
+        include: {
+          amount: true
+        }
+      }
     }
   })
-  for (let i = 0; i < payments.length; i++) {
-    const pay = payments[i]
-    var img = await drawItem(pay.description, `${numeral(pay.amount.amount).format('$0,0.00')} ${pay.amount.currency}`)
-    imgs.push(img)
-  }
 
-  // Final image
-  const imgW = imgs[0].width
-  const imgH = imgs.reduce((acc, img) => acc + img.height, 0)
+  const filepath = 'src/assets/' + Math.random().toString(36).substring(7) + '.pdf'
+  const stream = blobStream()
 
-  const finalImage = PImage.make(imgW, imgH)
-  const ctx = finalImage.getContext('2d')
+  const doc = new PDFDocument({
+    size: 'LETTER',
+    margins: {
+      top: 50,
+      bottom: 50,
+      left: 50,
+      right: 50
+    }
+  })
 
-  let drawY = 0
-  for (let i = 0; i < imgs.length; i++) {
-    const img = imgs[i]
-    ctx.drawImage(img,
-      0, 0, img.width, img.height,
-      0, drawY, img.width, img.height
-    )
-    drawY += img.height
-  }
+  doc.pipe(stream)
+  doc.font(fonts.black).fontSize(24).text('RESUMEN DE PRESUPUESTO', { align: 'center' })
+  doc.moveDown(0.2)
+  doc.font(fonts.light).fontSize(16).text(summaryMonth.format('MMMM YYYY'), { align: 'center' })
+  doc.moveDown(0.5)
+  doc.font(fonts.telegrama).fontSize(12).moveDown(1).text('CATEGORIAS', { align: 'center' })
+  doc.font(fonts.telegrama).fontSize(12)
 
-  // random filename on src/assets/send
-  const filepath = 'src/assets/' + Math.random().toString(36).substring(7) + '.png'
-  const stream = fs.createWriteStream(filepath)
+  const catTable = new AsciiTable3().setHeading('Categoria', 'Limite').setStyle('compact').addRowMatrix(categories.map(cat => {
+    const description = cat.description.replace(regex, '').trim()
+    const limit = cat.limits.length > 0 ? `${numeral(cat.limits[0].amount.amount).format('0,0.00')} ${cat.limits[0].amount.currency}` : '0'
+    return [description, limit]
+  })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.LEFT).setAlign(2, AlignmentEnum.RIGHT)
 
-  await PImage.encodePNGToStream(finalImage, stream)
-  await bot.sendPhoto(userId, filepath, { caption: 'Resumen de Presupuesto' }, { filename: 'resumen.png', contentType: 'image/png' })
+  // Totals by currency
+  const catCur = [...new Set(categories.filter(c => c.limits.length > 0).map(c => c.limits[0].amount.currency))]
+  const totalGCatCur: any = catCur.reduce((acc, currency) => {
+    const total = categories.filter(c => c.limits.length > 0 && c.limits[0].amount.currency === currency).reduce((acc, curr) => acc + curr.limits[0].amount.amount, 0)
+    return { ...acc, [currency]: total }
+  }, {})
 
-  // delete file
-  fs.unlink(filepath, () => { })
+
+  const catTotalTable = new AsciiTable3().setStyle('compact').addRowMatrix(catCur.map(currency => {
+    return [`TOTAL ${currency}`, `${numeral(totalGCatCur[currency]).format('0,0.00')} ${currency}`]
+  })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.RIGHT).setAlign(2, AlignmentEnum.RIGHT).setHeadingAlignRight()
+
+  doc.text(catTable.toString(), { align: 'center' })
+  doc.text(catTotalTable.toString(), { align: 'center' })
+
+  doc.moveDown(2)
+  doc.font(fonts.telegrama).fontSize(12).moveDown(1).text('PAGOS FIJOS', { align: 'center' })
+  doc.font(fonts.telegrama).fontSize(12)
+
+  const payTable = new AsciiTable3().setHeading('Pagos', 'Monto').setStyle('compact').addRowMatrix(payments.map(cat => {
+    const description = cat.description.replace(regex, '').trim()
+    const limit = cat.limits.length > 0 ? `${numeral(cat.limits[0].amount.amount).format('0,0.00')} ${cat.limits[0].amount.currency}` : '0'
+    return [description, limit]
+  })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.LEFT).setAlign(2, AlignmentEnum.RIGHT)
+
+  // Totals by currency
+  const payCur = [...new Set(payments.filter(c => c.limits.length > 0).map(c => c.limits[0].amount.currency))]
+  const totalGpayCur: any = payCur.reduce((acc, currency) => {
+    const total = payments.filter(c => c.limits.length > 0 && c.limits[0].amount.currency === currency).reduce((acc, curr) => acc + curr.limits[0].amount.amount, 0)
+    return { ...acc, [currency]: total }
+  }, {})
+
+  const payTotalTable = new AsciiTable3().setStyle('compact').addRowMatrix(payCur.map(currency => {
+    return [`TOTAL ${currency}`, `${numeral(totalGpayCur[currency]).format('0,0.00')} ${currency}`]
+  })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.RIGHT).setAlign(2, AlignmentEnum.RIGHT).setHeadingAlignRight()
+
+  doc.text(payTable.toString(), { align: 'center' })
+  doc.text(payTotalTable.toString(), { align: 'center' })
+
+  doc.end()
+  stream.on('finish', async function () {
+    const blob = stream.toBlob('application/pdf')
+    const arrayBuffer = await blob.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    await bot.sendDocument(userId, buffer, {}, { filename: `${summaryMonth.format('MMMM YYYY')} Resumen de presupuesto.pdf`, contentType: 'application/pdf' })
+    fs.unlink(filepath, () => { })
+  })
   return
-}
-
-async function drawHeader(text: string): Promise<PImage.Bitmap> {
-  const titleImg = await PImage.decodePNGFromStream(fs.createReadStream('src/assets/receipt-01.png'))
-
-  const ctx = titleImg.getContext('2d')
-  ctx.fillStyle = '#000000'
-  ctx.textAlign = 'center'
-  ctx.font = '60pt monofonto'
-  ctx.fillText(text, titleImg.width / 2, 276)
-
-  return titleImg
-}
-
-async function drawSubHeader(text: string): Promise<PImage.Bitmap> {
-  const img = await PImage.decodePNGFromStream(fs.createReadStream('src/assets/receipt-02.png'))
-
-  const ctx = img.getContext('2d')
-  ctx.fillStyle = '#000000'
-  ctx.textAlign = 'center'
-  ctx.font = '40pt monofonto'
-  ctx.fillText(text, img.width / 2, img.height / 2)
-
-  return img
-}
-
-async function drawItem(left: string, right: string): Promise<PImage.Bitmap> {
-  const img = await PImage.decodePNGFromStream(fs.createReadStream('src/assets/receipt-02.png'))
-
-  const ctx = img.getContext('2d')
-  ctx.fillStyle = '#000000'
-  ctx.font = '50pt monofonto'
-  ctx.textAlign = 'left'
-  ctx.fillText(left, 120, img.height / 2)
-
-  ctx.textAlign = 'right'
-  ctx.fillText(right, img.width - 120, img.height / 2)
-  return img
 }

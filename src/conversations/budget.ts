@@ -2,7 +2,6 @@ import { MsgAndQueryProps, QueryProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
 import { accountsOnStart } from '@conversations/budget/accounts'
 import { categoriesOnStart } from './budget/categories'
-import { paymentsOnStart } from './budget/payments'
 
 export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
@@ -64,7 +63,7 @@ export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'Cuentas', callback_data: 'accounts' }, { text: 'Categorias', callback_data: 'categories' }, { text: 'Pagos Fijos', callback_data: 'payments' }],
+        [{ text: 'Cuentas', callback_data: 'accounts' }, { text: 'Categorias', callback_data: 'categories' }],
       ]
     }
   })
@@ -81,11 +80,6 @@ export async function bundgetOnCallbackQuery({ bot, query }: QueryProps) {
 
   if (btnPress === 'categories') {
     categoriesOnStart({ bot, query })
-    return
-  }
-
-  if (btnPress === 'payments') {
-    paymentsOnStart({ bot, query })
     return
   }
 }

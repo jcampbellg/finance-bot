@@ -13,7 +13,6 @@ export type ExpenseWithAll = Prisma.ExpenseGetPayload<{
     account: true,
     amount: true,
     category: true,
-    payment: true,
     createdBy: true,
     files: true
   }

@@ -14,6 +14,12 @@ const commands = [
   }, {
     command: 'terminar',
     description: 'Termina la conversación actual'
+  }, {
+    command: 'resumen_presupuesto',
+    description: 'Resumen de tu presupuesto mensual'
+  }, {
+    command: 'resumen_gastos',
+    description: 'Resumen de tus transacciones'
   }
 ]
 

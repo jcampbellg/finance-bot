@@ -7,8 +7,13 @@ import numeral from 'numeral'
 import { waitingForCommandOnStart } from './waitingForCommand'
 import { ExpenseWithAll } from '@customTypes/prismaTypes'
 import { categoriesButtons } from './budget/categories'
-import { paymentsButtons } from './budget/payments'
 import { FileType } from '@prisma/client'
+import dayjs from 'dayjs'
+import timezone from 'dayjs/plugin/timezone'
+import utc from 'dayjs/plugin/utc'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 export async function expenseOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
@@ -153,7 +158,6 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         account: true,
         amount: true,
         category: true,
-        payment: true,
         createdBy: true,
         files: {
           orderBy: {
@@ -309,7 +313,8 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         data: {
           fileId,
           fileType,
-          expenseId: expenseToEdit.id
+          expenseId: expenseToEdit.id,
+          validFrom: dayjs().utc().startOf('month').format()
         }
       })
 
@@ -369,7 +374,6 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         account: true,
         amount: true,
         category: true,
-        payment: true,
         createdBy: true,
         files: true
       }
@@ -427,7 +431,6 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         account: true,
         amount: true,
         category: true,
-        payment: true,
         createdBy: true,
         files: {
           orderBy: {
@@ -566,41 +569,6 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
       return
     }
 
-    if (btnPress === 'payment') {
-      await prisma.conversation.update({
-        where: {
-          chatId: userId
-        },
-        data: {
-          state: 'expense',
-          data: {
-            expenseId: expenseToEdit.id,
-            action: 'edit',
-            property: 'payment'
-          }
-        }
-      })
-
-      const payments = await prisma.payment.findMany({
-        where: {
-          bookId: expenseToEdit.account.bookId
-        },
-        orderBy: {
-          description: 'asc'
-        }
-      })
-
-      await bot.sendMessage(userId, 'Selecciona la nueva categoría:', {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Sin Asignar a Pago', callback_data: 'noPayment' }],
-            ...paymentsButtons(payments)
-          ]
-        }
-      })
-      return
-    }
-
     if (btnPress === 'file') {
       await prisma.conversation.update({
         where: {
@@ -665,35 +633,6 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
       expenseToEdit.category = newCategory.category
     }
 
-    if (conversationData.property === 'payment') {
-      if (btnPress === 'noPayment') {
-        await prisma.expense.update({
-          where: {
-            id: expenseToEdit.id
-          },
-          data: {
-            paymentId: null
-          }
-        })
-
-        expenseToEdit.payment = null
-      }
-
-      const newPayment = await prisma.expense.update({
-        where: {
-          id: expenseToEdit.id
-        },
-        data: {
-          paymentId: parseInt(btnPress)
-        },
-        include: {
-          payment: true
-        }
-      })
-
-      expenseToEdit.payment = newPayment.payment
-    }
-
     await prisma.conversation.update({
       where: {
         chatId: userId
@@ -731,8 +670,8 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
 
 export function expenseButtons(): TelegramBot.InlineKeyboardButton[][] {
   return [
-    [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Adjuntar', callback_data: 'file' }, { text: 'Eliminar', callback_data: 'delete' }],
-    [{ text: 'Categorizar', callback_data: 'category' }, { text: 'Asignar a Pago', callback_data: 'payment' }],
+    [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
+    [{ text: 'Categorizar', callback_data: 'category' }, { text: 'Adjuntar', callback_data: 'file' }],
     [{ text: 'Cambiar Cuenta', callback_data: 'account' }, { text: 'Cambiar Monto', callback_data: 'amount' }],
   ]
 }
@@ -740,9 +679,8 @@ export function expenseButtons(): TelegramBot.InlineKeyboardButton[][] {
 export function expenseText(expense: ExpenseWithAll): string {
   const hasFile = expense.files.length > 0 ? '📎 ' : ''
   const category = expense.category ? `\nCategoria: ${expense.category.description}` : '\nSin categoría'
-  const payment = expense.payment ? `\nPago: ${expense.payment.description}` : ''
 
-  return `${hasFile}<b>${expense.description}</b>\nCuenta: ${expense.account.description}\nMonto: ${numeral(expense.amount.amount).format('0,0.00')} ${expense.amount.currency}${category}${payment}\n\n¿Qué deseas hacer con este gasto?`
+  return `${hasFile}<b>${expense.description}</b>\nCuenta: ${expense.account.description}\nMonto: ${numeral(expense.amount.amount).format('0,0.00')} ${expense.amount.currency}${category}\n\n¿Qué deseas hacer con este gasto?`
 }
 
 export function expenseFile(expense: ExpenseWithAll): { fileId: string, type: FileType } | null {

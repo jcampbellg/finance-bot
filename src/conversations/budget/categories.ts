@@ -179,7 +179,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
     await bot.sendMessage(userId, `Categoria <b>${text}</b> agregada.`, {
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: categoryButtons()
+        inline_keyboard: categoryButtons(false)
       }
     })
   }
@@ -204,22 +204,9 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
         return
       }
 
-      const category = await prisma.category.findUnique({
-        where: {
-          id: conversationData.categoryId || 0
-        }
-      })
-
-      if (!category) {
-        await bot.sendMessage(userId, 'La categoria seleccionada ya no existe.')
-        // @ts-ignore
-        await categoriesOnStart({ bot, query, msg })
-        return
-      }
-
       await prisma.category.update({
         where: {
-          id: category.id
+          id: categoryToEdit.id
         },
         data: {
           description: text
@@ -229,7 +216,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
       await bot.sendMessage(userId, `Categoria actualizada: <b>${text}</b>`, {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: categoryButtons()
+          inline_keyboard: categoryButtons(categoryToEdit.isPayment)
         }
       })
     }
@@ -312,10 +299,10 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
         }
       })
 
-      await bot.sendMessage(userId, `<b>${categoryToEdit.description}</b>${limitsListText(newLimits)}`, {
+      await bot.sendMessage(userId, `<b>${categoryToEdit.description}</b>${limitsListText(newLimits, categoryToEdit.isPayment)}`, {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: categoryButtons()
+          inline_keyboard: categoryButtons(categoryToEdit.isPayment)
         }
       })
       return
@@ -413,10 +400,10 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
       return
     }
 
-    await bot.sendMessage(userId, `Editar <b>${category.description}</b>${limitsListText(category.limits)}`, {
+    await bot.sendMessage(userId, `Editar\n<b>${category.description}</b>${limitsListText(category.limits, category.isPayment)}`, {
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: categoryButtons()
+        inline_keyboard: categoryButtons(category.isPayment)
       }
     })
     return
@@ -432,6 +419,25 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
     if (!categoryToEdit) {
       await bot.sendMessage(userId, 'La categoria seleccionada ya no existe.')
       await categoriesOnStart({ bot, query })
+      return
+    }
+
+    if (btnPress === 'payment') {
+      await prisma.category.update({
+        where: {
+          id: categoryToEdit.id
+        },
+        data: {
+          isPayment: !categoryToEdit.isPayment
+        }
+      })
+
+      await bot.sendMessage(userId, `Categoria actualizada: <b>${categoryToEdit.description}</b>`, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: categoryButtons(!categoryToEdit.isPayment)
+        }
+      })
       return
     }
 
@@ -523,25 +529,20 @@ export function categoriesButtons(categories: Category[]): TelegramBot.InlineKey
   })
 }
 
-export function categoryButtons(): TelegramBot.InlineKeyboardButton[][] {
+export function categoryButtons(isPayment: boolean): TelegramBot.InlineKeyboardButton[][] {
   return [
-    [{ text: 'Poner Limite', callback_data: 'limit' }],
+    [{ text: 'Cambiar Limite', callback_data: 'limit' }, { text: isPayment ? 'Quitar de Pago Fijos' : 'Poner en Pagos Fijo', callback_data: 'payment' }],
     [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
     [{ text: 'Regresar', callback_data: 'back' }]
   ]
 }
 
-export function limitsListText(limits: LimitsWithAmount[]) {
-  const currencyInLimits = [... new Set(limits.map(l => l.amount.currency))]
+export function limitsListText(limits: LimitsWithAmount[], isPayment: boolean) {
+  const paymentText = isPayment ? '\n\nPago Fijo' : ''
 
-  const lastLimits = currencyInLimits.map(currency => {
-    const limit = limits.find(l => l.amount.currency === currency)
-    return limit
-  }).filter(l => l && l?.amount.amount > 0)
+  if (limits.length === 0) return paymentText
 
-  if (lastLimits.length === 0) return ''
+  const lastLimit = limits[0]
 
-  return `\n\nLimites:\n` + lastLimits.map(l => {
-    return `${numeral(l?.amount.amount || 0).format('0,0.00')} ${l?.amount.currency}`
-  }).join('\n')
+  return `${paymentText}\n\nLimite:\n${numeral(lastLimit?.amount.amount || 0).format('0,0.00')} ${lastLimit?.amount.currency}`
 }
