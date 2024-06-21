@@ -152,7 +152,8 @@ model Category {
   description String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  limits      Limit[]
+  limitId     Int?
+  limit       Limit?    @relation(fields: [limitId], references: [id])
   expenses    Expense[]
   book        Book?     @relation(fields: [bookId], references: [id])
   bookId      Int?
@@ -172,8 +173,6 @@ model AmountCurrency {
 
 model Limit {
   id             Int            @id @default(autoincrement())
-  categoryId     Int
-  category       Category       @relation(fields: [categoryId], references: [id])
   amountId       Int            @unique
   amount         AmountCurrency @relation(fields: [amountId], references: [id])
   ignoreInBudget Boolean        @default(false)
@@ -182,6 +181,7 @@ model Limit {
   validFrom      DateTime
   bookId         Int
   book           Book           @relation(fields: [bookId], references: [id])
+  categories     Category[]
 }
 
 model Payment {
