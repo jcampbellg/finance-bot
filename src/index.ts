@@ -10,6 +10,7 @@ import { accountsOnCallbackQuery, accountsOnText } from '@conversations/budget/a
 import { categoriesOnCallbackQuery, categoriesOnText } from '@conversations/budget/categories'
 import { newExpenseOnCallbackQuery, newExpenseOnText } from '@conversations/newExpense'
 import { expenseOnCallbackQuery, expenseOnText } from '@conversations/expense'
+import { incomesOnCallbackQuery, incomesOnText } from '@conversations/budget/incomes'
 
 dotenv.config()
 
@@ -50,6 +51,14 @@ bot.on('message', async (msg) => {
 
   if (conversation.state === 'books') {
     booksOnText({
+      bot,
+      msg: msg as MessageFromPrivate
+    })
+    return
+  }
+
+  if (conversation.state === 'incomes') {
+    await incomesOnText({
       bot,
       msg: msg as MessageFromPrivate
     })
@@ -130,6 +139,13 @@ bot.on('callback_query', async (query) => {
 
   if (conversation.state === 'accounts') {
     accountsOnCallbackQuery({
+      bot,
+      query: query as QueryFromPrivate
+    })
+  }
+
+  if (conversation.state === 'incomes') {
+    incomesOnCallbackQuery({
       bot,
       query: query as QueryFromPrivate
     })

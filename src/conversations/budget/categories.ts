@@ -8,8 +8,9 @@ import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import numeral from 'numeral'
-import { LimitsWithAmount } from '@customTypes/prismaTypes'
+import { CategoryWithLimits, LimitsWithAmount } from '@customTypes/prismaTypes'
 import { Category } from '@prisma/client'
+import auth from '@utils/auth'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -17,50 +18,9 @@ dayjs.extend(timezone)
 const maxCategories = 50
 
 export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
-  const userId = msg?.chat.id || query?.message.chat.id as number
-
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId
-    },
-    include: {
-      books: {
-        where: {
-          OR: [
-            { ownerId: userId },
-            {
-              shares: {
-                some: {
-                  shareWithUserId: userId
-                }
-              }
-            }
-          ]
-        }
-      }
-    }
-  })
-
-  if (!user) {
-    await bot.sendMessage(userId, 'No se encontró el usuario.\n\n Usa /start para comenzar.')
-    return
-  }
-
-  const book = user.books.find(book => book.id === user.bookSelectedId)
-
-  if (!book) {
-    await prisma.conversation.update({
-      where: {
-        chatId: userId
-      },
-      data: {
-        state: 'waitingForCommand',
-        data: {}
-      }
-    })
-    await bot.sendMessage(userId, '<i>Primero necesitas seleccionar un libro contable. Usa /libro.</i>', { parse_mode: 'HTML' })
-    return
-  }
+  const { user, book, userId } = await auth({ bot, msg, query } as MsgAndQueryProps)
+  if (!user) return
+  if (!book) return
 
   const categories = await prisma.category.findMany({
     where: {
@@ -73,7 +33,7 @@ export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
 
   await prisma.conversation.update({
     where: {
-      chatId: userId
+      chatId: user.id
     },
     data: {
       state: 'categories',
@@ -95,7 +55,10 @@ export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
 }
 
 export async function categoriesOnText({ bot, msg }: MsgProps) {
-  const userId = msg?.chat.id
+  const { user, book, userId } = await auth({ bot, msg })
+  if (!user) return
+  if (!book) return
+
   const text = msg?.text?.trim() || ''
 
   const conversation = await prisma.conversation.findUnique({
@@ -105,49 +68,6 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
   })
 
   const conversationData: any = conversation?.data || {}
-
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId
-    },
-    include: {
-      books: {
-        where: {
-          OR: [
-            { ownerId: userId },
-            {
-              shares: {
-                some: {
-                  shareWithUserId: userId
-                }
-              }
-            }
-          ]
-        }
-      }
-    }
-  })
-
-  if (!user) {
-    await bot.sendMessage(userId, 'No se encontró el usuario.\n\n Usa /start para comenzar.')
-    return
-  }
-
-  const book = user.books.find(book => book.id === user.bookSelectedId)
-
-  if (!book) {
-    await prisma.conversation.update({
-      where: {
-        chatId: userId
-      },
-      data: {
-        state: 'waitingForCommand',
-        data: {}
-      }
-    })
-    await bot.sendMessage(userId, '<i>Primero necesitas seleccionar un libro contable. Usa /libro.</i>', { parse_mode: 'HTML' })
-    return
-  }
 
   if (conversationData.action === 'add') {
     const isValid = z.string().min(3).max(50).safeParse(text)
@@ -176,18 +96,25 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
       }
     })
 
-    await bot.sendMessage(userId, `Categoria <b>${text}</b> agregada.`, {
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: categoryButtons(false)
-      }
-    })
+    await bot.sendMessage(userId, `<i>Categoria agregada.</i>`, { parse_mode: 'HTML' })
+    await sendCategory(bot, userId, { ...newCategory, limits: [] })
+    return
   }
 
   if (conversationData.action === 'edit') {
     const categoryToEdit = await prisma.category.findUnique({
       where: {
         id: conversationData.categoryId || 0
+      },
+      include: {
+        limits: {
+          include: {
+            amount: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
       }
     })
 
@@ -204,7 +131,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
         return
       }
 
-      await prisma.category.update({
+      const categoryEdit = await prisma.category.update({
         where: {
           id: categoryToEdit.id
         },
@@ -213,12 +140,9 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
         }
       })
 
-      await bot.sendMessage(userId, `Categoria actualizada: <b>${text}</b>`, {
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: categoryButtons(categoryToEdit.isPayment)
-        }
-      })
+      await bot.sendMessage(userId, `<i>Categoria actualizada.</i>`, { parse_mode: 'HTML' })
+      await sendCategory(bot, userId, { ...categoryEdit, limits: categoryToEdit.limits })
+      return
     }
 
     if (conversationData.property === 'limit') {
@@ -237,7 +161,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
             state: 'categories',
             data: {
               action: 'edit',
-              categoryId: conversationData.categoryId,
+              categoryId: categoryToEdit.id,
               property: 'limit',
               limit: limit
             }
@@ -282,7 +206,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
           state: 'categories',
           data: {
             action: 'edit',
-            categoryId: conversationData.categoryId
+            categoryId: categoryToEdit.id
           }
         }
       })
@@ -299,19 +223,17 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
         }
       })
 
-      await bot.sendMessage(userId, `<b>${categoryToEdit.description}</b>${limitsListText(newLimits, categoryToEdit.isPayment)}`, {
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: categoryButtons(categoryToEdit.isPayment)
-        }
-      })
+      await sendCategory(bot, userId, { ...categoryToEdit, limits: newLimits })
       return
     }
   }
 }
 
 export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
-  const userId = query.message.chat.id
+  const { userId, user, book } = await auth({ query, bot } as QueryProps)
+  if (!user) return
+  if (!book) return
+
   const btnPress = query.data
 
   const conversation = await prisma.conversation.findUnique({
@@ -334,7 +256,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
   if (btnPress === 'add') {
     const categoriesCount = await prisma.category.count({
       where: {
-        bookId: conversationData.bookId
+        bookId: book.id
       }
     })
 
@@ -400,12 +322,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
       return
     }
 
-    await bot.sendMessage(userId, `Editar\n<b>${category.description}</b>${limitsListText(category.limits, category.isPayment)}`, {
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: categoryButtons(category.isPayment)
-      }
-    })
+    await sendCategory(bot, userId, category)
     return
   }
 
@@ -413,6 +330,16 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
     const categoryToEdit = await prisma.category.findUnique({
       where: {
         id: conversationData.categoryId || 0
+      },
+      include: {
+        limits: {
+          include: {
+            amount: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
       }
     })
 
@@ -432,12 +359,8 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
         }
       })
 
-      await bot.sendMessage(userId, `Categoria actualizada: <b>${categoryToEdit.description}</b>`, {
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: categoryButtons(!categoryToEdit.isPayment)
-        }
-      })
+      await bot.sendMessage(userId, `<i>Categoria actualizada.</i>`, { parse_mode: 'HTML' })
+      await sendCategory(bot, userId, { ...categoryToEdit, isPayment: !categoryToEdit.isPayment })
       return
     }
 
@@ -465,7 +388,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
         }
       })
 
-      await bot.sendMessage(userId, `Categoria con sus limites eliminada: <b>${categoryToEdit.description}</b>`, {
+      await bot.sendMessage(userId, `Categoria con sus limites eliminada:\n<b>${categoryToEdit.description}</b>`, {
         parse_mode: 'HTML'
       })
       await categoriesOnStart({ bot, query })
@@ -545,4 +468,13 @@ export function limitsListText(limits: LimitsWithAmount[], isPayment: boolean) {
   const lastLimit = limits[0]
 
   return `${paymentText}\n\nLimite:\n${numeral(lastLimit?.amount.amount || 0).format('0,0.00')} ${lastLimit?.amount.currency}`
+}
+
+export async function sendCategory(bot: TelegramBot, chatId: number, category: CategoryWithLimits) {
+  await bot.sendMessage(chatId, `<b>${category.description}</b>${limitsListText(category.limits, category.isPayment)}`, {
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: categoryButtons(category.isPayment)
+    }
+  })
 }

@@ -17,3 +17,23 @@ export type ExpenseWithAll = Prisma.ExpenseGetPayload<{
     files: true
   }
 }>
+
+export type CategoryWithLimits = Prisma.CategoryGetPayload<{
+  include: {
+    limits: {
+      include: {
+        amount: true
+      }
+    }
+  }
+}>
+
+export type IncomeWithSalary = Prisma.IncomeGetPayload<{
+  include: {
+    salary: {
+      include: {
+        amount: true
+      }
+    }
+  }
+}>

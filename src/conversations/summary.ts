@@ -11,6 +11,8 @@ import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
+import { CategoryWithLimits, IncomeWithSalary } from '@customTypes/prismaTypes'
+import auth from '@utils/auth'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -28,50 +30,9 @@ const fonts = {
 }
 
 export async function summaryBudgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
-  const userId = msg?.chat.id || query?.message.chat.id as number
-
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId
-    },
-    include: {
-      books: {
-        where: {
-          OR: [
-            { ownerId: userId },
-            {
-              shares: {
-                some: {
-                  shareWithUserId: userId
-                }
-              }
-            }
-          ]
-        }
-      }
-    }
-  })
-
-  if (!user) {
-    await bot.sendMessage(userId, 'No se encontró el usuario.\n\n Usa /start para comenzar.')
-    return
-  }
-
-  const book = user.books.find(book => book.id === user.bookSelectedId)
-
-  if (!book) {
-    await prisma.conversation.update({
-      where: {
-        chatId: userId
-      },
-      data: {
-        state: 'waitingForCommand',
-        data: {}
-      }
-    })
-    await bot.sendMessage(userId, '<i>Primero necesitas seleccionar un libro contable. Usa /libro.</i>', { parse_mode: 'HTML' })
-    return
-  }
+  const { user, book, userId } = await auth({ msg, bot, query } as MsgAndQueryProps)
+  if (!user) return
+  if (!book) return
 
   const summaryMonth = dayjs().utc().startOf('month')
 
@@ -119,8 +80,28 @@ export async function summaryBudgetOnStart({ bot, msg, query }: MsgAndQueryProps
     }
   })
 
+  const incomes = await prisma.income.findMany({
+    where: {
+      bookId: book.id
+    },
+    include: {
+      salary: {
+        where: {
+          validFrom: {
+            lte: summaryMonth.format()
+          }
+        },
+        include: {
+          amount: true
+        }
+      }
+    }
+  })
+
   const filepath = 'src/assets/' + Math.random().toString(36).substring(7) + '.pdf'
   const stream = blobStream()
+
+  await bot.sendChatAction(userId, 'upload_document')
 
   const doc = new PDFDocument({
     size: 'LETTER',
@@ -135,55 +116,24 @@ export async function summaryBudgetOnStart({ bot, msg, query }: MsgAndQueryProps
   doc.pipe(stream)
   doc.font(fonts.black).fontSize(24).text('RESUMEN DE PRESUPUESTO', { align: 'center' })
   doc.moveDown(0.2)
-  doc.font(fonts.light).fontSize(16).text(summaryMonth.format('MMMM YYYY'), { align: 'center' })
+  doc.font(fonts.light).fontSize(14).text(book.title, { align: 'left' })
+  doc.font(fonts.light).fontSize(14).text(summaryMonth.format('MMMM YYYY'), { align: 'left' })
   doc.moveDown(0.5)
-  doc.font(fonts.telegrama).fontSize(12).moveDown(1).text('CATEGORIAS', { align: 'center' })
-  doc.font(fonts.telegrama).fontSize(12)
 
-  const catTable = new AsciiTable3().setHeading('Categoria', 'Limite').setStyle('compact').addRowMatrix(categories.map(cat => {
-    const description = cat.description.replace(regex, '').trim()
-    const limit = cat.limits.length > 0 ? `${numeral(cat.limits[0].amount.amount).format('0,0.00')} ${cat.limits[0].amount.currency}` : '0'
-    return [description, limit]
-  })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.LEFT).setAlign(2, AlignmentEnum.RIGHT)
-
-  // Totals by currency
-  const catCur = [...new Set(categories.filter(c => c.limits.length > 0).map(c => c.limits[0].amount.currency))]
-  const totalGCatCur: any = catCur.reduce((acc, currency) => {
-    const total = categories.filter(c => c.limits.length > 0 && c.limits[0].amount.currency === currency).reduce((acc, curr) => acc + curr.limits[0].amount.amount, 0)
-    return { ...acc, [currency]: total }
-  }, {})
-
-
-  const catTotalTable = new AsciiTable3().setStyle('compact').addRowMatrix(catCur.map(currency => {
-    return [`TOTAL ${currency}`, `${numeral(totalGCatCur[currency]).format('0,0.00')} ${currency}`]
-  })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.RIGHT).setAlign(2, AlignmentEnum.RIGHT).setHeadingAlignRight()
-
-  doc.text(catTable.toString(), { align: 'center' })
-  doc.text(catTotalTable.toString(), { align: 'center' })
-
+  doc.font(fonts.telegrama).fontSize(12).moveDown(1).text('INGRESOS', { align: 'center' })
+  const incomesByCurrency = incomesTable({ doc, incomes, emptyMessage: 'No hay ingresos registrados', heading: ['Ingreso', 'Monto'] })
   doc.moveDown(2)
+
+  doc.font(fonts.telegrama).fontSize(12).moveDown(1).text('CATEGORIAS', { align: 'center' })
+  const limitsByCurrency = categoriesTable({ doc, categories, emptyMessage: 'No hay categorías registradas', heading: ['Categoría', 'Límite'] })
+  doc.moveDown(2)
+
   doc.font(fonts.telegrama).fontSize(12).moveDown(1).text('PAGOS FIJOS', { align: 'center' })
-  doc.font(fonts.telegrama).fontSize(12)
+  const paymentsByCurrency = categoriesTable({ doc, categories: payments, emptyMessage: 'No hay pagos fijos registrados', heading: ['Pago', 'Monto / Límite'] })
+  doc.moveDown(2)
 
-  const payTable = new AsciiTable3().setHeading('Pagos', 'Monto').setStyle('compact').addRowMatrix(payments.map(cat => {
-    const description = cat.description.replace(regex, '').trim()
-    const limit = cat.limits.length > 0 ? `${numeral(cat.limits[0].amount.amount).format('0,0.00')} ${cat.limits[0].amount.currency}` : '0'
-    return [description, limit]
-  })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.LEFT).setAlign(2, AlignmentEnum.RIGHT)
-
-  // Totals by currency
-  const payCur = [...new Set(payments.filter(c => c.limits.length > 0).map(c => c.limits[0].amount.currency))]
-  const totalGpayCur: any = payCur.reduce((acc, currency) => {
-    const total = payments.filter(c => c.limits.length > 0 && c.limits[0].amount.currency === currency).reduce((acc, curr) => acc + curr.limits[0].amount.amount, 0)
-    return { ...acc, [currency]: total }
-  }, {})
-
-  const payTotalTable = new AsciiTable3().setStyle('compact').addRowMatrix(payCur.map(currency => {
-    return [`TOTAL ${currency}`, `${numeral(totalGpayCur[currency]).format('0,0.00')} ${currency}`]
-  })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.RIGHT).setAlign(2, AlignmentEnum.RIGHT).setHeadingAlignRight()
-
-  doc.text(payTable.toString(), { align: 'center' })
-  doc.text(payTotalTable.toString(), { align: 'center' })
+  doc.font(fonts.telegrama).fontSize(12).moveDown(1).text('TOTAL PRESUPUESTADO', { align: 'center' })
+  totalTable({ doc, subtotalsSubtract: [limitsByCurrency, paymentsByCurrency], subtotalsAdd: [incomesByCurrency] })
 
   doc.end()
   stream.on('finish', async function () {
@@ -195,4 +145,123 @@ export async function summaryBudgetOnStart({ bot, msg, query }: MsgAndQueryProps
     fs.unlink(filepath, () => { })
   })
   return
+}
+
+type CategoriesTableProps = {
+  doc: PDFKit.PDFDocument
+  categories: CategoryWithLimits[]
+  emptyMessage: string,
+  heading: string[]
+}
+
+function categoriesTable({ doc, categories, emptyMessage, heading }: CategoriesTableProps): Record<string, number> {
+  doc.font(fonts.telegrama).fontSize(12)
+  if (categories.length === 0) {
+    doc.text(emptyMessage, { align: 'center' })
+    return {}
+  } else {
+    const catTable = new AsciiTable3().setHeading(...heading).setStyle('compact').addRowMatrix(categories.map(cat => {
+      const description = cat.description.replace(regex, '').trim()
+      const limit = cat.limits.length > 0 ? `${numeral(cat.limits[0].amount.amount).format('0,0.00')} ${cat.limits[0].amount.currency}` : '0'
+      return [description, limit]
+    })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.LEFT).setAlign(2, AlignmentEnum.RIGHT)
+
+    doc.text(catTable.toString(), { align: 'center' })
+    // Totals by currency
+    const catCurrency = [...new Set(categories.filter(c => c.limits.length > 0).map(c => c.limits[0].amount.currency))]
+
+    if (catCurrency.length > 0) {
+      const catTotalByCurrency: Record<string, number> = catCurrency.reduce((acc, currency) => {
+        const total = categories.filter(c => c.limits.length > 0 && c.limits[0].amount.currency === currency).reduce((acc, curr) => acc + curr.limits[0].amount.amount, 0)
+        return { ...acc, [currency]: total }
+      }, {})
+      const catTotalTable = new AsciiTable3().setStyle('compact').addRowMatrix(catCurrency.map(currency => {
+        return [`SUBTOTAL ${currency}`, `${numeral(catTotalByCurrency[currency]).format('0,0.00')} ${currency}`]
+      })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.RIGHT).setAlign(2, AlignmentEnum.RIGHT).setHeadingAlignRight()
+
+      doc.text(catTotalTable.toString(), { align: 'center' })
+
+      return catTotalByCurrency
+    }
+    return {}
+  }
+}
+
+type IncomesTableProps = {
+  doc: PDFKit.PDFDocument
+  incomes: IncomeWithSalary[]
+  emptyMessage: string,
+  heading: string[]
+}
+
+function incomesTable({ doc, incomes, emptyMessage, heading }: IncomesTableProps): Record<string, number> {
+  doc.font(fonts.telegrama).fontSize(12)
+  if (incomes.length === 0) {
+    doc.text(emptyMessage, { align: 'center' })
+    return {}
+  } else {
+    const incomesTable = new AsciiTable3().setHeading(...heading).setStyle('compact').addRowMatrix(incomes.map(inc => {
+      const description = inc.description.replace(regex, '').trim()
+      const amount = inc.salary.length > 0 ? `${numeral(inc.salary[0].amount.amount).format('0,0.00')} ${inc.salary[0].amount.currency}` : '0'
+      return [description, amount]
+    })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.LEFT).setAlign(2, AlignmentEnum.RIGHT)
+
+    doc.text(incomesTable.toString(), { align: 'center' })
+    // Totals by currency
+    const incomesCurrency = [...new Set(incomes.filter(c => c.salary.length > 0).map(c => c.salary[0].amount.currency))]
+
+    if (incomesCurrency.length > 0) {
+      const incomesTotalByCurrency: Record<string, number> = incomesCurrency.reduce((acc, currency) => {
+        const total = incomes.filter(inc => inc.salary.length > 0 && inc.salary[0].amount.currency === currency).reduce((acc, curr) => acc + curr.salary[0].amount.amount, 0)
+        return { ...acc, [currency]: total }
+      }, {})
+      const incomesTotalTable = new AsciiTable3().setStyle('compact').addRowMatrix(incomesCurrency.map(currency => {
+        return [`SUBTOTAL ${currency}`, `${numeral(incomesTotalByCurrency[currency]).format('0,0.00')} ${currency}`]
+      })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.RIGHT).setAlign(2, AlignmentEnum.RIGHT).setHeadingAlignRight()
+
+      doc.text(incomesTotalTable.toString(), { align: 'center' })
+
+      return incomesTotalByCurrency
+    }
+    return {}
+  }
+}
+
+type TotalsTableProps = {
+  doc: PDFKit.PDFDocument
+  subtotalsAdd: Record<string, number>[]
+  subtotalsSubtract: Record<string, number>[]
+}
+
+function totalTable({ doc, subtotalsAdd, subtotalsSubtract }: TotalsTableProps) {
+  const totalAdd: Record<string, number> = subtotalsAdd.reduce((acc, curr) => {
+    return Object.keys(curr).reduce((acc, key) => {
+      return { ...acc, [key]: (acc[key] || 0) + curr[key] }
+    }, acc)
+  }, {})
+
+  const totalSub: Record<string, number> = subtotalsSubtract.reduce((acc, curr) => {
+    return Object.keys(curr).reduce((acc, key) => {
+      return { ...acc, [key]: (acc[key] || 0) + curr[key] }
+    }, acc)
+  }, {})
+
+  const currencies = [...new Set(...Object.keys(totalAdd), ...Object.keys(totalSub))]
+
+  if (currencies.length === 0) {
+    return {}
+  }
+
+  const total: Record<string, number> = currencies.reduce((acc, currency) => {
+    return { ...acc, [currency]: (totalAdd[currency] || 0) - (totalSub[currency] || 0) }
+  }, {})
+
+  const totalTable = new AsciiTable3().setStyle('compact').addRowMatrix(currencies.map(currency => {
+    return [`PRESUPUESTO TOTAL ${currency}`, `${numeral(total[currency]).format('0,0.00')} ${currency}`]
+  })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.RIGHT).setAlign(2, AlignmentEnum.RIGHT).setHeadingAlignRight()
+
+  doc.font(fonts.telegrama).fontSize(12)
+  doc.text(totalTable.toString(), { align: 'center' })
+
+  return total
 }

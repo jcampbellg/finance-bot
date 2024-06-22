@@ -2,52 +2,13 @@ import { MsgAndQueryProps, QueryProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
 import { accountsOnStart } from '@conversations/budget/accounts'
 import { categoriesOnStart } from './budget/categories'
+import auth from '@utils/auth'
+import { incomesOnStart } from './budget/incomes'
 
 export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
-  const userId = msg?.chat.id || query?.message.chat.id as number
-
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId
-    },
-    include: {
-      books: {
-        where: {
-          OR: [
-            { ownerId: userId },
-            {
-              shares: {
-                some: {
-                  shareWithUserId: userId
-                }
-              }
-            }
-          ]
-        }
-      }
-    }
-  })
-
-  if (!user) {
-    await bot.sendMessage(userId, 'No se encontró el usuario.\n\n Usa /start para comenzar.')
-    return
-  }
-
-  const book = user.books.find(book => book.id === user.bookSelectedId)
-
-  if (!book) {
-    await prisma.conversation.update({
-      where: {
-        chatId: userId
-      },
-      data: {
-        state: 'waitingForCommand',
-        data: {}
-      }
-    })
-    await bot.sendMessage(userId, '<i>Primero necesitas seleccionar un libro contable. Usa /libro.</i>', { parse_mode: 'HTML' })
-    return
-  }
+  const { user, book, userId } = await auth({ msg, bot, query } as MsgAndQueryProps)
+  if (!user) return
+  if (!book) return
 
   await prisma.conversation.update({
     where: {
@@ -63,7 +24,7 @@ export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'Cuentas', callback_data: 'accounts' }, { text: 'Categorias', callback_data: 'categories' }],
+        [{ text: 'Cuentas', callback_data: 'accounts' }, { text: 'Ingresos', callback_data: 'incomes' }, { text: 'Categorias', callback_data: 'categories' }],
       ]
     }
   })
@@ -80,6 +41,11 @@ export async function bundgetOnCallbackQuery({ bot, query }: QueryProps) {
 
   if (btnPress === 'categories') {
     categoriesOnStart({ bot, query })
+    return
+  }
+
+  if (btnPress === 'incomes') {
+    incomesOnStart({ bot, query })
     return
   }
 }

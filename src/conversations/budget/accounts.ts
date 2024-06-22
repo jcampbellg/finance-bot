@@ -1,6 +1,7 @@
 import { budgetOnStart } from '@conversations/budget'
 import { MsgAndQueryProps, QueryProps } from '@customTypes/messageTypes'
 import { Account } from '@prisma/client'
+import auth from '@utils/auth'
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
 import z from 'zod'
@@ -8,50 +9,10 @@ import z from 'zod'
 const maxAccounts = 10
 
 export async function accountsOnStart({ bot, msg, query }: MsgAndQueryProps) {
-  const userId = msg?.chat.id || query?.message.chat.id as number
+  const { user, book, userId } = await auth({ msg, bot, query } as MsgAndQueryProps)
 
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId
-    },
-    include: {
-      books: {
-        where: {
-          OR: [
-            { ownerId: userId },
-            {
-              shares: {
-                some: {
-                  shareWithUserId: userId
-                }
-              }
-            }
-          ]
-        }
-      }
-    }
-  })
-
-  if (!user) {
-    await bot.sendMessage(userId, 'No se encontró el usuario.\n\n Usa /start para comenzar.')
-    return
-  }
-
-  const book = user.books.find(book => book.id === user.bookSelectedId)
-
-  if (!book) {
-    await prisma.conversation.update({
-      where: {
-        chatId: userId
-      },
-      data: {
-        state: 'waitingForCommand',
-        data: {}
-      }
-    })
-    await bot.sendMessage(userId, '<i>Primero necesitas seleccionar un libro contable. Usa /libro.</i>', { parse_mode: 'HTML' })
-    return
-  }
+  if (!user) return
+  if (!book) return
 
   await prisma.conversation.update({
     where: {
@@ -72,7 +33,7 @@ export async function accountsOnStart({ bot, msg, query }: MsgAndQueryProps) {
     }
   })
 
-  await bot.sendMessage(userId, `Selecciona, edita o agrega una cuenta a <b>${book.title}</b>:`, {
+  await bot.sendMessage(userId, `Selecciona, edita o agrega una cuenta a\n<b>${book.title}</b>:`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
@@ -86,7 +47,11 @@ export async function accountsOnStart({ bot, msg, query }: MsgAndQueryProps) {
 }
 
 export async function accountsOnText({ bot, msg, query }: MsgAndQueryProps) {
-  const userId = msg?.chat.id || query?.message.chat.id as number
+  const { user, book, userId } = await auth({ msg, bot, query } as MsgAndQueryProps)
+
+  if (!user) return
+  if (!book) return
+
   const text = msg?.text?.trim() || ''
 
   const conversation = await prisma.conversation.findUnique({
@@ -96,49 +61,6 @@ export async function accountsOnText({ bot, msg, query }: MsgAndQueryProps) {
   })
 
   const conversationData: any = conversation?.data || {}
-
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId
-    },
-    include: {
-      books: {
-        where: {
-          OR: [
-            { ownerId: userId },
-            {
-              shares: {
-                some: {
-                  shareWithUserId: userId
-                }
-              }
-            }
-          ]
-        }
-      }
-    }
-  })
-
-  if (!user) {
-    await bot.sendMessage(userId, 'No se encontró el usuario.\n\n Usa /start para comenzar.')
-    return
-  }
-
-  const book = user.books.find(book => book.id === user.bookSelectedId)
-
-  if (!book) {
-    await prisma.conversation.update({
-      where: {
-        chatId: userId
-      },
-      data: {
-        state: 'waitingForCommand',
-        data: {}
-      }
-    })
-    await bot.sendMessage(userId, '<i>Primero necesitas seleccionar un libro contable. Usa /libro.</i>', { parse_mode: 'HTML' })
-    return
-  }
 
   if (conversationData.action === 'add') {
     const isValid = z.string().min(3).max(50).safeParse(text)
@@ -216,7 +138,9 @@ export async function accountsOnText({ bot, msg, query }: MsgAndQueryProps) {
 }
 
 export async function accountsOnCallbackQuery({ bot, query }: QueryProps) {
-  const userId = query.message.chat.id
+  const { userId, user, book } = await auth({ query, bot } as QueryProps)
+  if (!user) return
+  if (!book) return
   const btnPress = query.data
 
   const conversation = await prisma.conversation.findUnique({
@@ -239,7 +163,7 @@ export async function accountsOnCallbackQuery({ bot, query }: QueryProps) {
   if (btnPress === 'add') {
     const accountsCount = await prisma.account.count({
       where: {
-        bookId: conversationData.bookId
+        bookId: book.id
       }
     })
 
@@ -320,7 +244,7 @@ export async function accountsOnCallbackQuery({ bot, query }: QueryProps) {
     if (btnPress === 'delete') {
       const accountsCount = await prisma.account.count({
         where: {
-          bookId: conversationData.bookId
+          bookId: book.id
         }
       })
 

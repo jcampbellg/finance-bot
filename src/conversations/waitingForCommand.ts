@@ -60,3 +60,20 @@ export default async function waitingForCommand({ bot, msg }: MsgProps) {
   await bot.sendMessage(userId, 'No entiendo ese comando.')
   return
 }
+
+export async function waitingForCommandNoBook({ bot, msg, query }: MsgAndQueryProps) {
+  const userId = msg?.chat.id || query?.message.chat.id as number
+
+  await prisma.conversation.update({
+    where: {
+      chatId: userId
+    },
+    data: {
+      state: 'waitingForCommand',
+      data: {}
+    }
+  })
+
+  await bot.sendMessage(userId, 'Primero necesitas seleccionar un libro contable. Usa /libro.')
+  return
+}

@@ -4,52 +4,12 @@ import z from 'zod'
 import { accountsButtons } from './budget/accounts'
 import numeral from 'numeral'
 import { expenseButtons } from './expense'
+import auth from '@utils/auth'
 
 export async function newExpenseOnStart({ bot, msg, query }: MsgAndQueryProps) {
-  const userId = msg?.chat.id || query?.message.chat.id as number
-
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId
-    },
-    include: {
-      books: {
-        where: {
-          OR: [
-            { ownerId: userId },
-            {
-              shares: {
-                some: {
-                  shareWithUserId: userId
-                }
-              }
-            }
-          ]
-        }
-      }
-    }
-  })
-
-  if (!user) {
-    await bot.sendMessage(userId, 'No se encontró el usuario.\n\n Usa /start para comenzar.')
-    return
-  }
-
-  const book = user.books.find(book => book.id === user.bookSelectedId)
-
-  if (!book) {
-    await prisma.conversation.update({
-      where: {
-        chatId: userId
-      },
-      data: {
-        state: 'waitingForCommand',
-        data: {}
-      }
-    })
-    await bot.sendMessage(userId, '<i>Primero necesitas seleccionar un libro contable. Usa /libro.</i>', { parse_mode: 'HTML' })
-    return
-  }
+  const { user, book, userId } = await auth({ bot, msg, query } as MsgAndQueryProps)
+  if (!user) return
+  if (!book) return
 
   const accountsCount = await prisma.account.count({
     where: {
@@ -88,51 +48,11 @@ export async function newExpenseOnStart({ bot, msg, query }: MsgAndQueryProps) {
 }
 
 export async function newExpenseOnText({ bot, msg }: MsgProps) {
-  const userId = msg.chat.id
+  const { user, book, userId } = await auth({ bot, msg })
+  if (!user) return
+  if (!book) return
+
   const text = msg?.text?.trim() || ''
-
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId
-    },
-    include: {
-      books: {
-        where: {
-          OR: [
-            { ownerId: userId },
-            {
-              shares: {
-                some: {
-                  shareWithUserId: userId
-                }
-              }
-            }
-          ]
-        }
-      }
-    }
-  })
-
-  if (!user) {
-    await bot.sendMessage(userId, 'No se encontró el usuario.\n\n Usa /start para comenzar.')
-    return
-  }
-
-  const book = user.books.find(book => book.id === user.bookSelectedId)
-
-  if (!book) {
-    await prisma.conversation.update({
-      where: {
-        chatId: userId
-      },
-      data: {
-        state: 'waitingForCommand',
-        data: {}
-      }
-    })
-    await bot.sendMessage(userId, '<i>Primero necesitas seleccionar un libro contable. Usa /libro.</i>', { parse_mode: 'HTML' })
-    return
-  }
 
   const conversation = await prisma.conversation.findUnique({
     where: {
@@ -224,7 +144,8 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
         description: conversationData.description,
         accountId: conversationData.accountId,
         amountId: amountCurrency.id,
-        createdById: userId
+        createdById: userId,
+        bookId: book.id
       },
       include: {
         amount: true,

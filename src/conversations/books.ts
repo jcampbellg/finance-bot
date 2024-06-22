@@ -1,4 +1,5 @@
 import { MsgAndQueryProps, MsgProps, QueryProps } from '@customTypes/messageTypes'
+import auth from '@utils/auth'
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
 import z from 'zod'
@@ -6,37 +7,8 @@ import z from 'zod'
 const maxBooks = 10
 
 export async function booksOnStart({ bot, msg, query }: MsgAndQueryProps) {
-  const userId = msg?.chat.id || query?.message.chat.id as number
-
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId
-    },
-    include: {
-      books: {
-        where: {
-          OR: [
-            { ownerId: userId },
-            {
-              shares: {
-                some: {
-                  shareWithUserId: userId
-                }
-              }
-            }
-          ]
-        },
-        include: {
-          shares: true
-        }
-      }
-    }
-  })
-
-  if (!user) {
-    await bot.sendMessage(userId, 'No se encontró el usuario.\n\n Usa /start para comenzar.')
-    return
-  }
+  const { user, userId } = await auth({ msg, bot, query } as MsgAndQueryProps, true)
+  if (!user) return
 
   await prisma.conversation.update({
     data: {
@@ -48,7 +20,28 @@ export async function booksOnStart({ bot, msg, query }: MsgAndQueryProps) {
     }
   })
 
-  const books = user.books
+  const books = await prisma.book.findMany({
+    where: {
+      OR: [
+        {
+          ownerId: userId
+        },
+        {
+          shares: {
+            some: {
+              shareWithUserId: userId
+            }
+          }
+        }
+      ]
+    },
+    include: {
+      shares: true
+    },
+    orderBy: {
+      title: 'asc'
+    }
+  })
 
   const ownBooksCount = await prisma.book.count({
     where: {
@@ -71,7 +64,10 @@ export async function booksOnStart({ bot, msg, query }: MsgAndQueryProps) {
 }
 
 export async function booksOnText({ bot, msg }: MsgProps) {
-  const userId = msg.chat.id
+  const { user, book, userId } = await auth({ msg, bot }, true)
+  if (!user) return
+  if (!book) return
+
   const text = msg.text?.trim() || ''
 
   const conversation = await prisma.conversation.findUnique({
@@ -178,7 +174,9 @@ export async function booksOnText({ bot, msg }: MsgProps) {
 }
 
 export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
-  const userId = query.from.id
+  const { user, userId } = await auth({ query, bot }, true)
+  if (!user) return
+
   const btnPress = query.data
 
   if (btnPress === 'back') {
@@ -412,7 +410,7 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
         }
       })
 
-      await prisma.payment.deleteMany({
+      await prisma.income.deleteMany({
         where: {
           bookId: conversationData.bookId
         }
