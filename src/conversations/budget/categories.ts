@@ -454,7 +454,7 @@ export function categoriesButtons(categories: Category[]): TelegramBot.InlineKey
 
 export function categoryButtons(isPayment: boolean): TelegramBot.InlineKeyboardButton[][] {
   return [
-    [{ text: 'Cambiar Limite', callback_data: 'limit' }, { text: isPayment ? 'Quitar de Pago Fijos' : 'Poner en Pagos Fijo', callback_data: 'payment' }],
+    [{ text: `Cambiar ${isPayment ? 'Monto' : 'Limite'}`, callback_data: 'limit' }, { text: isPayment ? 'Quitar de Pago Fijos' : 'Poner en Pagos Fijo', callback_data: 'payment' }],
     [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
     [{ text: 'Regresar', callback_data: 'back' }]
   ]

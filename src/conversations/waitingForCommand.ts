@@ -5,6 +5,7 @@ import { onboardingOnStart } from '@conversations/onboarding'
 import { budgetOnStart } from '@conversations/budget'
 import { newExpenseOnStart } from '@conversations/newExpense'
 import { summaryBudgetOnStart } from '@conversations/summary'
+import { exchangeRatesOnStart } from './exchangeRates'
 
 export async function waitingForCommandOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
@@ -54,6 +55,11 @@ export default async function waitingForCommand({ bot, msg }: MsgProps) {
 
   if (text === '/resumen_presupuesto') {
     await summaryBudgetOnStart({ bot, msg })
+    return
+  }
+
+  if (text === '/cambio') {
+    await exchangeRatesOnStart({ bot, msg })
     return
   }
 

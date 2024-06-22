@@ -7,14 +7,18 @@ import numeral from 'numeral'
 import { waitingForCommandOnStart } from './waitingForCommand'
 import { ExpenseWithAll } from '@customTypes/prismaTypes'
 import { categoriesButtons } from './budget/categories'
-import { FileType } from '@prisma/client'
+import { FileType, User } from '@prisma/client'
+import auth from '@utils/auth'
 import dayjs from 'dayjs'
+import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
-import auth from '@utils/auth'
+import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 
+dayjs.locale('es')
 dayjs.extend(utc)
 dayjs.extend(timezone)
+dayjs.extend(LocalizedFormat)
 
 export async function expenseOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const { user, book, userId } = await auth({ msg, bot, query } as MsgAndQueryProps)
@@ -114,7 +118,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       if (fileToSend) {
         await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
         await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
-          caption: expenseText(expenseToEdit),
+          caption: expenseText(expenseToEdit, user),
           parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: expenseButtons()
@@ -123,7 +127,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         return
       }
 
-      await bot.sendMessage(userId, expenseText(expenseToEdit), {
+      await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: expenseButtons()
@@ -135,7 +139,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
     if (conversationData.property === 'amount') {
       if (conversationData.amount === undefined) {
         const amount = parseFloat(text)
-        if (Number.isNaN(amount) || amount <= 0) {
+        if (Number.isNaN(amount) || amount < 0) {
           await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
           return
         }
@@ -192,7 +196,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       if (fileToSend) {
         await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
         await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
-          caption: expenseText(expenseToEdit),
+          caption: expenseText(expenseToEdit, user),
           parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: expenseButtons()
@@ -201,7 +205,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         return
       }
 
-      await bot.sendMessage(userId, expenseText(expenseToEdit), {
+      await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: expenseButtons()
@@ -244,7 +248,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       if (fileToSend) {
         await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
         await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
-          caption: expenseText(expenseToEdit),
+          caption: expenseText(expenseToEdit, user),
           parse_mode: 'HTML',
           reply_markup: {
             inline_keyboard: expenseButtons()
@@ -253,7 +257,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         return
       }
 
-      await bot.sendMessage(userId, expenseText(expenseToEdit), {
+      await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: expenseButtons()
@@ -328,7 +332,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
     if (fileToSend) {
       await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
       await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
-        caption: expenseText(expenseToEdit),
+        caption: expenseText(expenseToEdit, user),
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: expenseButtons()
@@ -336,7 +340,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
       })
       return
     }
-    await bot.sendMessage(userId, expenseText(expenseToEdit), {
+    await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: expenseButtons()
@@ -573,7 +577,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
     if (fileToSend) {
       await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
       await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
-        caption: expenseText(expenseToEdit),
+        caption: expenseText(expenseToEdit, user),
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: expenseButtons()
@@ -581,7 +585,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
       })
       return
     }
-    await bot.sendMessage(userId, expenseText(expenseToEdit), {
+    await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: expenseButtons()
@@ -599,11 +603,12 @@ export function expenseButtons(): TelegramBot.InlineKeyboardButton[][] {
   ]
 }
 
-export function expenseText(expense: ExpenseWithAll): string {
+export function expenseText(expense: ExpenseWithAll, user: User): string {
   const hasFile = expense.files.length > 0 ? '📎 ' : ''
   const category = expense.category ? `\nCategoria: ${expense.category.description}` : '\nSin categoría'
+  const spanishDate = dayjs().tz(user.timezone).format('LL hh:mma')
 
-  return `${hasFile}<b>${expense.description}</b>\nCuenta: ${expense.account.description}\nMonto: ${numeral(expense.amount.amount).format('0,0.00')} ${expense.amount.currency}${category}\n\n¿Qué deseas hacer con este gasto?`
+  return `<i>${spanishDate}</i>\n${hasFile}<b>${expense.description}</b>\nCuenta: ${expense.account.description}\nMonto: ${numeral(expense.amount.amount).format('0,0.00')} ${expense.amount.currency}${category}\n\n¿Qué deseas hacer con este gasto?`
 }
 
 export function expenseFile(expense: ExpenseWithAll): { fileId: string, type: FileType } | null {

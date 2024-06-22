@@ -1,4 +1,4 @@
-import { MsgAndQueryProps } from '@customTypes/messageTypes'
+import { MsgAndQueryProps, MsgProps } from '@customTypes/messageTypes'
 import fs from 'fs'
 import { prisma } from '@utils/prisma'
 import numeral from 'numeral'
@@ -13,6 +13,7 @@ import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { CategoryWithLimits, IncomeWithSalary } from '@customTypes/prismaTypes'
 import auth from '@utils/auth'
+import { z } from 'zod'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -30,6 +31,66 @@ const fonts = {
 }
 
 export async function summaryBudgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
+  const { user, book, userId } = await auth({ msg, bot, query } as MsgAndQueryProps)
+  if (!user) return
+  if (!book) return
+
+  await prisma.conversation.update({
+    where: {
+      chatId: userId
+    },
+    data: {
+      state: 'summaryBudget',
+      data: {}
+    }
+  })
+
+  await bot.sendMessage(userId, '¿En que moneda quieres el gran total?\n\nPor favor, escribe el código de la moneda en tres letras.')
+  return
+}
+
+export async function summaryBudgetOnText({ bot, msg }: MsgProps) {
+  const { user, book, userId } = await auth({ msg, bot } as MsgAndQueryProps)
+  if (!user) return
+  if (!book) return
+
+  const text = msg.text?.trim() || ''
+
+  const conversation = await prisma.conversation.findUnique({
+    where: {
+      chatId: userId
+    }
+  })
+
+  const conversationData: any = conversation?.data || {}
+
+  if (!conversationData.currency) {
+    const isValid = z.string().regex(/[a-zA-Z]+/).length(3).safeParse(text)
+    if (!isValid.success) {
+      await bot.sendMessage(userId, 'La respuesta debe ser de 3 letras.')
+      return
+    }
+
+    const currency = text.toUpperCase()
+
+    await prisma.conversation.update({
+      where: {
+        chatId: userId
+      },
+      data: {
+        data: {
+          ...conversationData,
+          currency: currency
+        }
+      }
+    })
+
+    await bot.sendMessage(userId, 'Generando resumen de presupuesto...')
+    await summaryBudgetCreatePDF({ bot, msg }, currency)
+  }
+}
+
+export async function summaryBudgetCreatePDF({ bot, msg, query }: MsgAndQueryProps, currency: string) {
   const { user, book, userId } = await auth({ msg, bot, query } as MsgAndQueryProps)
   if (!user) return
   if (!book) return
@@ -118,6 +179,7 @@ export async function summaryBudgetOnStart({ bot, msg, query }: MsgAndQueryProps
   doc.moveDown(0.2)
   doc.font(fonts.light).fontSize(14).text(book.title, { align: 'left' })
   doc.font(fonts.light).fontSize(14).text(summaryMonth.format('MMMM YYYY'), { align: 'left' })
+  doc.font(fonts.light).fontSize(14).text(`Gran total en ${currency}`, { align: 'left' })
   doc.moveDown(0.5)
 
   doc.font(fonts.telegrama).fontSize(12).moveDown(1).text('INGRESOS', { align: 'center' })
@@ -133,7 +195,7 @@ export async function summaryBudgetOnStart({ bot, msg, query }: MsgAndQueryProps
   doc.moveDown(2)
 
   doc.font(fonts.telegrama).fontSize(12).moveDown(1).text('TOTAL PRESUPUESTADO', { align: 'center' })
-  totalTable({ doc, subtotalsSubtract: [limitsByCurrency, paymentsByCurrency], subtotalsAdd: [incomesByCurrency] })
+  await totalTable({ doc, subtotalsSubtract: [limitsByCurrency, paymentsByCurrency], subtotalsAdd: [incomesByCurrency], currency, bookId: book.id, summaryMonth })
 
   doc.end()
   stream.on('finish', async function () {
@@ -141,7 +203,7 @@ export async function summaryBudgetOnStart({ bot, msg, query }: MsgAndQueryProps
     const arrayBuffer = await blob.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    await bot.sendDocument(userId, buffer, {}, { filename: `${summaryMonth.format('MMMM YYYY')} Resumen de presupuesto.pdf`, contentType: 'application/pdf' })
+    await bot.sendDocument(userId, buffer, {}, { filename: `${summaryMonth.format('MMMM YYYY')} [${currency}] Resumen de presupuesto.pdf`, contentType: 'application/pdf' })
     fs.unlink(filepath, () => { })
   })
   return
@@ -231,9 +293,12 @@ type TotalsTableProps = {
   doc: PDFKit.PDFDocument
   subtotalsAdd: Record<string, number>[]
   subtotalsSubtract: Record<string, number>[]
+  currency: string
+  bookId: number
+  summaryMonth: dayjs.Dayjs
 }
 
-function totalTable({ doc, subtotalsAdd, subtotalsSubtract }: TotalsTableProps) {
+async function totalTable({ doc, subtotalsAdd, subtotalsSubtract, currency, bookId, summaryMonth }: TotalsTableProps) {
   const totalAdd: Record<string, number> = subtotalsAdd.reduce((acc, curr) => {
     return Object.keys(curr).reduce((acc, key) => {
       return { ...acc, [key]: (acc[key] || 0) + curr[key] }
@@ -246,7 +311,7 @@ function totalTable({ doc, subtotalsAdd, subtotalsSubtract }: TotalsTableProps) 
     }, acc)
   }, {})
 
-  const currencies = [...new Set(...Object.keys(totalAdd), ...Object.keys(totalSub))]
+  const currencies = [...new Set([...Object.keys(totalAdd), ...Object.keys(totalSub)])]
 
   if (currencies.length === 0) {
     return {}
@@ -256,9 +321,44 @@ function totalTable({ doc, subtotalsAdd, subtotalsSubtract }: TotalsTableProps) 
     return { ...acc, [currency]: (totalAdd[currency] || 0) - (totalSub[currency] || 0) }
   }, {})
 
-  const totalTable = new AsciiTable3().setStyle('compact').addRowMatrix(currencies.map(currency => {
-    return [`PRESUPUESTO TOTAL ${currency}`, `${numeral(total[currency]).format('0,0.00')} ${currency}`]
-  })).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.RIGHT).setAlign(2, AlignmentEnum.RIGHT).setHeadingAlignRight()
+  const exchangeRate = await prisma.exchangeRate.findMany({
+    where: {
+      bookId: bookId,
+      validFrom: {
+        lte: summaryMonth.format()
+      },
+      to: currency
+    }
+  })
+
+  const totalInMainCurrency = currencies.reduce((acc, curr) => {
+    if (curr === currency) return acc + (total[curr] || 0)
+
+    const rate = exchangeRate.find(exc => exc.from === curr)?.amount || 1
+    return acc + (total[curr] || 0) * rate
+  }, 0)
+
+  const budgetInMainCurrency = currencies.reduce((acc, curr) => {
+    if (curr === currency) return acc + (totalSub[curr] || 0)
+
+    const rate = exchangeRate.find(exc => exc.from === curr)?.amount || 1
+    return acc + (totalSub[curr] || 0) * rate
+  }, 0)
+
+  const incomeInMainCurrency = currencies.reduce((acc, curr) => {
+    if (curr === currency) return acc + (totalAdd[curr] || 0)
+
+    const rate = exchangeRate.find(exc => exc.from === curr)?.amount || 1
+    return acc + (totalAdd[curr] || 0) * rate
+  }, 0)
+
+  console.log(totalSub, budgetInMainCurrency, incomeInMainCurrency)
+
+  const totalTable = new AsciiTable3().setStyle('compact').addRowMatrix([
+    [`INGRESOS EN ${currency}`, `${numeral(incomeInMainCurrency).format('0,0.00')} ${currency}`],
+    [`PRESUPUESTADO EN ${currency}`, `-${numeral(budgetInMainCurrency).format('0,0.00')} ${currency}`],
+    [`DISPONIBLE EN ${currency}`, `${numeral(totalInMainCurrency).format('0,0.00')} ${currency}`]
+  ]).setWidth(1, 30).setWidth(2, 30).setAlign(1, AlignmentEnum.RIGHT).setAlign(2, AlignmentEnum.RIGHT).setHeadingAlignRight()
 
   doc.font(fonts.telegrama).fontSize(12)
   doc.text(totalTable.toString(), { align: 'center' })

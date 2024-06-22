@@ -12,8 +12,8 @@ const commands = [
     command: 'presupuesto',
     description: 'Prepara tu presupuesto'
   }, {
-    command: 'terminar',
-    description: 'Termina la conversación actual'
+    command: 'cambio',
+    description: 'Crear un cambio de moneda'
   }, {
     command: 'resumen_presupuesto',
     description: 'Resumen de tu presupuesto mensual'

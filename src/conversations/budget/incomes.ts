@@ -45,7 +45,7 @@ export async function incomesOnStart({ bot, msg, query }: MsgAndQueryProps) {
     }
   })
 
-  await bot.sendMessage(userId, `Selecciona, edita o agrega un ingreso a\n<b>${book.title}</b>:`, {
+  await bot.sendMessage(userId, `Selecciona, edita o agrega un ingreso a <b>${book.title}</b>:`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
@@ -422,7 +422,7 @@ export function incomesButtons(incomes: Income[]): TelegramBot.InlineKeyboardBut
 }
 
 export async function sendIncome(bot: TelegramBot, chatId: number, income: IncomeWithSalary) {
-  await bot.sendMessage(chatId, `<b>${income.description}</b>${income.salary.length > 0 ? `\n\nSalario:${numeral(income.salary[0].amount.amount).format('0,0.00')} ${income.salary[0].amount.currency}` : ''}`, {
+  await bot.sendMessage(chatId, `<b>${income.description}</b>${income.salary.length > 0 ? `\n\nSalario: ${numeral(income.salary[0].amount.amount).format('0,0.00')} ${income.salary[0].amount.currency}` : ''}`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: incomeButtons()

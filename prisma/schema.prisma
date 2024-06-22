@@ -32,7 +32,8 @@ enum ConversationState {
   newExpense
   expense
   expenses
-  transactions
+  newExchangeRate
+  summaryBudget
 }
 
 model Files {
@@ -78,7 +79,7 @@ model User {
   shareBooks     ShareBook[]
 }
 
-model ConversionRate {
+model ExchangeRate {
   id        Int      @id @default(autoincrement())
   from      String
   to        String
@@ -87,6 +88,7 @@ model ConversionRate {
   updatedAt DateTime @updatedAt
   book      Book     @relation(fields: [bookId], references: [id])
   bookId    Int
+  validFrom DateTime
 }
 
 model ShareBook {
@@ -100,20 +102,20 @@ model ShareBook {
 }
 
 model Book {
-  id              Int              @id @default(autoincrement())
-  title           String
-  ownerId         BigInt
-  owner           User             @relation(fields: [ownerId], references: [id])
-  shares          ShareBook[]
-  accounts        Account[]
-  categories      Category[]
-  expenses        Expense[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  conversionRates ConversionRate[]
-  chatGroups      ChatGroup[]
-  limits          Limit[]
-  incomes         Income[]
+  id            Int            @id @default(autoincrement())
+  title         String
+  ownerId       BigInt
+  owner         User           @relation(fields: [ownerId], references: [id])
+  shares        ShareBook[]
+  accounts      Account[]
+  categories    Category[]
+  expenses      Expense[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  exchangeRates ExchangeRate[]
+  chatGroups    ChatGroup[]
+  limits        Limit[]
+  incomes       Income[]
 }
 
 model Account {

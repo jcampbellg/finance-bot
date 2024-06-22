@@ -11,6 +11,8 @@ import { categoriesOnCallbackQuery, categoriesOnText } from '@conversations/budg
 import { newExpenseOnCallbackQuery, newExpenseOnText } from '@conversations/newExpense'
 import { expenseOnCallbackQuery, expenseOnText } from '@conversations/expense'
 import { incomesOnCallbackQuery, incomesOnText } from '@conversations/budget/incomes'
+import { exchangeRatesOnText } from '@conversations/exchangeRates'
+import { summaryBudgetOnText } from '@conversations/summary'
 
 dotenv.config()
 
@@ -91,6 +93,21 @@ bot.on('message', async (msg) => {
 
   if (conversation.state === 'expense') {
     await expenseOnText({
+      bot,
+      msg: msg as MessageFromPrivate
+    })
+    return
+  }
+
+  if (conversation.state === 'summaryBudget') {
+    await summaryBudgetOnText({
+      bot,
+      msg: msg as MessageFromPrivate
+    })
+  }
+
+  if (conversation.state === 'newExchangeRate') {
+    await exchangeRatesOnText({
       bot,
       msg: msg as MessageFromPrivate
     })
