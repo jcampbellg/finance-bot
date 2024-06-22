@@ -28,6 +28,22 @@ export type CategoryWithLimits = Prisma.CategoryGetPayload<{
   }
 }>
 
+export type CategoryWithLimitsAndExpenses = Prisma.CategoryGetPayload<{
+  include: {
+    limits: {
+      include: {
+        amount: true
+      }
+    },
+    expenses: {
+      include: {
+        amount: true
+        account: true
+      }
+    }
+  }
+}>
+
 export type IncomeWithSalary = Prisma.IncomeGetPayload<{
   include: {
     salary: {

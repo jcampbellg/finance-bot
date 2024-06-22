@@ -4,8 +4,9 @@ import { booksOnStart } from '@conversations/books'
 import { onboardingOnStart } from '@conversations/onboarding'
 import { budgetOnStart } from '@conversations/budget'
 import { newExpenseOnStart } from '@conversations/newExpense'
-import { summaryBudgetOnStart } from '@conversations/summary'
+import { summaryBudgetOnStart } from '@conversations/summaryBudget'
 import { exchangeRatesOnStart } from './exchangeRates'
+import { summaryExpensesOnStart } from './summaryExpenses'
 
 export async function waitingForCommandOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
@@ -55,6 +56,11 @@ export default async function waitingForCommand({ bot, msg }: MsgProps) {
 
   if (text === '/resumen_presupuesto') {
     await summaryBudgetOnStart({ bot, msg })
+    return
+  }
+
+  if (text === '/resumen_gastos') {
+    await summaryExpensesOnStart({ bot, msg })
     return
   }
 

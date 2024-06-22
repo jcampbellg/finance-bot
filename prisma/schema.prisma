@@ -34,6 +34,7 @@ enum ConversationState {
   expenses
   newExchangeRate
   summaryBudget
+  summaryExpenses
 }
 
 model Files {
