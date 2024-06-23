@@ -33,6 +33,7 @@ enum ConversationState {
   expense
   expenses
   newExchangeRate
+  summary
   summaryBudget
   summaryExpenses
 }

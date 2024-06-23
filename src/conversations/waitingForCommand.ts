@@ -7,6 +7,7 @@ import { newExpenseOnStart } from '@conversations/newExpense'
 import { summaryBudgetOnStart } from '@conversations/summaryBudget'
 import { exchangeRatesOnStart } from './exchangeRates'
 import { summaryExpensesOnStart } from './summaryExpenses'
+import { summaryOnStart } from './summary'
 
 export async function waitingForCommandOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number
@@ -51,6 +52,11 @@ export default async function waitingForCommand({ bot, msg }: MsgProps) {
 
   if (text === '/nueva') {
     await newExpenseOnStart({ bot, msg })
+    return
+  }
+
+  if (text === '/resumen') {
+    await summaryOnStart({ bot, msg })
     return
   }
 

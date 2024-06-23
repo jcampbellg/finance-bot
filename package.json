@@ -37,6 +37,7 @@
     "openai": "^4.40.2",
     "pdf-creator-node": "^2.3.5",
     "pdfkit": "^0.15.0",
+    "pdfmake": "0.3.0-beta.1",
     "pureimage": "^0.4.13",
     "stream": "^0.0.2",
     "universal-emoji-parser": "^1.0.127",

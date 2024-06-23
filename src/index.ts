@@ -14,6 +14,7 @@ import { incomesOnCallbackQuery, incomesOnText } from '@conversations/budget/inc
 import { exchangeRatesOnText } from '@conversations/exchangeRates'
 import { summaryBudgetOnText } from '@conversations/summaryBudget'
 import { summaryExpensesOnText } from '@conversations/summaryExpenses'
+import { summaryOnCallbackQuery } from '@conversations/summary'
 
 dotenv.config()
 
@@ -192,6 +193,13 @@ bot.on('callback_query', async (query) => {
 
   if (conversation.state === 'expense') {
     expenseOnCallbackQuery({
+      bot,
+      query: query as QueryFromPrivate
+    })
+  }
+
+  if (conversation.state === 'summary') {
+    summaryOnCallbackQuery({
       bot,
       query: query as QueryFromPrivate
     })
