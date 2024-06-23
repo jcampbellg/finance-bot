@@ -204,8 +204,12 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         return accumulator + (amount * exchangeRate)
       }, 0)
 
+      const hasExceeded = totalInLimitCurrency > cat.limits[0].amount.amount
+
       return [
-        description,
+        {
+          text: [description, { text: hasExceeded ? '\nLimite excedido' : '', bold: true, color: 'red' }],
+        },
         {
           layout: 'noBorders',
           table: {
