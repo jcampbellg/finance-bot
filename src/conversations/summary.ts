@@ -12,7 +12,6 @@ import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import emojiRegex from 'emoji-regex'
 import numeral from 'numeral'
-import { layout, width } from 'pdfkit/js/page'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -168,7 +167,13 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     }
   })
 
-  const categoriesSummary: TableCell[][] = categories.filter(c => !c.isPayment).map(cat => {
+  const noCategoryExpenses = {
+    description: 'Gastos sin categoría',
+    limits: [],
+    expenses: expensesWithNoCategory
+  }
+
+  const categoriesSummary: TableCell[][] = [noCategoryExpenses, ...categories.filter(c => !c.isPayment)].map(cat => {
     const description = cat.description.replace(regex, '').trim()
     const hasLimit = cat.limits.length > 0 && cat.limits[0].amount.amount > 0
 
@@ -253,6 +258,98 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     ]
   })
 
+  const paymentsSummary: TableCell[][] = categories.filter(c => c.isPayment).map(cat => {
+    const description = cat.description.replace(regex, '').trim()
+    const hasLimit = cat.limits.length > 0 && cat.limits[0].amount.amount > 0
+
+    const expensesWithCurrencies: Record<string, number> = cat.expenses.reduce((accumulator, exp) => {
+      const currency = exp.amount.currency
+      const amount = exp.amount.amount
+
+      return {
+        ...accumulator,
+        [currency]: (accumulator[currency] || 0) + amount
+      }
+    }, {} as Record<string, number>)
+
+    const expensesString = Object.keys(expensesWithCurrencies).map(currency => {
+      const amount = expensesWithCurrencies[currency]
+      return `${numeral(amount).format('0,0.00')} ${currency}`
+    })
+
+    const noExpenses = expensesString.length === 0
+
+    if (hasLimit) {
+      const limit = `${numeral(cat.limits[0].amount.amount).format('0,0.00')} ${cat.limits[0].amount.currency}`
+      const limitCurrency = cat.limits[0].amount.currency
+
+      const totalInLimitCurrency: number = cat.expenses.reduce((accumulator, exp) => {
+        const currency = exp.amount.currency
+        const amount = exp.amount.amount
+
+        const exchangeRate = exchangeRates.find(rate => rate.to === limitCurrency && rate.from === currency)?.amount || 1
+        return accumulator + (amount * exchangeRate)
+      }, 0)
+
+      const hasPaid = totalInLimitCurrency >= (cat.limits[0].amount.amount * 0.70)
+      const hasOverpaid = totalInLimitCurrency > cat.limits[0].amount.amount
+
+      return [
+        {
+          text: [description, { text: hasOverpaid ? '\nPagado de mas' : (hasPaid ? '\nPagado' : '\nSin Pagar'), bold: true, color: (!hasPaid || hasOverpaid) ? 'red' : 'green' }],
+        },
+        {
+          layout: 'noBorders',
+          table: {
+            widths: ['*'],
+            body: [
+              ...expensesString.map(exp => [exp]),
+              [{
+                table: {
+                  widths: ['*', 'auto', '*'],
+                  body: [
+                    [
+                      {
+                        text: `${numeral(totalInLimitCurrency).format('0,0.00')} ${limitCurrency}`,
+                        bold: false,
+                        alignment: 'left',
+                        border: [false, !noExpenses, false, false]
+                      },
+                      {
+                        text: '/',
+                        alignment: 'center',
+                        border: [false, !noExpenses, false, false]
+                      },
+                      {
+                        text: limit,
+                        bold: true,
+                        alignment: 'right',
+                        border: [false, !noExpenses, false, false]
+                      }
+                    ]
+                  ]
+                },
+              }]
+            ],
+          }
+        }
+      ]
+    }
+
+    return [
+      description,
+      {
+        layout: 'noBorders',
+        table: {
+          widths: ['*'],
+          body: [
+            ...expensesString.map(exp => [exp]),
+          ],
+        }
+      }
+    ]
+  })
+
   const filepath = 'src/assets/' + Math.random().toString(36).substring(7) + '.pdf'
   const stream = blobStream()
   const printer = new PdfPrinter(fonts)
@@ -278,13 +375,35 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         font: 'RobotoMono',
         table: {
           headerRows: 1,
-          widths: ['*', 'auto'],
+          widths: ['*', '*'],
           body: [
             [
               { text: 'Categoría', bold: true },
               { text: 'Gastos / Limite', bold: true }
             ],
             ...categoriesSummary,
+          ]
+        }
+      },
+      {
+        font: 'RobotoMono',
+        fontSize: 16,
+        alignment: 'center',
+        text: `Pagos Fijos`,
+        marginBottom: 5,
+        marginTop: 10
+      },
+      {
+        font: 'RobotoMono',
+        table: {
+          headerRows: 1,
+          widths: ['*', '*'],
+          body: [
+            [
+              { text: 'Descripción', bold: true },
+              { text: 'Pagos / Deuda', bold: true }
+            ],
+            ...paymentsSummary,
           ]
         }
       }
