@@ -15,11 +15,8 @@ const commands = [
     command: 'cambio',
     description: 'Crear un cambio de moneda'
   }, {
-    command: 'resumen_presupuesto',
-    description: 'Resumen de tu presupuesto mensual'
-  }, {
-    command: 'resumen_gastos',
-    description: 'Resumen de tus transacciones'
+    command: 'resumen',
+    description: 'Resumen de tu presupuesto y gastos del mes'
   }
 ]
 
