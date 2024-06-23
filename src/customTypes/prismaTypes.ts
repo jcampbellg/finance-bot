@@ -8,6 +8,10 @@ export type ExpenseWithAmount = Prisma.ExpenseGetPayload<{
   include: { amount: true }
 }>
 
+export type ExpenseWithAmountAndAccount = Prisma.ExpenseGetPayload<{
+  include: { amount: true, account: true }
+}>
+
 export type ExpenseWithAll = Prisma.ExpenseGetPayload<{
   include: {
     account: true,

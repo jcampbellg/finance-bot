@@ -2,7 +2,7 @@ import { MsgAndQueryProps, QueryProps } from '@customTypes/messageTypes'
 import auth from '@utils/auth'
 import { prisma } from '@utils/prisma'
 import PdfPrinter from 'pdfmake'
-import { TDocumentDefinitions } from 'pdfmake/interfaces'
+import { TableCell, TDocumentDefinitions } from 'pdfmake/interfaces'
 import fs from 'fs'
 import blobStream from 'blob-stream'
 import dayjs from 'dayjs'
@@ -10,6 +10,9 @@ import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
+import emojiRegex from 'emoji-regex'
+import numeral from 'numeral'
+import { layout, width } from 'pdfkit/js/page'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -81,12 +84,20 @@ type CreatePDFProps = QueryProps & {
 
 const fonts = {
   Roboto: {
-    normal: 'src/assets/font/Roboto-Regular.ttf',
-    bold: 'src/assets/font/Roboto-Bold.ttf',
-    italics: 'src/assets/font/Roboto-Italic.ttf',
-    bolditalics: 'src/assets/font/Roboto-BoldItalic.ttf'
+    normal: 'src/assets/fonts/roboto/Roboto-Regular.ttf',
+    bold: 'src/assets/fonts/roboto/Roboto-Bold.ttf',
+    italics: 'src/assets/fonts/roboto/Roboto-Italic.ttf',
+    bolditalics: 'src/assets/fonts/roboto/Roboto-BoldItalic.ttf'
+  },
+  RobotoMono: {
+    normal: 'src/assets/fonts/robotomono/RobotoMono-Regular.ttf',
+    bold: 'src/assets/fonts/robotomono/RobotoMono-Bold.ttf',
+    italics: 'src/assets/fonts/robotomono/RobotoMono-Italic.ttf',
+    bolditalics: 'src/assets/fonts/robotomono/RobotoMono-BoldItalic.ttf'
   }
 }
+
+const regex = emojiRegex()
 
 async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
   const { user, book, userId } = await auth({ bot, query } as MsgAndQueryProps)
@@ -98,8 +109,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
 
   const categories = await prisma.category.findMany({
     where: {
-      bookId: book.id,
-      isPayment: false,
+      bookId: book.id
     },
     orderBy: {
       description: 'asc'
@@ -113,6 +123,9 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         },
         include: {
           amount: true
+        },
+        orderBy: {
+          createdAt: 'desc'
         }
       },
       expenses: {
@@ -128,41 +141,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         }
       }
     }
-  }).then(cats => cats.filter(cat => cat.expenses.length > 0))
-
-  const payments = await prisma.category.findMany({
-    where: {
-      bookId: book.id,
-      isPayment: true
-    },
-    orderBy: {
-      description: 'asc'
-    },
-    include: {
-      limits: {
-        where: {
-          validFrom: {
-            lte: monthStart.format()
-          }
-        },
-        include: {
-          amount: true
-        }
-      },
-      expenses: {
-        where: {
-          createdAt: {
-            gte: monthStart.format(),
-            lte: monthEnd.format()
-          }
-        },
-        include: {
-          amount: true,
-          account: true
-        }
-      }
-    }
-  }).then(cats => cats.filter(cat => cat.expenses.length > 0))
+  })
 
   const expensesWithNoCategory = await prisma.expense.findMany({
     where: {
@@ -189,14 +168,125 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     }
   })
 
+  const categoriesSummary: TableCell[][] = categories.filter(c => !c.isPayment).map(cat => {
+    const description = cat.description.replace(regex, '').trim()
+    const hasLimit = cat.limits.length > 0 && cat.limits[0].amount.amount > 0
+
+    const expensesWithCurrencies: Record<string, number> = cat.expenses.reduce((accumulator, exp) => {
+      const currency = exp.amount.currency
+      const amount = exp.amount.amount
+
+      return {
+        ...accumulator,
+        [currency]: (accumulator[currency] || 0) + amount
+      }
+    }, {} as Record<string, number>)
+
+    const expensesString = Object.keys(expensesWithCurrencies).map(currency => {
+      const amount = expensesWithCurrencies[currency]
+      return `${numeral(amount).format('0,0.00')} ${currency}`
+    })
+
+    if (hasLimit) {
+      const limit = `${numeral(cat.limits[0].amount.amount).format('0,0.00')} ${cat.limits[0].amount.currency}`
+      const limitCurrency = cat.limits[0].amount.currency
+
+      const totalInLimitCurrency: number = cat.expenses.reduce((accumulator, exp) => {
+        const currency = exp.amount.currency
+        const amount = exp.amount.amount
+
+        const exchangeRate = exchangeRates.find(rate => rate.to === limitCurrency && rate.from === currency)?.amount || 1
+        return accumulator + (amount * exchangeRate)
+      }, 0)
+
+      return [
+        description,
+        {
+          layout: 'noBorders',
+          table: {
+            widths: ['*'],
+            body: [
+              ...expensesString.map(exp => [exp]),
+              [{
+                table: {
+                  widths: ['*', 'auto', '*'],
+                  body: [
+                    [
+                      {
+                        text: `${numeral(totalInLimitCurrency).format('0,0.00')} ${limitCurrency}`,
+                        bold: false,
+                        alignment: 'left',
+                        border: [false, true, false, false]
+                      },
+                      {
+                        text: '/',
+                        alignment: 'center',
+                        border: [false, true, false, false]
+                      },
+                      {
+                        text: limit,
+                        bold: true,
+                        alignment: 'right',
+                        border: [false, true, false, false]
+                      }
+                    ]
+                  ]
+                },
+              }]
+            ],
+          }
+        }
+      ]
+    }
+
+    return [
+      description,
+      {
+        layout: 'noBorders',
+        table: {
+          widths: ['*'],
+          body: [
+            ...expensesString.map(exp => [exp]),
+          ],
+        }
+      }
+    ]
+  })
+
   const filepath = 'src/assets/' + Math.random().toString(36).substring(7) + '.pdf'
   const stream = blobStream()
   const printer = new PdfPrinter(fonts)
   const docDefinition: TDocumentDefinitions = {
+    pageSize: 'LETTER',
     content: [
       {
-        fontSize: 18,
-        text: `Resumen de ${monthStart.format('MMMM YYYY')}`,
+        font: 'Roboto',
+        bold: true,
+        fontSize: 22,
+        marginBottom: 20,
+        alignment: 'center',
+        text: `Resumen de ${monthStart.format('MMMM YYYY')}`
+      },
+      {
+        font: 'RobotoMono',
+        fontSize: 16,
+        alignment: 'center',
+        text: `Categorías`,
+        marginBottom: 5
+      },
+      {
+        font: 'RobotoMono',
+        table: {
+          headerRows: 1,
+          widths: ['*', 'auto'],
+          body: [
+            [
+              { text: 'Categoría', bold: true },
+              { text: 'Gastos / Limite', bold: true }
+            ],
+            ...categoriesSummary,
+          ]
+        }
       }
     ]
   }
