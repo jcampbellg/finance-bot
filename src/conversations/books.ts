@@ -169,7 +169,7 @@ export async function booksOnText({ bot, msg }: MsgProps) {
       await bot.sendMessage(userId, `Libro contable renombrado:\n\n<s>${bookToEdit.title}</s>\n<b>${text}</b>`, {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: bookButtons(bookToEdit.owner.bookSelectedId === bookToEdit.id)
+          inline_keyboard: bookButtons(user.bookSelectedId !== bookToEdit.id)
         }
       })
       return
@@ -261,7 +261,7 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
     await bot.sendMessage(userId, `Editar <b>${book.title}</b>:`, {
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: bookButtons(book.owner.bookSelectedId !== book.id)
+        inline_keyboard: bookButtons(user.bookSelectedId !== book.id)
       }
     })
     return
@@ -364,7 +364,7 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
         await bot.sendMessage(userId, `El libro contable "<b>${bookToEdit.title}</b>" no te pertenece.\n\n<i>No se puede eliminar.</i>`, {
           parse_mode: 'HTML',
           reply_markup: {
-            inline_keyboard: bookButtons(false)
+            inline_keyboard: bookButtons(user.bookSelectedId !== bookToEdit.id)
           }
         })
         return
@@ -385,7 +385,7 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
       await bot.sendMessage(userId, `Editar <b>${bookToEdit.title}</b>:`, {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: bookButtons(true)
+          inline_keyboard: bookButtons(user.bookSelectedId !== bookToEdit.id)
         }
       })
       return

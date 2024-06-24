@@ -434,9 +434,10 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         const amount = exp.amount.amount
         const date = dayjs(exp.createdAt).tz(user.timezone).format('LL hh:mma')
         const account = exp.account.description.replace(regex, '').trim()
+        const description = exp.description.replace(regex, '').trim()
 
         return [{
-          text: [exp.description, { text: `\n${date}\n${account}`, italics: true, fontSize: 10, color: '#666666' }],
+          text: [description, { text: `\n${date}\n${account}`, italics: true, fontSize: 10, color: '#666666' }],
         }, `${numeral(amount).format('0,0.00')} ${currency}`]
       })
     ]
@@ -461,7 +462,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         fontSize: 16,
         marginBottom: 20,
         alignment: 'left',
-        text: `${book.title}\nGenerado el ${dayjs().tz(user.timezone).format('LL hh:mma')}`
+        text: `${book.title.replace(regex, '')}\nGenerado el ${dayjs().tz(user.timezone).format('LL hh:mma')}`
       },
       {
         marginBottom: 10,
