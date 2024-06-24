@@ -34,9 +34,9 @@ export async function summaryOnStart({ bot, msg, query }: MsgAndQueryProps) {
     }
   })
 
-  const prevMonth = dayjs().utc().startOf('month').subtract(1, 'month')
-  const thisMonth = dayjs().utc().startOf('month')
-  const nextMonth = dayjs().utc().startOf('month').add(1, 'month')
+  const prevMonth = dayjs().tz(user.timezone).startOf('month').subtract(1, 'month')
+  const thisMonth = dayjs().tz(user.timezone).startOf('month')
+  const nextMonth = dayjs().tz(user.timezone).startOf('month').add(1, 'month')
 
   await bot.sendMessage(userId, '¿Qué mes deseas ver?', {
     reply_markup: {
@@ -71,7 +71,7 @@ export async function summaryOnCallbackQuery({ bot, query }: QueryProps) {
     }
   })
 
-  await bot.sendMessage(userId, `<i>Generando resumen de ${dayjs(query.data).utc().format('MMMM YYYY')}</i>`, {
+  await bot.sendMessage(userId, `<i>Generando resumen de ${dayjs(query.data).tz(user.timezone).format('MMMM YYYY')}</i>`, {
     parse_mode: 'HTML'
   })
 
@@ -113,6 +113,11 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     },
     include: {
       salary: {
+        where: {
+          validFrom: {
+            lte: monthTZStart.format()
+          }
+        },
         include: {
           amount: true
         },
@@ -214,70 +219,57 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
       return `${numeral(amount).format('0,0.00')} ${currency}`
     })
 
-    if (hasLimit) {
-      const limit = `${numeral(cat.limits[0].amount.amount).format('0,0.00')} ${cat.limits[0].amount.currency}`
-      const limitCurrency = cat.limits[0].amount.currency
+    const limit = hasLimit && `${numeral(cat.limits[0].amount.amount).format('0,0.00')} ${cat.limits[0].amount.currency}`
+    const limitCurrency = hasLimit ? cat.limits[0].amount.currency : ''
 
-      const totalInLimitCurrency: number = cat.expenses.reduce((accumulator, exp) => {
-        const currency = exp.amount.currency
-        const amount = exp.amount.amount
+    const totalInLimitCurrency: number = hasLimit ? cat.expenses.reduce((accumulator, exp) => {
+      const currency = exp.amount.currency
+      const amount = exp.amount.amount
 
-        const exchangeRate = exchangeRates.find(rate => rate.to === limitCurrency && rate.from === currency)?.amount || 1
-        return accumulator + (amount * exchangeRate)
-      }, 0)
+      const exchangeRate = exchangeRates.find(rate => rate.to === limitCurrency && rate.from === currency)?.amount || 1
+      return accumulator + (amount * exchangeRate)
+    }, 0) : 0
 
-      const hasExceeded = totalInLimitCurrency > cat.limits[0].amount.amount
+    const hasExceeded = hasLimit ? totalInLimitCurrency > cat.limits[0].amount.amount : false
 
-      return [
-        {
-          text: [description, { text: hasExceeded ? '\nLimite excedido' : '', bold: true, color: 'red' }],
-        },
-        {
-          layout: 'noBorders',
-          table: {
-            widths: ['*'],
-            body: [
-              ...expensesString.map(exp => [exp]),
-              [{
-                table: {
-                  widths: ['*', 'auto', '*'],
-                  body: [
-                    [
-                      {
-                        text: `${numeral(totalInLimitCurrency).format('0,0.00')} ${limitCurrency}`,
-                        bold: false,
-                        alignment: 'left',
-                        border: [false, true, false, false]
-                      },
-                      {
-                        text: '/',
-                        alignment: 'center',
-                        border: [false, true, false, false]
-                      },
-                      {
-                        text: limit,
-                        bold: true,
-                        alignment: 'right',
-                        border: [false, true, false, false]
-                      }
-                    ]
-                  ]
-                },
-              }]
-            ],
-          }
-        }
-      ]
-    }
+    const limitSumTable = hasLimit ? [{
+      table: {
+        widths: ['*', 'auto', '*'],
+        body: [
+          [
+            {
+              text: `${numeral(totalInLimitCurrency).format('0,0.00')} ${limitCurrency}`,
+              bold: false,
+              alignment: 'left',
+              border: [false, true, false, false]
+            },
+            {
+              text: '/',
+              alignment: 'center',
+              border: [false, true, false, false]
+            },
+            {
+              text: limit,
+              bold: true,
+              alignment: 'right',
+              border: [false, true, false, false]
+            }
+          ]
+        ]
+      }
+    }] : []
 
     return [
-      description,
+      {
+        text: [description, { text: hasExceeded ? '\nLimite excedido' : '', bold: true, color: 'red' }],
+      },
       {
         layout: 'noBorders',
         table: {
           widths: ['*'],
           body: [
-            ...expensesString.map(exp => [exp]),
+            ...(expensesString.length > 0 ? expensesString.map(exp => [exp]) : [['No hay gastos registrados']]),
+            ...(hasLimit ? [limitSumTable] : []),
           ],
         }
       }
@@ -303,73 +295,58 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
       return `${numeral(amount).format('0,0.00')} ${currency}`
     })
 
-    const noExpenses = expensesString.length === 0
+    const limit = hasLimit && `${numeral(cat.limits[0].amount.amount).format('0,0.00')} ${cat.limits[0].amount.currency}`
+    const limitCurrency = hasLimit ? cat.limits[0].amount.currency : ''
 
-    if (hasLimit) {
-      const limit = `${numeral(cat.limits[0].amount.amount).format('0,0.00')} ${cat.limits[0].amount.currency}`
-      const limitCurrency = cat.limits[0].amount.currency
+    const totalInLimitCurrency: number = hasLimit ? cat.expenses.reduce((accumulator, exp) => {
+      const currency = exp.amount.currency
+      const amount = exp.amount.amount
 
-      const totalInLimitCurrency: number = cat.expenses.reduce((accumulator, exp) => {
-        const currency = exp.amount.currency
-        const amount = exp.amount.amount
+      const exchangeRate = exchangeRates.find(rate => rate.to === limitCurrency && rate.from === currency)?.amount || 1
+      return accumulator + (amount * exchangeRate)
+    }, 0) : 0
 
-        const exchangeRate = exchangeRates.find(rate => rate.to === limitCurrency && rate.from === currency)?.amount || 1
-        return accumulator + (amount * exchangeRate)
-      }, 0)
+    const hasPaid = hasLimit ? totalInLimitCurrency >= cat.limits[0].amount.amount * 0.65 : false
+    const hasExceeded = hasLimit ? totalInLimitCurrency > cat.limits[0].amount.amount : false
 
-      const hasPaid = totalInLimitCurrency >= (cat.limits[0].amount.amount * 0.70)
-      const hasOverpaid = totalInLimitCurrency > cat.limits[0].amount.amount
-
-      return [
-        {
-          text: [description, { text: hasOverpaid ? '\nPagado de mas' : (hasPaid ? '\nPagado' : '\nSin Pagar'), bold: true, color: (!hasPaid || hasOverpaid) ? 'red' : 'green' }],
-        },
-        {
-          layout: 'noBorders',
-          table: {
-            widths: ['*'],
-            body: [
-              ...expensesString.map(exp => [exp]),
-              [{
-                table: {
-                  widths: ['*', 'auto', '*'],
-                  body: [
-                    [
-                      {
-                        text: `${numeral(totalInLimitCurrency).format('0,0.00')} ${limitCurrency}`,
-                        bold: false,
-                        alignment: 'left',
-                        border: [false, !noExpenses, false, false]
-                      },
-                      {
-                        text: '/',
-                        alignment: 'center',
-                        border: [false, !noExpenses, false, false]
-                      },
-                      {
-                        text: limit,
-                        bold: true,
-                        alignment: 'right',
-                        border: [false, !noExpenses, false, false]
-                      }
-                    ]
-                  ]
-                },
-              }]
-            ],
-          }
-        }
-      ]
-    }
+    const limitSumTable = hasLimit ? [{
+      table: {
+        widths: ['*', 'auto', '*'],
+        body: [
+          [
+            {
+              text: `${numeral(totalInLimitCurrency).format('0,0.00')} ${limitCurrency}`,
+              bold: false,
+              alignment: 'left',
+              border: [false, true, false, false]
+            },
+            {
+              text: '/',
+              alignment: 'center',
+              border: [false, true, false, false]
+            },
+            {
+              text: limit,
+              bold: true,
+              alignment: 'right',
+              border: [false, true, false, false]
+            }
+          ]
+        ]
+      }
+    }] : []
 
     return [
-      description,
+      {
+        text: [description, { text: !hasLimit ? '' : (hasExceeded ? '\nPago de mas' : (hasPaid ? '\nPagado' : '\nSin pagar')), bold: true, color: hasExceeded || !hasPaid ? 'red' : 'green' }],
+      },
       {
         layout: 'noBorders',
         table: {
           widths: ['*'],
           body: [
-            ...expensesString.map(exp => [exp]),
+            ...(expensesString.length > 0 ? expensesString.map(exp => [exp]) : [['No hay pagos registrados']]),
+            ...(hasLimit ? [limitSumTable] : []),
           ],
         }
       }
@@ -428,7 +405,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
             ],
             [
               { text: 'Categoría', bold: true },
-              { text: 'Gastos / Limite', bold: true }
+              { text: 'Gastos por moneda / Limite', bold: true }
             ],
             ...(categoriesSummary.length > 0 ? categoriesSummary : [[{ text: 'No hay categorías registradas', colSpan: 2, alignment: 'center' }, {}]]),
           ]
@@ -447,7 +424,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
             ],
             [
               { text: 'Descripción', bold: true },
-              { text: 'Pagos / Deuda', bold: true }
+              { text: 'Pagos por moneda / Deuda', bold: true }
             ],
             ...(paymentsSummary.length > 0 ? paymentsSummary : [[{ text: 'No hay pagos registrados', colSpan: 2, alignment: 'center' }, {}]]),
           ]

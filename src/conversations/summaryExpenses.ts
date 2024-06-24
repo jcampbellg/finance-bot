@@ -95,7 +95,7 @@ export async function summaryExpensesCreatePDF({ bot, msg, query }: MsgAndQueryP
   if (!user) return
   if (!book) return
 
-  const summaryMonth = dayjs().utc().startOf('month')
+  const summaryMonth = dayjs().tz(user.timezone).startOf('month')
 
   const categories = await prisma.category.findMany({
     where: {
