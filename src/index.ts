@@ -14,7 +14,7 @@ import { incomesOnCallbackQuery, incomesOnText } from '@conversations/budget/inc
 import { exchangeRatesOnText } from '@conversations/exchangeRates'
 import { summaryOnCallbackQuery } from '@conversations/summary'
 import { searchExpenseOnCallbackQuery, searchExpenseOnText } from '@conversations/searchExpense'
-import { shareOnCallbackQuery } from '@conversations/share'
+import { shareOnCallbackQuery, shareOnText } from '@conversations/share'
 import { groupOnText } from '@conversations/group'
 
 dotenv.config()
@@ -120,6 +120,14 @@ bot.on('message', async (msg) => {
 
   if (conversation.state === 'searchExpense') {
     await searchExpenseOnText({
+      bot,
+      msg: msg as MessageFromPrivate
+    })
+    return
+  }
+
+  if (conversation.state === 'share') {
+    await shareOnText({
       bot,
       msg: msg as MessageFromPrivate
     })

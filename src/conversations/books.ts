@@ -88,7 +88,12 @@ export async function booksOnText({ bot, msg }: MsgProps) {
     const newBook = await prisma.book.create({
       data: {
         title: text,
-        ownerId: userId
+        ownerId: userId,
+        accounts: {
+          create: {
+            description: 'Efectivo'
+          }
+        }
       }
     })
 
@@ -120,7 +125,6 @@ export async function booksOnText({ bot, msg }: MsgProps) {
     const bookToEdit = await prisma.book.findUnique({
       where: {
         id: bookId,
-        ownerId: userId
       },
       include: {
         owner: true
@@ -242,7 +246,6 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
     const book = await prisma.book.findUnique({
       where: {
         id: bookId,
-        ownerId: userId
       },
       include: {
         owner: true
@@ -268,7 +271,6 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
     const bookToEdit = await prisma.book.findUnique({
       where: {
         id: conversationData.bookId || 0,
-        ownerId: userId
       },
       include: {
         owner: true
@@ -358,6 +360,16 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
         return
       }
 
+      if (Number(bookToEdit.ownerId) !== userId) {
+        await bot.sendMessage(userId, `El libro contable "<b>${bookToEdit.title}</b>" no te pertenece.\n\n<i>No se puede eliminar.</i>`, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: bookButtons(false)
+          }
+        })
+        return
+      }
+
       await bot.sendMessage(userId, `¿Estás seguro de eliminar el libro contable "<b>${bookToEdit.title}</b>"?\n\n<i>Se eliminaran todas tus cuentas y transacciones vinculadas a este libro.</i>`, {
         parse_mode: 'HTML',
         reply_markup: {
@@ -392,12 +404,6 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
         }
       })
 
-      await prisma.chatGroup.deleteMany({
-        where: {
-          bookId: conversationData.bookId
-        }
-      })
-
       await prisma.expense.deleteMany({
         where: {
           bookId: conversationData.bookId
@@ -406,7 +412,17 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
 
       await prisma.limit.deleteMany({
         where: {
-          bookId: conversationData.bookId
+          category: {
+            bookId: conversationData.bookId
+          }
+        }
+      })
+
+      await prisma.salary.deleteMany({
+        where: {
+          income: {
+            bookId: conversationData.bookId
+          }
         }
       })
 
