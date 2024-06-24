@@ -200,7 +200,9 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     id: 0
   }
 
-  const categoriesSummary: TableCell[][] = [...(expensesWithNoCategory.length > 0 ? [noCategoryExpenses] : []), ...categories.filter(c => !c.isPayment)].map(cat => {
+  const allCategories = [...(expensesWithNoCategory.length > 0 ? [noCategoryExpenses] : []), ...categories]
+
+  const categoriesSummary: TableCell[][] = allCategories.map(cat => {
     const description = cat.description.replace(regex, '').trim()
     const hasLimit = cat.limits.length > 0 && cat.limits[0].amount.amount > 0
 
@@ -371,6 +373,73 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     ]
   })
 
+  const byCurrencyExpenses = allCategories.reduce((accumulator, cat) => {
+    const expenses = cat.expenses.reduce((acc, exp) => {
+      return { ...acc, [exp.amount.currency]: (acc[exp.amount.currency] || 0) + exp.amount.amount }
+    }, {} as Record<string, number>)
+
+    return { ...accumulator, ...expenses }
+  }, {} as Record<string, number>)
+
+  const byCurrencyLimits = allCategories.reduce((accumulator, cat) => {
+    if (cat.limits.length === 0) return accumulator
+
+    const limit = cat.limits[0].amount
+    return { ...accumulator, [limit.currency]: (accumulator[limit.currency] || 0) + limit.amount }
+  }, {} as Record<string, number>)
+
+  const byCurrencyIncomes = incomes.reduce((accumulator, inc) => {
+    if (inc.salary.length === 0) return accumulator
+
+    const salary = inc.salary[0].amount
+    return { ...accumulator, [salary.currency]: (accumulator[salary.currency] || 0) + salary.amount }
+  }, {} as Record<string, number>)
+
+  const allCoins = [...Object.keys(byCurrencyLimits), ...Object.keys(byCurrencyIncomes), ...Object.keys(byCurrencyExpenses)].filter((value, index, self) => self.indexOf(value) === index)
+
+  const budgetSummary: TableCell[][] = allCoins.map(coin => {
+    const income = Object.keys(byCurrencyIncomes).reduce((accumulator, inc) => {
+      const currency = inc
+      const amount = byCurrencyIncomes[inc]
+
+      const exchangeRate = exchangeRates.find(rate => rate.to === coin && rate.from === currency)?.amount || 1
+      return accumulator + (amount * exchangeRate)
+    }, 0)
+
+    const limits = Object.keys(byCurrencyLimits).reduce((accumulator, inc) => {
+      const currency = inc
+      const amount = byCurrencyLimits[inc]
+
+      const exchangeRate = exchangeRates.find(rate => rate.to === coin && rate.from === currency)?.amount || 1
+      return accumulator + (amount * exchangeRate)
+    }, 0)
+
+    const totalBudget = income - limits
+    return [
+      [{ text: coin, bold: true, colSpan: 2, style: { fillColor: '#d3d3d3' } }, {}],
+      ['Ingresos (+)', `${numeral(income).format('0,0.00')} ${coin}`],
+      ['Limites y Pagos (-)', `${numeral(limits).format('0,0.00')} ${coin}`],
+      [{ text: `Disponible`, bold: true }, { text: `${numeral(totalBudget).format('0,0.00')} ${coin}`, bold: true, style: {} }],
+    ]
+  }).reduce((acc, curr) => [...acc, ...curr], [])
+
+  const allExpesesSummary: TableCell[][] = allCategories.map(cat => {
+    const description = cat.description.replace(regex, '').trim()
+    return [
+      [{ text: description, bold: true, colSpan: 2, style: { fillColor: '#f2f2f2' } }, {}],
+      ...cat.expenses.map(exp => {
+        const currency = exp.amount.currency
+        const amount = exp.amount.amount
+        const date = dayjs(exp.createdAt).tz(user.timezone).format('LL hh:mma')
+        const account = exp.account.description.replace(regex, '').trim()
+
+        return [{
+          text: [exp.description, { text: `\n${date}\n${account}`, italics: true, fontSize: 10, color: '#666666' }],
+        }, `${numeral(amount).format('0,0.00')} ${currency}`]
+      })
+    ]
+  }).reduce((acc, curr) => [...acc, ...curr], [])
+
   const filepath = 'src/assets/' + Math.random().toString(36).substring(7) + '.pdf'
   const stream = blobStream()
   const printer = new PdfPrinter(fonts)
@@ -390,11 +459,32 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         fontSize: 16,
         marginBottom: 20,
         alignment: 'left',
-        text: `${book.title}`
+        text: `${book.title}\nGenerado el ${dayjs().tz(user.timezone).format('LL hh:mma')}`
       },
       {
         marginBottom: 10,
         font: 'RobotoMono',
+        layout: 'lightHorizontalLines',
+        table: {
+          headerRows: 1,
+          widths: ['*', '*'],
+          body: [
+            [
+              { text: 'PRESUPUESTO POR MONEDA CON CAMBIO', bold: true, colSpan: 2, alignment: 'center' },
+              {}
+            ],
+            [
+              { text: 'Asegurarse de tener los cambios de moneda establecidos para tener los valores convertidos correctamente. Utiliza /cambio para configurarlos.', fontSize: 10, italics: true, colSpan: 2, alignment: 'left' },
+              {}
+            ],
+            ...budgetSummary
+          ]
+        }
+      },
+      {
+        marginBottom: 10,
+        font: 'RobotoMono',
+        layout: 'lightHorizontalLines',
         table: {
           headerRows: 2,
           widths: ['*', '*'],
@@ -404,8 +494,8 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
               {}
             ],
             [
-              { text: 'Categoría', bold: true },
-              { text: 'Gastos por moneda / Limite', bold: true }
+              { text: 'Categoría', bold: true, style: { fillColor: '#d3d3d3' } },
+              { text: 'Gastos por moneda / Limite', bold: true, style: { fillColor: '#d3d3d3' } }
             ],
             ...(categoriesSummary.length > 0 ? categoriesSummary : [[{ text: 'No hay categorías registradas', colSpan: 2, alignment: 'center' }, {}]]),
           ]
@@ -414,6 +504,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
       {
         marginBottom: 10,
         font: 'RobotoMono',
+        layout: 'lightHorizontalLines',
         table: {
           headerRows: 2,
           widths: ['*', '*'],
@@ -423,16 +514,17 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
               {}
             ],
             [
-              { text: 'Descripción', bold: true },
-              { text: 'Pagos por moneda / Deuda', bold: true }
+              { text: 'Descripción', bold: true, style: { fillColor: '#d3d3d3' } },
+              { text: 'Pagos por moneda / Deuda', bold: true, style: { fillColor: '#d3d3d3' } }
             ],
             ...(paymentsSummary.length > 0 ? paymentsSummary : [[{ text: 'No hay pagos registrados', colSpan: 2, alignment: 'center' }, {}]]),
           ]
         }
       },
       {
-        marginBottom: 10,
+        marginBottom: 20,
         font: 'RobotoMono',
+        layout: 'lightHorizontalLines',
         table: {
           headerRows: 2,
           widths: ['*', '*'],
@@ -442,10 +534,30 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
               {}
             ],
             [
-              { text: 'Descripción', bold: true },
-              { text: 'Salario', bold: true }
+              { text: 'Descripción', bold: true, style: { fillColor: '#d3d3d3' } },
+              { text: 'Salario', bold: true, style: { fillColor: '#d3d3d3' } }
             ],
             ...(incomeSummary.length > 0 ? incomeSummary : [[{ text: 'No hay ingresos registrados', colSpan: 2, alignment: 'center' }, {}]])
+          ]
+        }
+      },
+      {
+        pageBreak: 'before',
+        font: 'RobotoMono',
+        layout: 'lightHorizontalLines',
+        table: {
+          headerRows: 2,
+          widths: ['*', '*'],
+          body: [
+            [
+              { text: 'Gastos por Categoria', bold: true, colSpan: 2, alignment: 'center' },
+              {}
+            ],
+            [
+              { text: 'Descripción', bold: true, style: { fillColor: '#d3d3d3' } },
+              { text: 'Monto', bold: true, style: { fillColor: '#d3d3d3' } }
+            ],
+            ...(allExpesesSummary.length > 0 ? allExpesesSummary : [[{ text: 'No hay gastos registrados', colSpan: 2, alignment: 'center' }, {}]])
           ]
         }
       }
@@ -461,7 +573,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     const arrayBuffer = await blob.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    await bot.sendDocument(userId, buffer, {}, { filename: `Resumen.pdf`, contentType: 'application/pdf' })
+    await bot.sendDocument(userId, buffer, {}, { filename: `${monthTZStart.format('MMMM YYYY')} Resumen.pdf`, contentType: 'application/pdf' })
     fs.unlink(filepath, () => { })
   })
 }

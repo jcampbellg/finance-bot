@@ -12,9 +12,8 @@ import { newExpenseOnCallbackQuery, newExpenseOnText } from '@conversations/newE
 import { expenseOnCallbackQuery, expenseOnText } from '@conversations/expense'
 import { incomesOnCallbackQuery, incomesOnText } from '@conversations/budget/incomes'
 import { exchangeRatesOnText } from '@conversations/exchangeRates'
-import { summaryBudgetOnText } from '@conversations/summaryBudget'
-import { summaryExpensesOnText } from '@conversations/summaryExpenses'
 import { summaryOnCallbackQuery } from '@conversations/summary'
+import { searchExpenseOnCallbackQuery, searchExpenseOnText } from '@conversations/searchExpense'
 
 dotenv.config()
 
@@ -101,22 +100,16 @@ bot.on('message', async (msg) => {
     return
   }
 
-  if (conversation.state === 'summaryBudget') {
-    await summaryBudgetOnText({
-      bot,
-      msg: msg as MessageFromPrivate
-    })
-  }
-
-  if (conversation.state === 'summaryExpenses') {
-    await summaryExpensesOnText({
-      bot,
-      msg: msg as MessageFromPrivate
-    })
-  }
-
   if (conversation.state === 'newExchangeRate') {
     await exchangeRatesOnText({
+      bot,
+      msg: msg as MessageFromPrivate
+    })
+    return
+  }
+
+  if (conversation.state === 'searchExpense') {
+    await searchExpenseOnText({
       bot,
       msg: msg as MessageFromPrivate
     })
@@ -200,6 +193,13 @@ bot.on('callback_query', async (query) => {
 
   if (conversation.state === 'summary') {
     summaryOnCallbackQuery({
+      bot,
+      query: query as QueryFromPrivate
+    })
+  }
+
+  if (conversation.state === 'searchExpense') {
+    searchExpenseOnCallbackQuery({
       bot,
       query: query as QueryFromPrivate
     })

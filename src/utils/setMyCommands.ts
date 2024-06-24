@@ -17,6 +17,9 @@ const commands = [
   }, {
     command: 'resumen',
     description: 'Resumen de tu presupuesto y gastos del mes'
+  }, {
+    command: 'buscar',
+    description: 'Buscar transacciones'
   }
 ]
 

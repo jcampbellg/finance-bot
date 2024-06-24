@@ -12,6 +12,14 @@ export type ExpenseWithAmountAndAccount = Prisma.ExpenseGetPayload<{
   include: { amount: true, account: true }
 }>
 
+export type ExpenseWithAmountAndCategory = Prisma.ExpenseGetPayload<{
+  include: { amount: true, category: true }
+}>
+
+export type ExpenseWithAmountAccountAndCategory = Prisma.ExpenseGetPayload<{
+  include: { amount: true, category: true, account: true }
+}>
+
 export type ExpenseWithAll = Prisma.ExpenseGetPayload<{
   include: {
     account: true,

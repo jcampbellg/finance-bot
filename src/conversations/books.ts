@@ -380,7 +380,7 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
     }
 
     if (btnPress === 'deleteYes') {
-      await prisma.conversionRate.deleteMany({
+      await prisma.exchangeRate.deleteMany({
         where: {
           bookId: conversationData.bookId
         }

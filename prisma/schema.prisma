@@ -36,6 +36,7 @@ enum ConversationState {
   summary
   summaryBudget
   summaryExpenses
+  searchExpense
 }
 
 model Files {

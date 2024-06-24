@@ -32,6 +32,10 @@ export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
 }
 
 export async function bundgetOnCallbackQuery({ bot, query }: QueryProps) {
+  const { user, book } = await auth({ query, bot } as MsgAndQueryProps)
+  if (!user) return
+  if (!book) return
+
   const btnPress = query.data
 
   if (btnPress === 'accounts') {
