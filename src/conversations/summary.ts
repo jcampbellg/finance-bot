@@ -12,6 +12,7 @@ import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import emojiRegex from 'emoji-regex'
 import numeral from 'numeral'
+import { CategoryWithLimitsAndExpenses } from '@customTypes/prismaTypes'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -103,8 +104,24 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
   if (!user) return
   if (!book) return
 
-  const monthStart = dayjs(monthYear).utc().startOf('month')
-  const monthEnd = dayjs(monthYear).utc().endOf('month')
+  const monthTZStart = dayjs(monthYear).tz(user.timezone).startOf('month')
+  const monthTZEnd = dayjs(monthYear).tz(user.timezone).endOf('month')
+
+  const incomes = await prisma.income.findMany({
+    where: {
+      bookId: book.id,
+    },
+    include: {
+      salary: {
+        include: {
+          amount: true
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      },
+    }
+  })
 
   const categories = await prisma.category.findMany({
     where: {
@@ -117,7 +134,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
       limits: {
         where: {
           validFrom: {
-            lte: monthStart.format()
+            lte: monthTZStart.format()
           }
         },
         include: {
@@ -130,8 +147,8 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
       expenses: {
         where: {
           createdAt: {
-            gte: monthStart.format(),
-            lte: monthEnd.format()
+            gte: monthTZStart.format(),
+            lte: monthTZEnd.format()
           }
         },
         include: {
@@ -147,8 +164,8 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
       bookId: book.id,
       categoryId: null,
       createdAt: {
-        gte: monthStart.format(),
-        lte: monthEnd.format()
+        gte: monthTZStart.format(),
+        lte: monthTZEnd.format()
       }
     },
     include: {
@@ -161,19 +178,24 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     where: {
       bookId: book.id,
       validFrom: {
-        gte: monthStart.format(),
-        lte: monthEnd.format()
+        gte: monthTZStart.format(),
+        lte: monthTZEnd.format()
       }
     }
   })
 
-  const noCategoryExpenses = {
-    description: 'Gastos sin categoría',
+  const noCategoryExpenses: CategoryWithLimitsAndExpenses = {
+    description: 'Sin Categoría',
     limits: [],
-    expenses: expensesWithNoCategory
+    expenses: expensesWithNoCategory,
+    bookId: book.id,
+    isPayment: false,
+    createdAt: dayjs().utc().toDate(),
+    updatedAt: dayjs().utc().toDate(),
+    id: 0
   }
 
-  const categoriesSummary: TableCell[][] = [noCategoryExpenses, ...categories.filter(c => !c.isPayment)].map(cat => {
+  const categoriesSummary: TableCell[][] = [...(expensesWithNoCategory.length > 0 ? [noCategoryExpenses] : []), ...categories.filter(c => !c.isPayment)].map(cat => {
     const description = cat.description.replace(regex, '').trim()
     const hasLimit = cat.limits.length > 0 && cat.limits[0].amount.amount > 0
 
@@ -354,6 +376,24 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     ]
   })
 
+  const incomeSummary: TableCell[][] = incomes.map(inc => {
+    const description = inc.description.replace(regex, '').trim()
+    const hasSalary = inc.salary.length > 0
+
+    if (!hasSalary) {
+      return [
+        description, 'No hay salario registrado'
+      ]
+    }
+
+    const salary = inc.salary[0].amount
+
+    return [
+      description,
+      `${numeral(salary.amount).format('0,0.00')} ${salary.currency}`
+    ]
+  })
+
   const filepath = 'src/assets/' + Math.random().toString(36).substring(7) + '.pdf'
   const stream = blobStream()
   const printer = new PdfPrinter(fonts)
@@ -364,50 +404,71 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         font: 'Roboto',
         bold: true,
         fontSize: 22,
-        marginBottom: 20,
+        marginBottom: 5,
         alignment: 'center',
-        text: `Resumen de ${monthStart.format('MMMM YYYY')}`
+        text: `Resumen de ${monthTZStart.format('MMMM YYYY')}`
       },
       {
-        font: 'RobotoMono',
+        font: 'Roboto',
         fontSize: 16,
-        alignment: 'center',
-        text: `Categorías`,
-        marginBottom: 5
+        marginBottom: 20,
+        alignment: 'left',
+        text: `${book.title}`
       },
       {
+        marginBottom: 10,
         font: 'RobotoMono',
         table: {
-          headerRows: 1,
+          headerRows: 2,
           widths: ['*', '*'],
           body: [
+            [
+              { text: 'Categorías', bold: true, colSpan: 2, alignment: 'center' },
+              {}
+            ],
             [
               { text: 'Categoría', bold: true },
               { text: 'Gastos / Limite', bold: true }
             ],
-            ...categoriesSummary,
+            ...(categoriesSummary.length > 0 ? categoriesSummary : [[{ text: 'No hay categorías registradas', colSpan: 2, alignment: 'center' }, {}]]),
           ]
         }
       },
       {
-        font: 'RobotoMono',
-        fontSize: 16,
-        alignment: 'center',
-        text: `Pagos Fijos`,
-        marginBottom: 5,
-        marginTop: 10
-      },
-      {
+        marginBottom: 10,
         font: 'RobotoMono',
         table: {
-          headerRows: 1,
+          headerRows: 2,
           widths: ['*', '*'],
           body: [
+            [
+              { text: 'Pagos Fijos', bold: true, colSpan: 2, alignment: 'center' },
+              {}
+            ],
             [
               { text: 'Descripción', bold: true },
               { text: 'Pagos / Deuda', bold: true }
             ],
-            ...paymentsSummary,
+            ...(paymentsSummary.length > 0 ? paymentsSummary : [[{ text: 'No hay pagos registrados', colSpan: 2, alignment: 'center' }, {}]]),
+          ]
+        }
+      },
+      {
+        marginBottom: 10,
+        font: 'RobotoMono',
+        table: {
+          headerRows: 2,
+          widths: ['*', '*'],
+          body: [
+            [
+              { text: 'Ingresos', bold: true, colSpan: 2, alignment: 'center' },
+              {}
+            ],
+            [
+              { text: 'Descripción', bold: true },
+              { text: 'Salario', bold: true }
+            ],
+            ...(incomeSummary.length > 0 ? incomeSummary : [[{ text: 'No hay ingresos registrados', colSpan: 2, alignment: 'center' }, {}]])
           ]
         }
       }

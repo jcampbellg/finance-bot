@@ -194,7 +194,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
           bookId: book.id,
           categoryId: categoryToEdit.id,
           amountId: limitAmount.id,
-          validFrom: dayjs().utc().startOf('month').format()
+          validFrom: dayjs().tz(user.timezone).startOf('month').format()
         }
       })
 

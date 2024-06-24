@@ -210,7 +210,7 @@ export async function incomesOnText({ bot, msg, query }: MsgAndQueryProps) {
         data: {
           incomeId: incomeToEdit.id,
           amountId: salaryAmount.id,
-          validFrom: dayjs().utc().startOf('month').format()
+          validFrom: dayjs().tz(user.timezone).startOf('month').format()
         },
         include: {
           amount: true

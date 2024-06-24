@@ -128,7 +128,7 @@ export async function exchangeRatesOnText({ bot, msg }: MsgProps) {
         from: conversationData.currencyA,
         to: conversationData.currencyB,
         amount: conversationData.rateAtoB,
-        validFrom: dayjs().utc().startOf('month').format()
+        validFrom: dayjs().tz(user.timezone).startOf('month').format()
       }
     })
 
@@ -138,7 +138,7 @@ export async function exchangeRatesOnText({ bot, msg }: MsgProps) {
         from: conversationData.currencyB,
         to: conversationData.currencyA,
         amount: amount,
-        validFrom: dayjs().utc().startOf('month').format()
+        validFrom: dayjs().tz(user.timezone).startOf('month').format()
       }
     })
 

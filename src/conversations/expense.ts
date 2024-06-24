@@ -238,7 +238,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           fileId,
           fileType,
           expenseId: expenseToEdit.id,
-          validFrom: dayjs().utc().startOf('month').format()
+          validFrom: dayjs().tz(user.timezone).startOf('month').format()
         }
       })
 
