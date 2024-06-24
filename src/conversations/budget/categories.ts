@@ -349,6 +349,24 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
       return
     }
 
+    if (btnPress === 'ignore') {
+      const newLimit = await prisma.limit.update({
+        where: {
+          id: categoryToEdit.id
+        },
+        data: {
+          ignoreInBudget: !categoryToEdit.limits[0].ignoreInBudget
+        },
+        include: {
+          amount: true
+        }
+      })
+
+      await bot.sendMessage(userId, `<i>Categoria actualizada.</i>`, { parse_mode: 'HTML' })
+      await sendCategory(bot, userId, { ...categoryToEdit, limits: [newLimit] })
+      return
+    }
+
     if (btnPress === 'payment') {
       await prisma.category.update({
         where: {
@@ -452,29 +470,34 @@ export function categoriesButtons(categories: Category[]): TelegramBot.InlineKey
   })
 }
 
-export function categoryButtons(isPayment: boolean): TelegramBot.InlineKeyboardButton[][] {
+export function categoryButtons(isPayment: boolean, hasLimit: boolean, isIgnore: boolean): TelegramBot.InlineKeyboardButton[][] {
   return [
-    [{ text: `Cambiar ${isPayment ? 'Monto' : 'Limite'}`, callback_data: 'limit' }, { text: isPayment ? 'Quitar de Pago Fijos' : 'Poner en Pagos Fijo', callback_data: 'payment' }],
+    [{ text: `${hasLimit ? 'Cambiar' : 'Agregar'} ${isPayment ? 'Monto' : 'Limite'}`, callback_data: 'limit' }, { text: isPayment ? 'Quitar de Pago Fijos' : 'Poner en Pagos Fijo', callback_data: 'payment' }],
     [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
-    [{ text: 'Regresar', callback_data: 'back' }]
+    [...(hasLimit ? [{ text: isIgnore ? 'Sumar en presupuesto' : 'Ignorar en presupuesto', callback_data: 'ignore' }] : []), { text: 'Regresar', callback_data: 'back' }]
   ]
 }
 
-export function limitsListText(limits: LimitsWithAmount[], isPayment: boolean) {
+export function limitsListText(limits: LimitsWithAmount[], isPayment: boolean, isIgnore: boolean) {
   const paymentText = isPayment ? '\n\nPago Fijo' : ''
 
   if (limits.length === 0) return paymentText
+  if (limits[0].amount.amount === 0) return paymentText
 
   const lastLimit = limits[0]
+  const ignoreText = isIgnore ? '\n\n<i>Ignorado en presupuesto, no se sumara al gran total.</i>' : ''
 
-  return `${paymentText}\n\nLimite:\n${numeral(lastLimit?.amount.amount || 0).format('0,0.00')} ${lastLimit?.amount.currency}`
+  return `${paymentText}\n\n${isPayment ? 'Monto' : 'Limite'}:\n${numeral(lastLimit?.amount.amount || 0).format('0,0.00')} ${lastLimit?.amount.currency}${ignoreText}`
 }
 
 export async function sendCategory(bot: TelegramBot, chatId: number, category: CategoryWithLimits) {
-  await bot.sendMessage(chatId, `<b>${category.description}</b>${limitsListText(category.limits, category.isPayment)}`, {
+  const hasLimit = category.limits.length > 0 && category.limits[0].amount.amount > 0
+  const ignore = hasLimit ? category.limits[0].ignoreInBudget : false
+
+  await bot.sendMessage(chatId, `<b>${category.description}</b>${limitsListText(category.limits, category.isPayment, ignore)}`, {
     parse_mode: 'HTML',
     reply_markup: {
-      inline_keyboard: categoryButtons(category.isPayment)
+      inline_keyboard: categoryButtons(category.isPayment, hasLimit, ignore)
     }
   })
 }

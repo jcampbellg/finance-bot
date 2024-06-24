@@ -52,6 +52,13 @@ export default async function auth({ bot, msg, query }: MsgAndQueryProps, inBook
           ]
         }
       ]
+    },
+    include: {
+      shares: {
+        include: {
+          shareWithGroup: true
+        }
+      }
     }
   })
 

@@ -167,12 +167,44 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
       }
     })
 
-    await bot.sendMessage(userId, `Gasto registrado:\n\nDescripción: <b>${newExpense.description}</b>\nCuenta: ${newExpense.account.description}\nMonto: ${numeral(newExpense.amount.amount).format('0,0.00')} ${newExpense.amount.currency}\n\n¿Qué deseas hacer con este gasto?`, {
+    const expenseText = `Descripción: <b>${newExpense.description}</b>\nCuenta: ${newExpense.account.description}\nMonto: ${numeral(newExpense.amount.amount).format('0,0.00')} ${newExpense.amount.currency}`
+
+    await bot.sendMessage(userId, `Gasto registrado:\n\n${expenseText}\n\n¿Qué deseas hacer con este gasto?`, {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: expenseButtons()
       }
     })
+
+    for (const share of book.shares) {
+      const group = share.shareWithGroup?.chatId
+
+      if (group) {
+        try {
+          await bot.sendMessage(Number(group), `Nuevo gasto en el libro <b>${book.title}</b>\n\n${expenseText}`, {
+            parse_mode: 'HTML'
+          })
+        } catch (error) {
+          if (error.response.body.error_code === 403) {
+            await bot.sendMessage(userId, `No se pudo enviar mensajes a un grupo.`)
+            await prisma.shareBook.deleteMany({
+              where: {
+                shareWithGroup: {
+                  chatId: group
+                }
+              }
+            })
+
+            await prisma.chatGroup.delete({
+              where: {
+                chatId: group
+              }
+            })
+          }
+        }
+      }
+    }
+    return
   }
 }
 

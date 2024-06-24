@@ -202,9 +202,9 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
 
   const allCategories = [...(expensesWithNoCategory.length > 0 ? [noCategoryExpenses] : []), ...categories]
 
-  const categoriesSummary: TableCell[][] = allCategories.map(cat => {
-    const description = cat.description.replace(regex, '').trim()
+  const categoriesSummary: TableCell[][] = allCategories.filter(c => !c.isPayment).map(cat => {
     const hasLimit = cat.limits.length > 0 && cat.limits[0].amount.amount > 0
+    const description = `${cat.description.replace(regex, '').trim()}${hasLimit ? (cat.limits[0].ignoreInBudget ? ' *' : '') : ''}`
 
     const expensesWithCurrencies: Record<string, number> = cat.expenses.reduce((accumulator, exp) => {
       const currency = exp.amount.currency
@@ -279,8 +279,8 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
   })
 
   const paymentsSummary: TableCell[][] = categories.filter(c => c.isPayment).map(cat => {
-    const description = cat.description.replace(regex, '').trim()
     const hasLimit = cat.limits.length > 0 && cat.limits[0].amount.amount > 0
+    const description = `${cat.description.replace(regex, '').trim()}${hasLimit ? (cat.limits[0].ignoreInBudget ? ' *' : '') : ''}`
 
     const expensesWithCurrencies: Record<string, number> = cat.expenses.reduce((accumulator, exp) => {
       const currency = exp.amount.currency
@@ -383,8 +383,10 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
 
   const byCurrencyLimits = allCategories.reduce((accumulator, cat) => {
     if (cat.limits.length === 0) return accumulator
+    if (cat.limits[0].ignoreInBudget) return accumulator
 
     const limit = cat.limits[0].amount
+
     return { ...accumulator, [limit.currency]: (accumulator[limit.currency] || 0) + limit.amount }
   }, {} as Record<string, number>)
 
@@ -477,7 +479,10 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
               { text: 'Asegurarse de tener los cambios de moneda establecidos para tener los valores convertidos correctamente. Utiliza /cambio para configurarlos.', fontSize: 10, italics: true, colSpan: 2, alignment: 'left' },
               {}
             ],
-            ...budgetSummary
+            ...budgetSummary,
+            [
+              { text: 'NOTA: Las categorias/pagos fijos con * no fueron sumadas en este total.', colSpan: 2, alignment: 'left', italics: true, fontSize: 10 }, {}
+            ]
           ]
         }
       },
@@ -498,6 +503,9 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
               { text: 'Gastos por moneda / Limite', bold: true, style: { fillColor: '#d3d3d3' } }
             ],
             ...(categoriesSummary.length > 0 ? categoriesSummary : [[{ text: 'No hay categorías registradas', colSpan: 2, alignment: 'center' }, {}]]),
+            [
+              { text: '* Ignorado en el total del presupuesto por moneda.', colSpan: 2, alignment: 'left', italics: true, fontSize: 10 }, {}
+            ]
           ]
         }
       },
@@ -518,6 +526,9 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
               { text: 'Pagos por moneda / Deuda', bold: true, style: { fillColor: '#d3d3d3' } }
             ],
             ...(paymentsSummary.length > 0 ? paymentsSummary : [[{ text: 'No hay pagos registrados', colSpan: 2, alignment: 'center' }, {}]]),
+            [
+              { text: '* Ignorado en el total del presupuesto por moneda.', colSpan: 2, alignment: 'left', italics: true, fontSize: 10 }, {}
+            ]
           ]
         }
       },

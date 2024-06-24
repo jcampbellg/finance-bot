@@ -37,6 +37,7 @@ enum ConversationState {
   summaryBudget
   summaryExpenses
   searchExpense
+  share
 }
 
 model Files {
@@ -55,11 +56,10 @@ model Files {
 }
 
 model ChatGroup {
-  chatId    BigInt   @id @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  book      Book     @relation(fields: [bookId], references: [id])
-  bookId    Int
+  chatId     BigInt      @id @unique
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  shareBooks ShareBook[]
 }
 
 model Conversation {
@@ -95,13 +95,16 @@ model ExchangeRate {
 }
 
 model ShareBook {
-  key             String   @id @unique @default(uuid())
+  key             String     @id @unique @default(uuid())
   bookId          Int
-  book            Book     @relation(fields: [bookId], references: [id])
+  book            Book       @relation(fields: [bookId], references: [id])
   shareWithUserId BigInt?
-  shareWithuser   User?    @relation(fields: [shareWithUserId], references: [id])
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  shareWithuser   User?      @relation(fields: [shareWithUserId], references: [id])
+  shareWithGroup  ChatGroup? @relation(fields: [chatGroupChatId], references: [chatId])
+  shareWithChatId BigInt?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  chatGroupChatId BigInt?
 }
 
 model Book {
@@ -116,7 +119,6 @@ model Book {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   exchangeRates ExchangeRate[]
-  chatGroups    ChatGroup[]
   limits        Limit[]
   incomes       Income[]
 }

@@ -6,6 +6,12 @@ export type MessageFromPrivate =
     chat: Omit<TelegramBot.Message['chat'], 'type'> & { type: 'private' }
   }
 
+export type MessageFromGroup =
+  Omit<TelegramBot.Message, 'chat'> &
+  {
+    chat: Omit<TelegramBot.Message['chat'], 'type'> & { type: 'group' }
+  }
+
 export type QueryFromPrivate =
   Omit<TelegramBot.CallbackQuery, 'message' | 'data'> &
   Pick<Required<TelegramBot.CallbackQuery>, 'message'> &
@@ -24,6 +30,11 @@ export type MsgAndQueryProps = {
 export type MsgProps = {
   bot: TelegramBot
   msg: MessageFromPrivate
+}
+
+export type MsgGroupProps = {
+  bot: TelegramBot
+  msg: MessageFromGroup
 }
 
 export type QueryProps = {

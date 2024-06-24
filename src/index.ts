@@ -2,7 +2,7 @@ import dotenv from 'dotenv'
 import TelegramBot from 'node-telegram-bot-api'
 import { prisma } from '@utils/prisma'
 import waitingForCommand from '@conversations/waitingForCommand'
-import { MessageFromPrivate, QueryFromPrivate } from '@customTypes/messageTypes'
+import { MessageFromGroup, MessageFromPrivate, QueryFromPrivate } from '@customTypes/messageTypes'
 import { booksOnText, booksOnCallbackQuery } from '@conversations/books'
 import { onboardingOnCallbackQuery } from '@conversations/onboarding'
 import { bundgetOnCallbackQuery } from '@conversations/budget'
@@ -14,6 +14,8 @@ import { incomesOnCallbackQuery, incomesOnText } from '@conversations/budget/inc
 import { exchangeRatesOnText } from '@conversations/exchangeRates'
 import { summaryOnCallbackQuery } from '@conversations/summary'
 import { searchExpenseOnCallbackQuery, searchExpenseOnText } from '@conversations/searchExpense'
+import { shareOnCallbackQuery } from '@conversations/share'
+import { groupOnText } from '@conversations/group'
 
 dotenv.config()
 
@@ -25,6 +27,14 @@ if (!process.env.TELEGRAM_BOT_TOKEN) {
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true })
 
 bot.on('message', async (msg) => {
+  if (msg.chat.type === 'group') {
+    await groupOnText({
+      bot,
+      msg: msg as MessageFromGroup
+    })
+    return
+  }
+
   if (msg.chat.type !== 'private') return
 
   const userId = msg.chat.id
@@ -200,6 +210,13 @@ bot.on('callback_query', async (query) => {
 
   if (conversation.state === 'searchExpense') {
     searchExpenseOnCallbackQuery({
+      bot,
+      query: query as QueryFromPrivate
+    })
+  }
+
+  if (conversation.state === 'share') {
+    shareOnCallbackQuery({
       bot,
       query: query as QueryFromPrivate
     })

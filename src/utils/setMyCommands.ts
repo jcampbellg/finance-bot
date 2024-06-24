@@ -20,6 +20,9 @@ const commands = [
   }, {
     command: 'buscar',
     description: 'Buscar transacciones'
+  }, {
+    command: 'compartir',
+    description: 'Compartir libro contable con otro usuario o grupo'
   }
 ]
 
