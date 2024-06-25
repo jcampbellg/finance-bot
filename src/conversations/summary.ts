@@ -451,7 +451,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
             { text: 'Descripción', bold: true, style: { fillColor: '#f2f2f2' } },
             { text: 'Monto', bold: true, style: { fillColor: '#f2f2f2' } }
           ],
-          ...cat.expenses.map(exp => {
+          ...(cat.expenses.length > 0 ? cat.expenses.map(exp => {
             const currency = exp.amount.currency
             const amount = exp.amount.amount
             const date = dayjs(exp.createdAt).tz(user.timezone).format('LL hh:mma')
@@ -462,7 +462,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
             return [{
               text: [description, { text: `\n${date}\n${account}`, italics: true, fontSize: 10, color: '#666666' }],
             }, { text: `${numeral(amount).format('0,0.00')} ${currency}${isIncome}`, bold: isIncome }]
-          })
+          }) : [[{ text: 'No hay gastos registrados', colSpan: 2, alignment: 'center' }, {}]])
         ]
       }
     },
