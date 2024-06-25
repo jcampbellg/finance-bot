@@ -434,25 +434,40 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     ]
   }).reduce((acc, curr) => [...acc, ...curr], [])
 
-  const allExpesesSummary: TableCell[][] = allCategories.map(cat => {
+  const expensesListSummary: TableCell[][] = allCategories.map(cat => {
     const hasLimit = cat.limits.length > 0 && cat.limits[0].amount.amount > 0
     const description = cat.description.replace(regex, '').trim() + (hasLimit ? (cat.limits[0].ignoreInBudget ? ' *' : '') : '')
-    return [
-      [{ text: description, bold: true, colSpan: 2, style: { fillColor: '#f2f2f2' } }, {}],
-      ...cat.expenses.map(exp => {
-        const currency = exp.amount.currency
-        const amount = exp.amount.amount
-        const date = dayjs(exp.createdAt).tz(user.timezone).format('LL hh:mma')
-        const account = exp.account.description.replace(regex, '').trim()
-        const description = exp.description.replace(regex, '').trim()
-        const isIncome = exp.isIncome ? ' (Ingreso)' : ''
 
-        return [{
-          text: [description, { text: `\n${date}\n${account}`, italics: true, fontSize: 10, color: '#666666' }],
-        }, { text: `${numeral(amount).format('0,0.00')} ${currency}${isIncome}`, bold: isIncome }]
-      })
-    ]
-  }).reduce((acc, curr) => [...acc, ...curr], [])
+    return [{
+      font: 'RobotoMono',
+      layout: 'lightHorizontalLines',
+      colSpan: 2,
+      table: {
+        dontBreakRows: true,
+        widths: ['*', '*'],
+        body: [
+          [{ text: description, bold: true, colSpan: 2, style: { fillColor: '#d3d3d3' } }, {}],
+          [
+            { text: 'Descripción', bold: true, style: { fillColor: '#f2f2f2' } },
+            { text: 'Monto', bold: true, style: { fillColor: '#f2f2f2' } }
+          ],
+          ...cat.expenses.map(exp => {
+            const currency = exp.amount.currency
+            const amount = exp.amount.amount
+            const date = dayjs(exp.createdAt).tz(user.timezone).format('LL hh:mma')
+            const account = exp.account.description.replace(regex, '').trim()
+            const description = exp.description.replace(regex, '').trim()
+            const isIncome = exp.isIncome ? ' (Ingreso)' : ''
+
+            return [{
+              text: [description, { text: `\n${date}\n${account}`, italics: true, fontSize: 10, color: '#666666' }],
+            }, { text: `${numeral(amount).format('0,0.00')} ${currency}${isIncome}`, bold: isIncome }]
+          })
+        ]
+      }
+    },
+    {}]
+  })
 
   const expesesSummary: TableCell[][] = allCoins.map(coin => {
     const income = Object.keys(byCurrencyIncomes).reduce((accumulator, inc) => {
@@ -472,6 +487,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     }, 0)
 
     const savings = income - expenses
+
     return [
       [{ text: coin, bold: true, colSpan: 2, style: { fillColor: '#d3d3d3' } }, {}],
       ['Ingresos (+)', `${numeral(income).format('0,0.00')} ${coin}`],
@@ -502,7 +518,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         text: `${book.title.replace(regex, '')}\nGenerado el ${dayjs().tz(user.timezone).format('LL hh:mma')}`
       },
       {
-        marginBottom: 10,
+        marginBottom: 20,
         font: 'RobotoMono',
         layout: 'lightHorizontalLines',
         table: {
@@ -595,23 +611,19 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         }
       },
       {
-        marginBottom: 10,
+        marginBottom: 20,
         font: 'RobotoMono',
         layout: 'lightHorizontalLines',
         table: {
           dontBreakRows: true,
-          headerRows: 2,
+          headerRows: 1,
           widths: ['*', '*'],
           body: [
             [
               { text: 'Gastos por Categoria', bold: true, colSpan: 2, alignment: 'center' },
               {}
             ],
-            [
-              { text: 'Descripción', bold: true, style: { fillColor: '#d3d3d3' } },
-              { text: 'Monto', bold: true, style: { fillColor: '#d3d3d3' } }
-            ],
-            ...(allExpesesSummary.length > 0 ? allExpesesSummary : [[{ text: 'No hay gastos registrados', colSpan: 2, alignment: 'center' }, {}]]),
+            ...(expensesListSummary.length > 0 ? expensesListSummary : [[{ text: 'No hay gastos registrados', colSpan: 2, alignment: 'center' }, {}]]),
             [
               { text: '* Ignorado en el total de gastos por moneda.', colSpan: 2, alignment: 'left', italics: true, fontSize: 10 }, {}
             ]
@@ -641,7 +653,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
             ]
           ]
         }
-      },
+      }
     ]
   }
 
