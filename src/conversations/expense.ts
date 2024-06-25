@@ -121,7 +121,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           caption: expenseText(expenseToEdit, user),
           parse_mode: 'HTML',
           reply_markup: {
-            inline_keyboard: expenseButtons()
+            inline_keyboard: expenseButtons(expenseToEdit.isIncome)
           }
         })
         return
@@ -130,7 +130,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: expenseButtons()
+          inline_keyboard: expenseButtons(expenseToEdit.isIncome)
         }
       })
       return
@@ -199,7 +199,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           caption: expenseText(expenseToEdit, user),
           parse_mode: 'HTML',
           reply_markup: {
-            inline_keyboard: expenseButtons()
+            inline_keyboard: expenseButtons(expenseToEdit.isIncome)
           }
         })
         return
@@ -208,7 +208,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: expenseButtons()
+          inline_keyboard: expenseButtons(expenseToEdit.isIncome)
         }
       })
       return
@@ -251,7 +251,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           caption: expenseText(expenseToEdit, user),
           parse_mode: 'HTML',
           reply_markup: {
-            inline_keyboard: expenseButtons()
+            inline_keyboard: expenseButtons(expenseToEdit.isIncome)
           }
         })
         return
@@ -260,7 +260,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: expenseButtons()
+          inline_keyboard: expenseButtons(expenseToEdit.isIncome)
         }
       })
       return
@@ -335,7 +335,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         caption: expenseText(expenseToEdit, user),
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: expenseButtons()
+          inline_keyboard: expenseButtons(expenseToEdit.isIncome)
         }
       })
       return
@@ -343,7 +343,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
     await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: expenseButtons()
+        inline_keyboard: expenseButtons(expenseToEdit.isIncome)
       }
     })
     return
@@ -515,6 +515,19 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
       return
     }
 
+    if (btnPress === 'isIncome') {
+      await prisma.expense.update({
+        where: {
+          id: expenseToEdit.id
+        },
+        data: {
+          isIncome: !expenseToEdit.isIncome
+        }
+      })
+
+      expenseToEdit.isIncome = !expenseToEdit.isIncome
+    }
+
     if (conversationData.property === 'account') {
       const newAccount = await prisma.expense.update({
         where: {
@@ -580,7 +593,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         caption: expenseText(expenseToEdit, user),
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: expenseButtons()
+          inline_keyboard: expenseButtons(expenseToEdit.isIncome)
         }
       })
       return
@@ -588,18 +601,19 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
     await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: expenseButtons()
+        inline_keyboard: expenseButtons(expenseToEdit.isIncome)
       }
     })
     return
   }
 }
 
-export function expenseButtons(): TelegramBot.InlineKeyboardButton[][] {
+export function expenseButtons(isIncome: boolean): TelegramBot.InlineKeyboardButton[][] {
   return [
     [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
     [{ text: 'Categorizar', callback_data: 'category' }, { text: 'Adjuntar', callback_data: 'file' }],
     [{ text: 'Cambiar Cuenta', callback_data: 'account' }, { text: 'Cambiar Monto', callback_data: 'amount' }],
+    [{ text: isIncome ? 'Cambiar a Gasto' : 'Cambiar a Ingreso', callback_data: 'isIncome' }, { text: 'Cambiar Fecha', callback_data: 'amount' }],
   ]
 }
 
@@ -607,8 +621,9 @@ export function expenseText(expense: ExpenseWithAll, user: User): string {
   const hasFile = expense.files.length > 0 ? '📎 ' : ''
   const category = expense.category ? `\nCategoria: ${expense.category.description}` : '\nSin categoría'
   const spanishDate = dayjs().tz(user.timezone).format('LL hh:mma')
+  const isIncome = expense.isIncome ? ' (Ingreso)' : ''
 
-  return `<i>${spanishDate}</i>\n${hasFile}<b>${expense.description}</b>\nCuenta: ${expense.account.description}\nMonto: ${numeral(expense.amount.amount).format('0,0.00')} ${expense.amount.currency}${category}\n\n¿Qué deseas hacer con este gasto?`
+  return `<i>${spanishDate}</i>\n${hasFile}<b>${expense.description}</b>\nCuenta: ${expense.account.description}\nMonto: ${numeral(expense.amount.amount).format('0,0.00')} ${expense.amount.currency}${isIncome}${category}\n\n¿Qué deseas hacer con este gasto?`
 }
 
 export function expenseFile(expense: ExpenseWithAll): { fileId: string, type: FileType } | null {

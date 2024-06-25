@@ -142,6 +142,7 @@ model Expense {
   account     Account        @relation(fields: [accountId], references: [id])
   amountId    Int            @unique
   amount      AmountCurrency @relation(fields: [amountId], references: [id])
+  isIncome    Boolean        @default(false)
   files       Files[]
   notes       String?
   createdById BigInt

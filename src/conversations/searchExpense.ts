@@ -8,7 +8,7 @@ import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
-import { ExpenseWithAmountAccountAndCategory } from '@customTypes/prismaTypes'
+import { ExpenseWithAll, ExpenseWithAmountAccountAndCategory } from '@customTypes/prismaTypes'
 import { expenseButtons, expenseText } from '@conversations/expense'
 
 dayjs.locale('es')
@@ -89,7 +89,10 @@ export async function searchExpenseOnText({ bot, msg }: MsgProps) {
       include: {
         category: true,
         account: true,
-        amount: true
+        amount: true,
+        book: true,
+        files: true,
+        createdBy: true
       },
       take: 30
     })
@@ -107,10 +110,10 @@ export async function searchExpenseOnText({ bot, msg }: MsgProps) {
       const index = Math.floor(i / 2)
       acc[index] = [...(acc[index] || []), exp]
       return acc
-    }, [] as ExpenseWithAmountAccountAndCategory[][])
+    }, [] as ExpenseWithAll[][])
 
     const listText = expenses.map((exp, i) => {
-      return `<i>${dayjs(exp.createdAt).tz(user.timezone).format('LL hh:mma')}</i>\n${i + 1}. <b>${exp.description}</b>\n${exp.category?.description || 'Sin Categoria'}\n${numeral(exp.amount.amount).format('0,0.00')} ${exp.amount.currency}\n<i>${exp.account.description}</i>`
+      return `${i + 1}. ${expenseText(exp, user)}`
     }).join('\n\n')
 
     await bot.sendMessage(userId, `${listText}\n\nVer y editar:`, {
@@ -154,10 +157,23 @@ export async function searchExpenseOnCallbackQuery({ bot, query }: MsgAndQueryPr
     return
   }
 
+  await prisma.conversation.update({
+    where: {
+      chatId: userId
+    },
+    data: {
+      state: 'expense',
+      data: {
+        action: 'edit',
+        expenseId
+      }
+    }
+  })
+
   await bot.sendMessage(userId, expenseText(expense, user), {
     parse_mode: 'HTML',
     reply_markup: {
-      inline_keyboard: expenseButtons()
+      inline_keyboard: expenseButtons(expense.isIncome)
     }
   })
 }

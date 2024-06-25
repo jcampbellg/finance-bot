@@ -209,10 +209,11 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     const expensesWithCurrencies: Record<string, number> = cat.expenses.reduce((accumulator, exp) => {
       const currency = exp.amount.currency
       const amount = exp.amount.amount
+      const isIncome = exp.isIncome
 
       return {
         ...accumulator,
-        [currency]: (accumulator[currency] || 0) + amount
+        [currency]: (accumulator[currency] || 0) + (isIncome ? -amount : amount)
       }
     }, {} as Record<string, number>)
 
@@ -285,10 +286,11 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     const expensesWithCurrencies: Record<string, number> = cat.expenses.reduce((accumulator, exp) => {
       const currency = exp.amount.currency
       const amount = exp.amount.amount
+      const isIncome = exp.isIncome
 
       return {
         ...accumulator,
-        [currency]: (accumulator[currency] || 0) + amount
+        [currency]: (accumulator[currency] || 0) + (isIncome ? -amount : amount)
       }
     }, {} as Record<string, number>)
 
@@ -374,15 +376,22 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
   })
 
   const byCurrencyExpenses = allCategories.reduce((accumulator, cat) => {
+    if (cat.limits.length > 0 && cat.limits[0].amount.amount > 0 && cat.limits[0].ignoreInBudget) return accumulator
+
     const expenses = cat.expenses.reduce((acc, exp) => {
-      return { ...acc, [exp.amount.currency]: (acc[exp.amount.currency] || 0) + exp.amount.amount }
+      return { ...acc, [exp.amount.currency]: (acc[exp.amount.currency] || 0) + (exp.isIncome ? -exp.amount.amount : exp.amount.amount) }
     }, {} as Record<string, number>)
 
-    return { ...accumulator, ...expenses }
+    const newAccumulator = Object.keys(expenses).reduce((acc, currency) => {
+      return { ...acc, [currency]: (acc[currency] || 0) + expenses[currency] }
+    }, accumulator)
+
+    return { ...accumulator, ...newAccumulator }
   }, {} as Record<string, number>)
 
   const byCurrencyLimits = allCategories.reduce((accumulator, cat) => {
     if (cat.limits.length === 0) return accumulator
+    if (cat.limits[0].amount.amount === 0) return accumulator
     if (cat.limits[0].ignoreInBudget) return accumulator
 
     const limit = cat.limits[0].amount
@@ -420,13 +429,14 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     return [
       [{ text: coin, bold: true, colSpan: 2, style: { fillColor: '#d3d3d3' } }, {}],
       ['Ingresos (+)', `${numeral(income).format('0,0.00')} ${coin}`],
-      ['Limites y Pagos (-)', `${numeral(limits).format('0,0.00')} ${coin}`],
+      ['Limites y Pagos Fijos (-)', `${numeral(limits).format('0,0.00')} ${coin}`],
       [{ text: `Disponible`, bold: true }, { text: `${numeral(totalBudget).format('0,0.00')} ${coin}`, bold: true, style: {} }],
     ]
   }).reduce((acc, curr) => [...acc, ...curr], [])
 
   const allExpesesSummary: TableCell[][] = allCategories.map(cat => {
-    const description = cat.description.replace(regex, '').trim()
+    const hasLimit = cat.limits.length > 0 && cat.limits[0].amount.amount > 0
+    const description = cat.description.replace(regex, '').trim() + (hasLimit ? (cat.limits[0].ignoreInBudget ? ' *' : '') : '')
     return [
       [{ text: description, bold: true, colSpan: 2, style: { fillColor: '#f2f2f2' } }, {}],
       ...cat.expenses.map(exp => {
@@ -435,11 +445,38 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         const date = dayjs(exp.createdAt).tz(user.timezone).format('LL hh:mma')
         const account = exp.account.description.replace(regex, '').trim()
         const description = exp.description.replace(regex, '').trim()
+        const isIncome = exp.isIncome ? ' (Ingreso)' : ''
 
         return [{
           text: [description, { text: `\n${date}\n${account}`, italics: true, fontSize: 10, color: '#666666' }],
-        }, `${numeral(amount).format('0,0.00')} ${currency}`]
+        }, { text: `${numeral(amount).format('0,0.00')} ${currency}${isIncome}`, bold: isIncome }]
       })
+    ]
+  }).reduce((acc, curr) => [...acc, ...curr], [])
+
+  const expesesSummary: TableCell[][] = allCoins.map(coin => {
+    const income = Object.keys(byCurrencyIncomes).reduce((accumulator, inc) => {
+      const currency = inc
+      const amount = byCurrencyIncomes[inc]
+
+      const exchangeRate = exchangeRates.find(rate => rate.to === coin && rate.from === currency)?.amount || 1
+      return accumulator + (amount * exchangeRate)
+    }, 0)
+
+    const expenses = Object.keys(byCurrencyExpenses).reduce((accumulator, inc) => {
+      const currency = inc
+      const amount = byCurrencyExpenses[inc]
+
+      const exchangeRate = exchangeRates.find(rate => rate.to === coin && rate.from === currency)?.amount || 1
+      return accumulator + (amount * exchangeRate)
+    }, 0)
+
+    const savings = income - expenses
+    return [
+      [{ text: coin, bold: true, colSpan: 2, style: { fillColor: '#d3d3d3' } }, {}],
+      ['Ingresos (+)', `${numeral(income).format('0,0.00')} ${coin}`],
+      ['Gastos (-)', `${numeral(expenses).format('0,0.00')} ${coin}`],
+      [{ text: `Ahorro`, bold: true }, { text: `${numeral(savings).format('0,0.00')} ${coin}`, bold: true, style: {} }],
     ]
   }).reduce((acc, curr) => [...acc, ...curr], [])
 
@@ -469,6 +506,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         font: 'RobotoMono',
         layout: 'lightHorizontalLines',
         table: {
+          dontBreakRows: true,
           headerRows: 1,
           widths: ['*', '*'],
           body: [
@@ -492,6 +530,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         font: 'RobotoMono',
         layout: 'lightHorizontalLines',
         table: {
+          dontBreakRows: true,
           headerRows: 2,
           widths: ['*', '*'],
           body: [
@@ -515,6 +554,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         font: 'RobotoMono',
         layout: 'lightHorizontalLines',
         table: {
+          dontBreakRows: true,
           headerRows: 2,
           widths: ['*', '*'],
           body: [
@@ -538,6 +578,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         font: 'RobotoMono',
         layout: 'lightHorizontalLines',
         table: {
+          dontBreakRows: true,
           headerRows: 2,
           widths: ['*', '*'],
           body: [
@@ -554,10 +595,11 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         }
       },
       {
-        pageBreak: 'before',
+        marginBottom: 10,
         font: 'RobotoMono',
         layout: 'lightHorizontalLines',
         table: {
+          dontBreakRows: true,
           headerRows: 2,
           widths: ['*', '*'],
           body: [
@@ -569,10 +611,37 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
               { text: 'Descripción', bold: true, style: { fillColor: '#d3d3d3' } },
               { text: 'Monto', bold: true, style: { fillColor: '#d3d3d3' } }
             ],
-            ...(allExpesesSummary.length > 0 ? allExpesesSummary : [[{ text: 'No hay gastos registrados', colSpan: 2, alignment: 'center' }, {}]])
+            ...(allExpesesSummary.length > 0 ? allExpesesSummary : [[{ text: 'No hay gastos registrados', colSpan: 2, alignment: 'center' }, {}]]),
+            [
+              { text: '* Ignorado en el total de gastos por moneda.', colSpan: 2, alignment: 'left', italics: true, fontSize: 10 }, {}
+            ]
           ]
         }
-      }
+      },
+      {
+        marginBottom: 10,
+        font: 'RobotoMono',
+        layout: 'lightHorizontalLines',
+        table: {
+          dontBreakRows: true,
+          headerRows: 1,
+          widths: ['*', '*'],
+          body: [
+            [
+              { text: 'TOTAL DE GASTOS POR MONEDA CON CAMBIO', bold: true, colSpan: 2, alignment: 'center' },
+              {}
+            ],
+            [
+              { text: 'Asegurarse de tener los cambios de moneda establecidos para tener los valores convertidos correctamente. Utiliza /cambio para configurarlos.', fontSize: 10, italics: true, colSpan: 2, alignment: 'left' },
+              {}
+            ],
+            ...expesesSummary,
+            [
+              { text: 'NOTA: Los gastos con  categorias con * no fueron sumadas en este total.', colSpan: 2, alignment: 'left', italics: true, fontSize: 10 }, {}
+            ]
+          ]
+        }
+      },
     ]
   }
 

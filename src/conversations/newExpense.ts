@@ -2,8 +2,7 @@ import { MsgAndQueryProps, MsgProps, QueryProps } from '@customTypes/messageType
 import { prisma } from '@utils/prisma'
 import z from 'zod'
 import { accountsButtons } from '@conversations/accounts'
-import numeral from 'numeral'
-import { expenseButtons } from '@conversations/expense'
+import { expenseButtons, expenseText } from '@conversations/expense'
 import auth from '@utils/auth'
 
 export async function newExpenseOnStart({ bot, msg, query }: MsgAndQueryProps) {
@@ -150,7 +149,10 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
       include: {
         amount: true,
         account: true,
-        createdBy: true
+        createdBy: true,
+        book: true,
+        category: true,
+        files: true
       }
     })
 
@@ -167,12 +169,10 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
       }
     })
 
-    const expenseText = `Descripción: <b>${newExpense.description}</b>\nCuenta: ${newExpense.account.description}\nMonto: ${numeral(newExpense.amount.amount).format('0,0.00')} ${newExpense.amount.currency}`
-
-    await bot.sendMessage(userId, `Gasto registrado:\n\n${expenseText}\n\n¿Qué deseas hacer con este gasto?`, {
+    await bot.sendMessage(userId, expenseText(newExpense, user), {
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: expenseButtons()
+        inline_keyboard: expenseButtons(false)
       }
     })
 
@@ -181,7 +181,7 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
 
       if (group) {
         try {
-          await bot.sendMessage(Number(group), `Nuevo gasto en el libro <b>${book.title}</b>\n\n${expenseText}`, {
+          await bot.sendMessage(Number(group), `Nuevo gasto en el libro <b>${book.title}</b>\nGasto registrado por ${user.firstName}:\n\n${expenseText}`, {
             parse_mode: 'HTML'
           })
         } catch (error) {
