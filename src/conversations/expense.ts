@@ -528,6 +528,34 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
       expenseToEdit.isIncome = !expenseToEdit.isIncome
     }
 
+    if (btnPress === 'date') {
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'expense',
+          data: {
+            expenseId: expenseToEdit.id,
+            action: 'edit',
+            property: 'date'
+          }
+        }
+      })
+
+      await bot.sendMessage(userId, 'Ingresa la nueva fecha:', {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Ene', callback_data: '01' }, { text: 'Feb', callback_data: '02' }, { text: 'Mar', callback_data: '03' }],
+            [{ text: 'Abr', callback_data: '04' }, { text: 'May', callback_data: '05' }, { text: 'Jun', callback_data: '06' }],
+            [{ text: 'Jul', callback_data: '07' }, { text: 'Ago', callback_data: '08' }, { text: 'Sep', callback_data: '09' }],
+            [{ text: 'Oct', callback_data: '10' }, { text: 'Nov', callback_data: '11' }, { text: 'Dic', callback_data: '12' }]
+          ]
+        }
+      })
+      return
+    }
+
     if (conversationData.property === 'account') {
       const newAccount = await prisma.expense.update({
         where: {
@@ -613,7 +641,7 @@ export function expenseButtons(isIncome: boolean): TelegramBot.InlineKeyboardBut
     [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
     [{ text: 'Categorizar', callback_data: 'category' }, { text: 'Adjuntar', callback_data: 'file' }],
     [{ text: 'Cambiar Cuenta', callback_data: 'account' }, { text: 'Cambiar Monto', callback_data: 'amount' }],
-    [{ text: isIncome ? 'Cambiar a Gasto' : 'Cambiar a Ingreso', callback_data: 'isIncome' }, { text: 'Cambiar Fecha', callback_data: 'amount' }],
+    [{ text: isIncome ? 'Cambiar a Gasto' : 'Cambiar a Ingreso', callback_data: 'isIncome' }, { text: 'Cambiar Fecha', callback_data: 'date' }],
   ]
 }
 
