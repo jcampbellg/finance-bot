@@ -8,8 +8,8 @@ import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import numeral from 'numeral'
-import { CategoryWithLimits, LimitsWithAmount } from '@customTypes/prismaTypes'
-import { Category } from '@prisma/client'
+import { CategoryWithLimitsAndFiles, LimitsWithAmount } from '@customTypes/prismaTypes'
+import { Category, FileType } from '@prisma/client'
 import auth from '@utils/auth'
 
 dayjs.extend(utc)
@@ -80,6 +80,9 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
       data: {
         description: text,
         bookId: book.id
+      },
+      include: {
+        files: true
       }
     })
 
@@ -107,6 +110,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
         id: conversationData.categoryId || 0
       },
       include: {
+        files: true,
         limits: {
           include: {
             amount: true
@@ -137,6 +141,9 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
         },
         data: {
           description: text
+        },
+        include: {
+          files: true
         }
       })
 
@@ -226,6 +233,38 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
       await sendCategory(bot, userId, { ...categoryToEdit, limits: newLimits })
       return
     }
+
+    if (conversationData.property === 'file') {
+      if (!msg.photo && !msg.document) {
+        await bot.sendMessage(userId, 'Debes enviar un archivo.')
+        return
+      }
+
+      const fileType: FileType = !!msg.photo ? 'photo' : 'document'
+
+      const photoLen = msg.photo?.length || 0
+      // @ts-ignore
+      const fileId = fileType === 'photo' ? msg.photo[photoLen - 1].file_id : msg.document?.file_id
+
+      if (!fileId) {
+        await bot.sendMessage(msg.chat.id, 'No se encontró el archivo.\nIntenta de nuevo.')
+        return
+      }
+
+      await bot.sendMessage(userId, 'Procesando archivo recibido...')
+
+      const file = await prisma.files.create({
+        data: {
+          fileId,
+          fileType,
+          categoryId: categoryToEdit.id,
+          validFrom: dayjs().tz(user.timezone).startOf('month').format()
+        }
+      })
+
+      await sendCategory(bot, userId, { ...categoryToEdit, files: [file] })
+      return
+    }
   }
 }
 
@@ -305,6 +344,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
         id: categoryId,
       },
       include: {
+        files: true,
         limits: {
           include: {
             amount: true
@@ -332,6 +372,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
         id: conversationData.categoryId || 0
       },
       include: {
+        files: true,
         limits: {
           include: {
             amount: true
@@ -452,12 +493,31 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
       })
       return
     }
+
+    if (btnPress === 'file') {
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'categories',
+          data: {
+            action: 'edit',
+            categoryId: categoryToEdit.id,
+            property: 'file'
+          }
+        }
+      })
+
+      await bot.sendMessage(userId, 'Envía el nuevo archivo:')
+      return
+    }
   }
 }
 
 export function categoriesButtons(categories: Category[]): TelegramBot.InlineKeyboardButton[][] {
   const categoriesGroups = categories.reduce((acc, curr, i) => {
-    if (i % 3 === 0) acc.push([curr])
+    if (i % 2 === 0) acc.push([curr])
     else acc[acc.length - 1].push(curr)
     return acc
   }, [] as Category[][])
@@ -473,7 +533,7 @@ export function categoriesButtons(categories: Category[]): TelegramBot.InlineKey
 export function categoryButtons(isPayment: boolean, hasLimit: boolean, isIgnore: boolean): TelegramBot.InlineKeyboardButton[][] {
   return [
     [{ text: `${hasLimit ? 'Cambiar' : 'Agregar'} ${isPayment ? 'Monto' : 'Limite'}`, callback_data: 'limit' }, { text: isPayment ? 'Quitar de Pago Fijos' : 'Poner en Pagos Fijo', callback_data: 'payment' }],
-    [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
+    [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Adjuntar', callback_data: 'file' }, { text: 'Eliminar', callback_data: 'delete' }],
     [...(hasLimit ? [{ text: isIgnore ? 'Sumar en presupuesto' : 'Ignorar en presupuesto', callback_data: 'ignore' }] : []), { text: 'Regresar', callback_data: 'back' }]
   ]
 }
@@ -490,11 +550,27 @@ export function limitsListText(limits: LimitsWithAmount[], isPayment: boolean, i
   return `${paymentText}\n\n${isPayment ? 'Monto' : 'Limite'}:\n${numeral(lastLimit?.amount.amount || 0).format('0,0.00')} ${lastLimit?.amount.currency}${ignoreText}`
 }
 
-export async function sendCategory(bot: TelegramBot, chatId: number, category: CategoryWithLimits) {
+export async function sendCategory(bot: TelegramBot, chatId: number, category: CategoryWithLimitsAndFiles) {
+  const hasFile = category.files.length > 0 ? '📎' : ''
   const hasLimit = category.limits.length > 0 && category.limits[0].amount.amount > 0
   const ignore = hasLimit ? category.limits[0].ignoreInBudget : false
 
-  await bot.sendMessage(chatId, `<b>${category.description}</b>${limitsListText(category.limits, category.isPayment, ignore)}`, {
+  const caption = `${hasFile}<b>${category.description}</b>${limitsListText(category.limits, category.isPayment, ignore)}`
+
+  if (hasFile) {
+    const file = category.files[0]
+    await bot.sendChatAction(chatId, file.fileType === 'photo' ? 'upload_photo' : 'upload_document')
+    await bot[file.fileType === 'photo' ? 'sendPhoto' : 'sendDocument'](chatId, file.fileId, {
+      caption: caption,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: categoryButtons(category.isPayment, hasLimit, ignore)
+      }
+    })
+    return
+  }
+
+  await bot.sendMessage(chatId, caption, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: categoryButtons(category.isPayment, hasLimit, ignore)

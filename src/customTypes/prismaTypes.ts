@@ -30,12 +30,13 @@ export type ExpenseWithAll = Prisma.ExpenseGetPayload<{
   }
 }>
 
-export type CategoryWithLimits = Prisma.CategoryGetPayload<{
+export type CategoryWithLimitsAndFiles = Prisma.CategoryGetPayload<{
   include: {
+    files: true,
     limits: {
       include: {
-        amount: true
-      }
+        amount: true,
+      },
     }
   }
 }>
