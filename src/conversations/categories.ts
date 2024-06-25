@@ -392,6 +392,12 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
     }
 
     if (btnPress === 'ignore') {
+      if (categoryToEdit.limits.length === 0) {
+        await bot.sendMessage(userId, 'No se puede ignorar un limite si no hay uno asignado.')
+        await sendCategory(bot, userId, categoryToEdit)
+        return
+      }
+
       const newLimit = await prisma.limit.update({
         where: {
           id: categoryToEdit.limits[0].id
