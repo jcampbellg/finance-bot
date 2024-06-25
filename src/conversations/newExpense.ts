@@ -1,9 +1,9 @@
 import { MsgAndQueryProps, MsgProps, QueryProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
 import z from 'zod'
-import { accountsButtons } from './budget/accounts'
+import { accountsButtons } from '@conversations/accounts'
 import numeral from 'numeral'
-import { expenseButtons } from './expense'
+import { expenseButtons } from '@conversations/expense'
 import auth from '@utils/auth'
 
 export async function newExpenseOnStart({ bot, msg, query }: MsgAndQueryProps) {

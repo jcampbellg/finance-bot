@@ -1,5 +1,5 @@
 import { MsgAndQueryProps } from '@customTypes/messageTypes'
-import { prisma } from './prisma'
+import { prisma } from '@utils/prisma'
 import { waitingForCommandNoBook } from '@conversations/waitingForCommand'
 
 export default async function auth({ bot, msg, query }: MsgAndQueryProps, inBooks: boolean = false) {

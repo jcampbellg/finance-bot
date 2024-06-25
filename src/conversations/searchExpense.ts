@@ -1,7 +1,7 @@
 import { MsgAndQueryProps, MsgProps } from '@customTypes/messageTypes'
 import auth from '@utils/auth'
 import { prisma } from '@utils/prisma'
-import { waitingForCommandOnStart } from './waitingForCommand'
+import { waitingForCommandOnStart } from '@conversations/waitingForCommand'
 import numeral from 'numeral'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
@@ -9,7 +9,7 @@ import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { ExpenseWithAmountAccountAndCategory } from '@customTypes/prismaTypes'
-import { expenseButtons, expenseText } from './expense'
+import { expenseButtons, expenseText } from '@conversations/expense'
 
 dayjs.locale('es')
 dayjs.extend(utc)

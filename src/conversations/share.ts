@@ -2,7 +2,7 @@ import { prisma } from '@utils/prisma'
 import { MsgAndQueryProps, MsgProps, QueryProps } from '@customTypes/messageTypes'
 import auth from '@utils/auth'
 import z from 'zod'
-import { waitingForCommandOnStart } from './waitingForCommand'
+import { waitingForCommandOnStart } from '@conversations/waitingForCommand'
 
 export async function shareOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const { user, book, userId } = await auth({ bot, msg, query } as MsgAndQueryProps)

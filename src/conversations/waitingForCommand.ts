@@ -4,11 +4,11 @@ import { booksOnStart } from '@conversations/books'
 import { onboardingOnStart } from '@conversations/onboarding'
 import { budgetOnStart } from '@conversations/budget'
 import { newExpenseOnStart } from '@conversations/newExpense'
-import { exchangeRatesOnStart } from './exchangeRates'
-import { summaryOnStart } from './summary'
-import { searchExpenseOnStart } from './searchExpense'
+import { exchangeRatesOnStart } from '@conversations/exchangeRates'
+import { summaryOnStart } from '@conversations/summary'
+import { searchExpenseOnStart } from '@conversations/searchExpense'
 import setMyCommands from '@utils/setMyCommands'
-import { shareOnStart } from './share'
+import { shareOnStart } from '@conversations/share'
 
 export async function waitingForCommandOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const userId = msg?.chat.id || query?.message.chat.id as number

@@ -1,9 +1,9 @@
 import { MsgAndQueryProps, QueryProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
-import { accountsOnStart } from '@conversations/budget/accounts'
-import { categoriesOnStart } from './budget/categories'
+import { accountsOnStart } from '@conversations/accounts'
+import { categoriesOnStart } from '@conversations/categories'
 import auth from '@utils/auth'
-import { incomesOnStart } from './budget/incomes'
+import { incomesOnStart } from '@conversations/incomes'
 
 export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const { user, book, userId } = await auth({ msg, bot, query } as MsgAndQueryProps)
