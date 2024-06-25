@@ -201,6 +201,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
           bookId: book.id,
           categoryId: categoryToEdit.id,
           amountId: limitAmount.id,
+          ignoreInBudget: categoryToEdit.limits[0]?.ignoreInBudget || false,
           validFrom: dayjs().tz(user.timezone).startOf('month').format()
         }
       })
@@ -393,7 +394,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
     if (btnPress === 'ignore') {
       const newLimit = await prisma.limit.update({
         where: {
-          id: categoryToEdit.id
+          id: categoryToEdit.limits[0].id
         },
         data: {
           ignoreInBudget: !categoryToEdit.limits[0].ignoreInBudget
