@@ -113,27 +113,6 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         }
       })
       expenseToEdit.description = text
-
-      const fileToSend = expenseFile(expenseToEdit)
-      if (fileToSend) {
-        await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
-        await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
-          caption: expenseText(expenseToEdit, user),
-          parse_mode: 'HTML',
-          reply_markup: {
-            inline_keyboard: expenseButtons(expenseToEdit.isIncome)
-          }
-        })
-        return
-      }
-
-      await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: expenseButtons(expenseToEdit.isIncome)
-        }
-      })
-      return
     }
 
     if (conversationData.property === 'amount') {
@@ -191,27 +170,6 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       })
 
       expenseToEdit.amount = updateExpense.amount
-
-      const fileToSend = expenseFile(expenseToEdit)
-      if (fileToSend) {
-        await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
-        await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
-          caption: expenseText(expenseToEdit, user),
-          parse_mode: 'HTML',
-          reply_markup: {
-            inline_keyboard: expenseButtons(expenseToEdit.isIncome)
-          }
-        })
-        return
-      }
-
-      await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: expenseButtons(expenseToEdit.isIncome)
-        }
-      })
-      return
     }
 
     if (conversationData.property === 'file') {
@@ -243,21 +201,30 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       })
 
       expenseToEdit.files.unshift(file)
+    }
 
-      const fileToSend = expenseFile(expenseToEdit)
-      if (fileToSend) {
-        await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
-        await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
-          caption: expenseText(expenseToEdit, user),
-          parse_mode: 'HTML',
-          reply_markup: {
-            inline_keyboard: expenseButtons(expenseToEdit.isIncome)
-          }
-        })
+    if (conversationData.property === 'date') {
+      const isValid = z.string().regex(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/).safeParse(text)
+      if (!isValid.success) {
+        await bot.sendMessage(userId, 'La respuesta debe ser una fecha válida.')
         return
       }
+      const updatedExpense = await prisma.expense.update({
+        where: {
+          id: expenseToEdit.id
+        },
+        data: {
+          createdAt: dayjs(text).utc().format()
+        }
+      })
+      expenseToEdit.createdAt = updatedExpense.createdAt
+    }
 
-      await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
+    const fileToSend = expenseFile(expenseToEdit)
+    if (fileToSend) {
+      await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
+      await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
+        caption: expenseText(expenseToEdit, user),
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: expenseButtons(expenseToEdit.isIncome)
@@ -265,6 +232,14 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       })
       return
     }
+
+    await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: expenseButtons(expenseToEdit.isIncome)
+      }
+    })
+    return
   }
 }
 
@@ -543,16 +518,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         }
       })
 
-      await bot.sendMessage(userId, 'Ingresa la nueva fecha:', {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Ene', callback_data: '01' }, { text: 'Feb', callback_data: '02' }, { text: 'Mar', callback_data: '03' }],
-            [{ text: 'Abr', callback_data: '04' }, { text: 'May', callback_data: '05' }, { text: 'Jun', callback_data: '06' }],
-            [{ text: 'Jul', callback_data: '07' }, { text: 'Ago', callback_data: '08' }, { text: 'Sep', callback_data: '09' }],
-            [{ text: 'Oct', callback_data: '10' }, { text: 'Nov', callback_data: '11' }, { text: 'Dic', callback_data: '12' }]
-          ]
-        }
-      })
+      await bot.sendMessage(userId, 'Ingresa la nueva fecha:\n\n<i>Usa este formato en numeros: e.g. 2020-04-02T13:02</i>', { parse_mode: 'HTML' })
       return
     }
 
@@ -648,7 +614,7 @@ export function expenseButtons(isIncome: boolean): TelegramBot.InlineKeyboardBut
 export function expenseText(expense: ExpenseWithAll, user: User): string {
   const hasFile = expense.files.length > 0 ? '📎 ' : ''
   const category = expense.category ? `\nCategoria: ${expense.category.description}` : '\nSin categoría'
-  const spanishDate = dayjs().tz(user.timezone).format('LL hh:mma')
+  const spanishDate = dayjs(expense.createdAt).tz(user.timezone).format('LL hh:mma')
   const isIncome = expense.isIncome ? ' (Ingreso)' : ''
 
   return `<i>${spanishDate}</i>\n${hasFile}<b>${expense.description}</b>\nCuenta: ${expense.account.description}\nMonto: ${numeral(expense.amount.amount).format('0,0.00')} ${expense.amount.currency}${isIncome}${category}\n\n¿Qué deseas hacer con este gasto?`
