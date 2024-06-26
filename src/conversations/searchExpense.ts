@@ -79,6 +79,28 @@ export async function searchExpenseOnText({ bot, msg }: MsgProps) {
               contains: text,
               mode: 'insensitive'
             },
+          },
+          {
+            account: {
+              description: {
+                contains: text,
+                mode: 'insensitive'
+              }
+            }
+          },
+          {
+            files: {
+              some: {
+                aiTags: {
+                  some: {
+                    tag: {
+                      contains: text,
+                      mode: 'insensitive'
+                    }
+                  }
+                }
+              }
+            }
           }
         ]
       },

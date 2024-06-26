@@ -40,11 +40,20 @@ enum ConversationState {
   share
 }
 
+model AiTags {
+  id        Int      @id @default(autoincrement())
+  tag       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  file      Files?   @relation(fields: [fileId], references: [id])
+  fileId    Int?
+}
+
 model Files {
   id         Int       @id @default(autoincrement())
   fileId     String
   fileType   FileType
-  aiItems    String[]
+  aiTags     AiTags[]
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   expense    Expense?  @relation(fields: [expenseId], references: [id])

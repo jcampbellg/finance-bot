@@ -15,6 +15,7 @@ import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { isCurrencyValid, isDateValid, isMathValid, isTitleValid } from '@utils/isValid'
 import { create, all } from 'mathjs'
+import openAi from '@utils/openAi'
 
 const config = {}
 const math = create(all, config)
@@ -205,12 +206,57 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
 
       await bot.sendMessage(userId, 'Procesando archivo recibido...')
 
+      let tags: string[] = []
+
+      if (fileType === 'photo') {
+        try {
+          const fileUrl = await bot.getFileLink(fileId)
+          const aiTag = await openAi.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [{
+              role: 'system',
+              content: 'You job is to get the items in the reciept, do not get the prices or the total amount, just the items with the name of the product.',
+            }, {
+              role: 'system',
+              content: 'You will reply in json format like this: "{items: ["item1", "item2", "item3"]}"',
+            }, {
+              role: 'system',
+              content: 'If is not a reciept, or no items are found, reply with "{items: []}"',
+            }, {
+              role: 'user',
+              content: [{
+                type: 'image_url',
+                image_url: {
+                  url: fileUrl,
+                }
+              }]
+            }
+            ]
+          })
+          if (!!aiTag.choices[0].message?.content) {
+            const jsonReply = JSON.parse(aiTag.choices[0].message.content)
+            if (jsonReply.items) {
+              tags = jsonReply.items
+            }
+          }
+        } catch (error) {
+          console.error(error)
+        }
+      }
+
       const file = await prisma.files.create({
         data: {
           fileId,
           fileType,
           expenseId: expenseToEdit.id,
-          validFrom: dayjs().tz(user.timezone).startOf('month').format()
+          validFrom: dayjs().tz(user.timezone).startOf('month').format(),
+          ...(tags.length > 0 ? {
+            aiTags: {
+              createMany: {
+                data: tags.map((tag) => ({ tag }))
+              }
+            }
+          } : {})
         }
       })
 
@@ -404,6 +450,20 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
     }
 
     if (btnPress === 'delete') {
+      await prisma.aiTags.deleteMany({
+        where: {
+          file: {
+            expenseId: expenseToEdit.id
+          }
+        }
+      })
+
+      await prisma.files.deleteMany({
+        where: {
+          expenseId: expenseToEdit.id
+        }
+      })
+
       await prisma.expense.delete({
         where: {
           id: expenseToEdit.id
