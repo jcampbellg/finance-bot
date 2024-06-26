@@ -2,7 +2,6 @@ import { budgetOnStart } from '@conversations/budget'
 import { MsgAndQueryProps, MsgProps, QueryProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
-import z from 'zod'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
@@ -11,6 +10,11 @@ import numeral from 'numeral'
 import { CategoryWithLimitsAndFiles, LimitsWithAmount } from '@customTypes/prismaTypes'
 import { Category, FileType } from '@prisma/client'
 import auth from '@utils/auth'
+import { isCurrencyValid, isMathValid, isTitleValid } from '@utils/isValid'
+import { create, all } from 'mathjs'
+
+const config = {}
+const math = create(all, config)
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -26,8 +30,18 @@ export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
     where: {
       bookId: book.id
     },
-    orderBy: {
-      description: 'asc'
+    orderBy: [
+      {
+        description: 'asc',
+      },
+      {
+        expenses: {
+          _count: 'asc'
+        }
+      }
+    ],
+    include: {
+      expenses: true
     }
   })
 
@@ -41,7 +55,7 @@ export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
     }
   })
 
-  await bot.sendMessage(userId, `Selecciona, edita o agrega una categoria a <b>${book.title}</b>:`, {
+  await bot.sendMessage(userId, `Selecciona, edita o agrega una categoría a <b>${book.title}</b>:`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
@@ -70,7 +84,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
   const conversationData: any = conversation?.data || {}
 
   if (conversationData.action === 'add') {
-    const isValid = z.string().min(3).max(50).safeParse(text)
+    const isValid = isTitleValid(text)
     if (!isValid.success) {
       await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
       return
@@ -99,7 +113,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
       }
     })
 
-    await bot.sendMessage(userId, `<i>Categoria agregada.</i>`, { parse_mode: 'HTML' })
+    await bot.sendMessage(userId, `<i>Categoría agregada.</i>`, { parse_mode: 'HTML' })
     await sendCategory(bot, userId, { ...newCategory, limits: [] })
     return
   }
@@ -123,13 +137,13 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
     })
 
     if (!categoryToEdit) {
-      await bot.sendMessage(userId, 'La categoria seleccionada ya no existe.')
+      await bot.sendMessage(userId, 'La categoría seleccionada ya no existe.')
       await categoriesOnStart({ bot, msg })
       return
     }
 
     if (conversationData.property === 'description') {
-      const isValid = z.string().min(3).max(50).safeParse(text)
+      const isValid = isTitleValid(text)
       if (!isValid.success) {
         await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
         return
@@ -147,41 +161,51 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
         }
       })
 
-      await bot.sendMessage(userId, `<i>Categoria actualizada.</i>`, { parse_mode: 'HTML' })
+      await bot.sendMessage(userId, `<i>Categoría actualizada.</i>`, { parse_mode: 'HTML' })
       await sendCategory(bot, userId, { ...categoryEdit, limits: categoryToEdit.limits })
       return
     }
 
     if (conversationData.property === 'limit') {
       if (conversationData.limit === undefined) {
-        const limit = parseFloat(text)
-        if (Number.isNaN(limit) || limit < 0) {
+        const isValid = isMathValid(text)
+        if (!isValid.success) {
+          await bot.sendMessage(userId, 'Solo se permiten números y operaciones matemáticas simples en una linea.')
+          return
+        }
+        try {
+          const limit = math.evaluate(text)
+          if (Number.isNaN(limit) || limit < 0) {
+            await bot.sendMessage(userId, 'La respuesta debe ser un número mayor o igual a 0.')
+            return
+          }
+
+          await prisma.conversation.update({
+            where: {
+              chatId: userId
+            },
+            data: {
+              state: 'categories',
+              data: {
+                action: 'edit',
+                categoryId: categoryToEdit.id,
+                property: 'limit',
+                limit: limit
+              }
+            }
+          })
+
+          await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
+            parse_mode: 'HTML',
+          })
+          return
+        } catch (err) {
           await bot.sendMessage(userId, 'La respuesta debe ser un número mayor o igual a 0.')
           return
         }
-
-        await prisma.conversation.update({
-          where: {
-            chatId: userId
-          },
-          data: {
-            state: 'categories',
-            data: {
-              action: 'edit',
-              categoryId: categoryToEdit.id,
-              property: 'limit',
-              limit: limit
-            }
-          }
-        })
-
-        await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
-          parse_mode: 'HTML',
-        })
-        return
       }
 
-      const isValid = z.string().regex(/[a-zA-Z]+/).length(3).safeParse(text)
+      const isValid = isCurrencyValid(text)
       if (!isValid.success) {
         await bot.sendMessage(userId, 'La respuesta debe ser de 3 letras.')
         return
@@ -301,7 +325,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
     })
 
     if (categoriesCount >= maxCategories) {
-      await bot.sendMessage(userId, `No puedes agregar más de ${maxCategories} categorias.`)
+      await bot.sendMessage(userId, `No puedes agregar más de ${maxCategories} categorías.`)
       await categoriesOnStart({ bot, query })
       return
     }
@@ -318,7 +342,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
       }
     })
 
-    await bot.sendMessage(userId, 'Escribe la descripción de la categoria a agregar.')
+    await bot.sendMessage(userId, 'Escribe la descripción de la categoría a agregar.')
     return
   }
 
@@ -358,7 +382,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
     })
 
     if (!category) {
-      await bot.sendMessage(userId, 'La categoria seleccionada ya no existe.')
+      await bot.sendMessage(userId, 'La categoría seleccionada ya no existe.')
       await categoriesOnStart({ bot, query })
       return
     }
@@ -386,7 +410,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
     })
 
     if (!categoryToEdit) {
-      await bot.sendMessage(userId, 'La categoria seleccionada ya no existe.')
+      await bot.sendMessage(userId, 'La categoría seleccionada ya no existe.')
       await categoriesOnStart({ bot, query })
       return
     }
@@ -410,7 +434,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
         }
       })
 
-      await bot.sendMessage(userId, `<i>Categoria actualizada.</i>`, { parse_mode: 'HTML' })
+      await bot.sendMessage(userId, `<i>Categoría actualizada.</i>`, { parse_mode: 'HTML' })
       await sendCategory(bot, userId, { ...categoryToEdit, limits: [newLimit] })
       return
     }
@@ -425,7 +449,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
         }
       })
 
-      await bot.sendMessage(userId, `<i>Categoria actualizada.</i>`, { parse_mode: 'HTML' })
+      await bot.sendMessage(userId, `<i>Categoría actualizada.</i>`, { parse_mode: 'HTML' })
       await sendCategory(bot, userId, { ...categoryToEdit, isPayment: !categoryToEdit.isPayment })
       return
     }
@@ -454,7 +478,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
         }
       })
 
-      await bot.sendMessage(userId, `Categoria con sus limites eliminada:\n<b>${categoryToEdit.description}</b>`, {
+      await bot.sendMessage(userId, `Categoría con sus limites eliminada:\n<b>${categoryToEdit.description}</b>`, {
         parse_mode: 'HTML'
       })
       await categoriesOnStart({ bot, query })
@@ -476,7 +500,7 @@ export async function categoriesOnCallbackQuery({ bot, query }: QueryProps) {
         }
       })
 
-      await bot.sendMessage(userId, 'Escribe la nueva descripción de la categoria:')
+      await bot.sendMessage(userId, 'Escribe la nueva descripción de la categoría:')
       return
     }
 

@@ -1,8 +1,8 @@
 import { prisma } from '@utils/prisma'
 import { MsgAndQueryProps, MsgProps, QueryProps } from '@customTypes/messageTypes'
 import auth from '@utils/auth'
-import z from 'zod'
 import { waitingForCommandOnStart } from '@conversations/waitingForCommand'
+import { isKeyValid } from '@utils/isValid'
 
 export async function shareOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const { user, book, userId } = await auth({ bot, msg, query } as MsgAndQueryProps)
@@ -45,7 +45,7 @@ export async function shareOnText({ bot, msg }: MsgProps) {
   const conversationData: any = conversation?.data || {}
 
   if (conversationData.action === 'access') {
-    const isValid = z.string().uuid().safeParse(text)
+    const isValid = isKeyValid(text)
 
     if (!isValid.success) {
       await bot.sendMessage(msg.chat.id, 'Llave de acceso inválida.')
@@ -91,7 +91,7 @@ export async function shareOnCallbackQuery({ bot, query }: QueryProps) {
       }
     })
 
-    await bot.sendMessage(userId, `Copia la llave de acceso:\n\n<code>${share.key}</code>\n\nPegala en la cuenta o grupo.`, {
+    await bot.sendMessage(userId, `Copia la llave de acceso:\n\n<code>${share.key}</code>\n\nPégala en la cuenta o grupo.`, {
       parse_mode: 'HTML'
     })
     return

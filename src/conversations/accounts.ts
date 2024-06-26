@@ -2,9 +2,9 @@ import { budgetOnStart } from '@conversations/budget'
 import { MsgAndQueryProps, QueryProps } from '@customTypes/messageTypes'
 import { Account } from '@prisma/client'
 import auth from '@utils/auth'
+import { isTitleValid } from '@utils/isValid'
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
-import z from 'zod'
 
 const maxAccounts = 10
 
@@ -63,7 +63,7 @@ export async function accountsOnText({ bot, msg, query }: MsgAndQueryProps) {
   const conversationData: any = conversation?.data || {}
 
   if (conversationData.action === 'add') {
-    const isValid = z.string().min(3).max(50).safeParse(text)
+    const isValid = isTitleValid(text)
     if (!isValid.success) {
       await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
       return
@@ -99,7 +99,7 @@ export async function accountsOnText({ bot, msg, query }: MsgAndQueryProps) {
 
   if (conversationData.action === 'edit') {
     if (conversationData.property === 'description') {
-      const isValid = z.string().min(3).max(50).safeParse(text)
+      const isValid = isTitleValid(text)
       if (!isValid.success) {
         await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
         return

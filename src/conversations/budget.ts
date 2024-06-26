@@ -24,7 +24,7 @@ export async function budgetOnStart({ bot, msg, query }: MsgAndQueryProps) {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'Cuentas', callback_data: 'accounts' }, { text: 'Ingresos', callback_data: 'incomes' }, { text: 'Categorias', callback_data: 'categories' }],
+        [{ text: 'Cuentas', callback_data: 'accounts' }, { text: 'Ingresos', callback_data: 'incomes' }, { text: 'Categorías', callback_data: 'categories' }],
       ]
     }
   })

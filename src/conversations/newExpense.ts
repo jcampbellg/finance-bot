@@ -1,9 +1,13 @@
 import { MsgAndQueryProps, MsgProps, QueryProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
-import z from 'zod'
 import { accountsButtons } from '@conversations/accounts'
 import { expenseButtons, expenseText } from '@conversations/expense'
 import auth from '@utils/auth'
+import { isCurrencyValid, isMathValid, isTitleValid } from '@utils/isValid'
+import { create, all } from 'mathjs'
+
+const config = {}
+const math = create(all, config)
 
 export async function newExpenseOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const { user, book, userId } = await auth({ bot, msg, query } as MsgAndQueryProps)
@@ -62,7 +66,7 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
   const conversationData: any = conversation?.data || {}
 
   if (!conversationData.description) {
-    const isValid = z.string().min(3).max(50).safeParse(text)
+    const isValid = isTitleValid(text)
     if (!isValid.success) {
       await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
       return
@@ -99,31 +103,41 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
 
   if (conversationData.description && conversationData.accountId) {
     if (!conversationData.amount) {
-      const amount = parseFloat(text)
-      if (Number.isNaN(amount) || amount <= 0) {
-        await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
+      const isValid = isMathValid(text)
+      if (!isValid.success) {
+        await bot.sendMessage(userId, 'Solo se permiten números y operaciones matemáticas simples en una linea.')
         return
       }
 
-      await prisma.conversation.update({
-        where: {
-          chatId: userId
-        },
-        data: {
-          data: {
-            ...conversationData,
-            amount
-          }
+      try {
+        const amount = math.evaluate(text)
+        if (Number.isNaN(amount) || amount < 0) {
+          await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
+          return
         }
-      })
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            data: {
+              ...conversationData,
+              amount
+            }
+          }
+        })
 
-      await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
-        parse_mode: 'HTML',
-      })
-      return
+        await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
+          parse_mode: 'HTML',
+        })
+        return
+      } catch (error) {
+        await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
+        return
+      }
     }
 
-    const isValid = z.string().regex(/[a-zA-Z]+/).length(3).safeParse(text)
+    const isValid = isCurrencyValid(text)
     if (!isValid.success) {
       await bot.sendMessage(userId, 'La respuesta debe ser de 3 letras.')
       return

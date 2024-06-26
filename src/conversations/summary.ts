@@ -536,7 +536,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
             ],
             ...budgetSummary,
             [
-              { text: 'NOTA: Las categorias/pagos fijos con * no fueron sumadas en este total.', colSpan: 2, alignment: 'left', italics: true, fontSize: 10 }, {}
+              { text: 'NOTA: Las categorías/pagos fijos con * no fueron sumadas en este total.', colSpan: 2, alignment: 'left', italics: true, fontSize: 10 }, {}
             ]
           ]
         }
@@ -620,7 +620,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
           widths: ['*', '*'],
           body: [
             [
-              { text: 'Gastos por Categoria', bold: true, colSpan: 2, alignment: 'center' },
+              { text: 'Gastos por Categoría', bold: true, colSpan: 2, alignment: 'center' },
               {}
             ],
             ...(expensesListSummary.length > 0 ? expensesListSummary : [[{ text: 'No hay gastos registrados', colSpan: 2, alignment: 'center' }, {}]]),
@@ -649,7 +649,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
             ],
             ...expesesSummary,
             [
-              { text: 'NOTA: Los gastos con  categorias con * no fueron sumadas en este total.', colSpan: 2, alignment: 'left', italics: true, fontSize: 10 }, {}
+              { text: 'NOTA: Los gastos con  categorías con * no fueron sumadas en este total.', colSpan: 2, alignment: 'left', italics: true, fontSize: 10 }, {}
             ]
           ]
         }

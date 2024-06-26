@@ -1,6 +1,6 @@
 import { prisma } from '@utils/prisma'
 import { MsgGroupProps } from '@customTypes/messageTypes'
-import z from 'zod'
+import { isKeyValid } from '@utils/isValid'
 
 export async function groupOnText({ bot, msg }: MsgGroupProps) {
   const chatId = msg.chat.id
@@ -14,7 +14,7 @@ export async function groupOnText({ bot, msg }: MsgGroupProps) {
   const text = msg.text?.trim() || ''
 
   if (!group) {
-    const isValid = z.string().uuid().safeParse(text)
+    const isValid = isKeyValid(text)
 
     if (!isValid.success) {
       await bot.sendMessage(msg.chat.id, 'Pega la llave de acceso para recibir notificaciones de gastos en este grupo.')

@@ -1,6 +1,5 @@
 import { MsgAndQueryProps, MsgProps, QueryFromPrivate, QueryProps } from '@customTypes/messageTypes'
 import { prisma } from '@utils/prisma'
-import z from 'zod'
 import { accountsButtons } from '@conversations/accounts'
 import TelegramBot from 'node-telegram-bot-api'
 import numeral from 'numeral'
@@ -14,6 +13,11 @@ import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
+import { isCurrencyValid, isDateValid, isMathValid, isTitleValid } from '@utils/isValid'
+import { create, all } from 'mathjs'
+
+const config = {}
+const math = create(all, config)
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -98,7 +102,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
     }
 
     if (conversationData.property === 'description') {
-      const isValid = z.string().min(3).max(50).safeParse(text)
+      const isValid = isTitleValid(text)
       if (!isValid.success) {
         await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
         return
@@ -117,34 +121,44 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
 
     if (conversationData.property === 'amount') {
       if (conversationData.amount === undefined) {
-        const amount = parseFloat(text)
-        if (Number.isNaN(amount) || amount < 0) {
+        const isValid = isMathValid(text)
+        if (!isValid.success) {
+          await bot.sendMessage(userId, 'Solo se permiten números y operaciones matemáticas simples en una linea.')
+          return
+        }
+        try {
+          const amount = math.evaluate(text)
+          if (Number.isNaN(amount) || amount < 0) {
+            await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
+            return
+          }
+
+          await prisma.conversation.update({
+            where: {
+              chatId: userId
+            },
+            data: {
+              state: 'expense',
+              data: {
+                expenseId: expenseToEdit.id,
+                action: 'edit',
+                property: 'amount',
+                amount
+              }
+            }
+          })
+
+          await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
+            parse_mode: 'HTML',
+          })
+          return
+        } catch (error) {
           await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
           return
         }
-
-        await prisma.conversation.update({
-          where: {
-            chatId: userId
-          },
-          data: {
-            state: 'expense',
-            data: {
-              expenseId: expenseToEdit.id,
-              action: 'edit',
-              property: 'amount',
-              amount
-            }
-          }
-        })
-
-        await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
-          parse_mode: 'HTML',
-        })
-        return
       }
 
-      const isValid = z.string().regex(/[a-zA-Z]+/).length(3).safeParse(text)
+      const isValid = isCurrencyValid(text)
       if (!isValid.success) {
         await bot.sendMessage(userId, 'La respuesta debe ser de 3 letras.')
         return
@@ -204,7 +218,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
     }
 
     if (conversationData.property === 'date') {
-      const isValid = z.string().regex(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/).safeParse(text)
+      const isValid = isDateValid(text)
       if (!isValid.success) {
         await bot.sendMessage(userId, 'La respuesta debe ser una fecha válida.')
         return
@@ -455,8 +469,18 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         where: {
           bookId: book.id
         },
-        orderBy: {
-          description: 'asc'
+        orderBy: [
+          {
+            description: 'asc',
+          },
+          {
+            expenses: {
+              _count: 'asc'
+            }
+          }
+        ],
+        include: {
+          expenses: true
         }
       })
 
@@ -613,7 +637,7 @@ export function expenseButtons(isIncome: boolean): TelegramBot.InlineKeyboardBut
 
 export function expenseText(expense: ExpenseWithAll, user: User): string {
   const hasFile = expense.files.length > 0 ? '📎 ' : ''
-  const category = expense.category ? `\nCategoria: ${expense.category.description}` : '\nSin categoría'
+  const category = expense.category ? `\nCategoría: ${expense.category.description}` : '\nSin categoría'
   const spanishDate = dayjs(expense.createdAt).tz(user.timezone).format('LL hh:mma')
   const isIncome = expense.isIncome ? ' (Ingreso)' : ''
 

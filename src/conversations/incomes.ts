@@ -4,7 +4,6 @@ import { Income } from '@prisma/client'
 import auth from '@utils/auth'
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
-import z from 'zod'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
@@ -12,6 +11,11 @@ import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { IncomeWithSalary } from '@customTypes/prismaTypes'
 import numeral from 'numeral'
+import { isCurrencyValid, isMathValid, isTitleValid } from '@utils/isValid'
+import { create, all } from 'mathjs'
+
+const config = {}
+const math = create(all, config)
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -75,7 +79,7 @@ export async function incomesOnText({ bot, msg, query }: MsgAndQueryProps) {
   const conversationData: any = conversation?.data || {}
 
   if (conversationData.action === 'add') {
-    const isValid = z.string().min(3).max(50).safeParse(text)
+    const isValid = isTitleValid(text)
     if (!isValid.success) {
       await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
       return
@@ -139,7 +143,7 @@ export async function incomesOnText({ bot, msg, query }: MsgAndQueryProps) {
     }
 
     if (conversationData.property === 'description') {
-      const isValid = z.string().min(3).max(50).safeParse(text)
+      const isValid = isTitleValid(text)
       if (!isValid.success) {
         await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
         return
@@ -164,34 +168,43 @@ export async function incomesOnText({ bot, msg, query }: MsgAndQueryProps) {
 
     if (conversationData.property === 'salary') {
       if (conversationData.salary === undefined) {
-        const salary = parseFloat(text)
-        if (Number.isNaN(salary) || salary < 0) {
-          await bot.sendMessage(userId, 'La respuesta debe ser un número mayor o igual a 0.')
+        const isValid = isMathValid(text)
+        if (!isValid.success) {
+          await bot.sendMessage(userId, 'Solo se permiten números y operaciones matemáticas simples en una linea.')
           return
         }
 
-        await prisma.conversation.update({
-          where: {
-            chatId: userId
-          },
-          data: {
-            state: 'incomes',
-            data: {
-              action: 'edit',
-              incomeId: incomeToEdit.id,
-              property: 'salary',
-              salary: salary
-            }
+        try {
+          const salary = math.evaluate(text)
+          if (Number.isNaN(salary) || salary < 0) {
+            await bot.sendMessage(userId, 'La respuesta debe ser un número mayor o igual a 0.')
+            return
           }
-        })
-
-        await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
-          parse_mode: 'HTML',
-        })
-        return
+          await prisma.conversation.update({
+            where: {
+              chatId: userId
+            },
+            data: {
+              state: 'incomes',
+              data: {
+                action: 'edit',
+                incomeId: incomeToEdit.id,
+                property: 'salary',
+                salary: salary
+              }
+            }
+          })
+          await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
+            parse_mode: 'HTML',
+          })
+          return
+        } catch (error) {
+          await bot.sendMessage(userId, 'La respuesta debe ser un número mayor o igual a 0.')
+          return
+        }
       }
 
-      const isValid = z.string().regex(/[a-zA-Z]+/).length(3).safeParse(text)
+      const isValid = isCurrencyValid(text)
       if (!isValid.success) {
         await bot.sendMessage(userId, 'La respuesta debe ser de 3 letras.')
         return
