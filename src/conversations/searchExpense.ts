@@ -8,7 +8,7 @@ import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { ExpenseWithAll } from '@customTypes/prismaTypes'
-import { expenseButtons, expenseText } from '@conversations/expense'
+import { expenseButtons, expenseFile, expenseText } from '@conversations/expense'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -134,7 +134,7 @@ export async function searchExpenseOnText({ bot, msg }: MsgProps) {
     }, [] as ExpenseWithAll[][])
 
     const listText = expenses.map((exp, i) => {
-      return `${i + 1}. ${expenseText(exp, user)}`
+      return `${i + 1}. ${expenseText(exp, user, true)}`
     }).join('\n\n')
 
     await bot.sendMessage(userId, `${listText}\n\nVer y editar:`, {
@@ -191,10 +191,23 @@ export async function searchExpenseOnCallbackQuery({ bot, query }: MsgAndQueryPr
     }
   })
 
+  const fileToSend = expenseFile(expense)
+  if (fileToSend) {
+    await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
+    await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
+      caption: expenseText(expense, user),
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: expenseButtons(expense.isIncome)
+      }
+    })
+    return
+  }
   await bot.sendMessage(userId, expenseText(expense, user), {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: expenseButtons(expense.isIncome)
     }
   })
+  return
 }
