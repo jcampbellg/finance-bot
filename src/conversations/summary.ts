@@ -634,6 +634,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         marginBottom: 10,
         font: 'RobotoMono',
         layout: 'lightHorizontalLines',
+        unbreakable: true,
         table: {
           dontBreakRows: true,
           headerRows: 1,
