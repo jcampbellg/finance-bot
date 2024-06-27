@@ -368,8 +368,6 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         }
       })
 
-      console.log(tags)
-
       const file = await prisma.files.create({
         data: {
           fileId,
