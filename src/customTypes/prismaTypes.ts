@@ -66,3 +66,15 @@ export type IncomeWithSalary = Prisma.IncomeGetPayload<{
     }
   }
 }>
+
+export type BookWithOwnerAndShares = Prisma.BookGetPayload<{
+  include: {
+    owner: true,
+    shares: {
+      include: {
+        shareWithGroup: true
+        shareWithuser: true
+      }
+    }
+  }
+}>

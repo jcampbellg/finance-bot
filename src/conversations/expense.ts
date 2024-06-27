@@ -4,21 +4,17 @@ import { accountsButtons } from '@conversations/accounts'
 import TelegramBot from 'node-telegram-bot-api'
 import numeral from 'numeral'
 import { waitingForCommandOnStart } from '@conversations/waitingForCommand'
-import { ExpenseWithAll } from '@customTypes/prismaTypes'
+import { BookWithOwnerAndShares, ExpenseWithAll } from '@customTypes/prismaTypes'
 import { categoriesButtons } from '@conversations/categories'
-import { FileType, User } from '@prisma/client'
+import { FileType } from '@prisma/client'
 import auth from '@utils/auth'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
-import { isCurrencyValid, isDateValid, isMathValid, isTitleValid } from '@utils/isValid'
-import { create, all } from 'mathjs'
+import { currencyEval, isDateValid, isTitleValid, mathEval } from '@utils/isValid'
 import openAi from '@utils/openAi'
-
-const config = {}
-const math = create(all, config)
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -89,6 +85,9 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         category: true,
         createdBy: true,
         files: {
+          include: {
+            aiTags: true
+          },
           orderBy: {
             createdAt: 'asc'
           }
@@ -122,50 +121,40 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
 
     if (conversationData.property === 'amount') {
       if (conversationData.amount === undefined) {
-        const isValid = isMathValid(text)
-        if (!isValid.success) {
-          await bot.sendMessage(userId, 'Solo se permiten números y operaciones matemáticas simples en una linea.')
+        const amount = mathEval(text)
+        if (!amount.isOk) {
+          await bot.sendMessage(userId, amount.error)
           return
         }
-        try {
-          const amount = math.evaluate(text)
-          if (Number.isNaN(amount) || amount < 0) {
-            await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
-            return
-          }
-
-          await prisma.conversation.update({
-            where: {
-              chatId: userId
-            },
-            data: {
-              state: 'expense',
-              data: {
-                expenseId: expenseToEdit.id,
-                action: 'edit',
-                property: 'amount',
-                amount
-              }
-            }
-          })
-
-          await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
-            parse_mode: 'HTML',
-          })
-          return
-        } catch (error) {
+        if (amount.value < 0) {
           await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
           return
         }
-      }
 
-      const isValid = isCurrencyValid(text)
-      if (!isValid.success) {
-        await bot.sendMessage(userId, 'La respuesta debe ser de 3 letras.')
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            state: 'expense',
+            data: {
+              expenseId: expenseToEdit.id,
+              action: 'edit',
+              property: 'amount',
+              amount: amount.value
+            }
+          }
+        })
+
+        await bot.sendMessage(userId, `Su moneda, en 3 letras:`)
         return
       }
 
-      const currency = text.toUpperCase()
+      const currency = currencyEval(text)
+      if (!currency.isOk) {
+        await bot.sendMessage(userId, currency.error)
+        return
+      }
 
       const updateExpense = await prisma.expense.update({
         where: {
@@ -175,7 +164,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           amount: {
             update: {
               amount: conversationData.amount,
-              currency
+              currency: currency.value
             }
           }
         },
@@ -185,6 +174,123 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       })
 
       expenseToEdit.amount = updateExpense.amount
+    }
+
+    if (conversationData.property === 'split') {
+      const splitAmmount = mathEval(text)
+      if (!splitAmmount.isOk) {
+        await bot.sendMessage(userId, splitAmmount.error)
+        return
+      }
+      if (splitAmmount.value < 0) {
+        await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
+        return
+      }
+      if (splitAmmount.value > expenseToEdit.amount.amount) {
+        await bot.sendMessage(userId, 'El monto a dividir debe ser menor al monto total.')
+        return
+      }
+
+      const newAmount = await prisma.amountCurrency.create({
+        data: {
+          amount: splitAmmount.value,
+          currency: expenseToEdit.amount.currency
+        }
+      })
+
+      let newExpense = await prisma.expense.create({
+        data: {
+          description: `${expenseToEdit.description} (Dividido)`,
+          createdById: user.id,
+          accountId: expenseToEdit.accountId,
+          amountId: newAmount.id,
+          isIncome: expenseToEdit.isIncome,
+          categoryId: expenseToEdit.categoryId,
+          createdAt: expenseToEdit.createdAt,
+          bookId: book.id
+        },
+        include: {
+          files: true,
+          amount: true,
+          account: true,
+          category: true,
+          createdBy: true
+        }
+      })
+
+      if (expenseToEdit.files.length > 0) {
+        const tags = expenseToEdit.files[0].aiTags.map((tag) => tag.tag)
+        const copyLastFile = await prisma.files.create({
+          data: {
+            fileId: expenseToEdit.files[0].fileId,
+            fileType: expenseToEdit.files[0].fileType,
+            expenseId: newExpense.id,
+            validFrom: expenseToEdit.files[0].validFrom,
+            ...(tags.length > 0 ? {
+              aiTags: {
+                createMany: {
+                  data: tags.map((tag) => ({ tag }))
+                }
+              }
+            } : {})
+          }
+        })
+
+        newExpense.files = [copyLastFile]
+      }
+
+      await prisma.expense.update({
+        where: {
+          id: expenseToEdit.id
+        },
+        data: {
+          amount: {
+            update: {
+              amount: expenseToEdit.amount.amount - splitAmmount.value
+            }
+          }
+        }
+      })
+
+      expenseToEdit.amount.amount -= splitAmmount.value
+
+      await bot.sendMessage(userId, expenseText(expenseToEdit, book, true), {
+        parse_mode: 'HTML'
+      })
+
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'expense',
+          data: {
+            action: 'edit',
+            expenseId: newExpense.id
+          }
+        }
+      })
+
+      const fileToSend = expenseFile(newExpense)
+      if (fileToSend) {
+        await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
+        await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
+          caption: expenseText(newExpense, book),
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: expenseButtons(newExpense.isIncome)
+          }
+        })
+        return
+      }
+
+      await bot.sendMessage(userId, expenseText(newExpense, book), {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: expenseButtons(newExpense.isIncome)
+        }
+      })
+      return
     }
 
     if (conversationData.property === 'file') {
@@ -205,6 +311,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       }
 
       await bot.sendMessage(userId, 'Procesando archivo recibido...')
+      await bot.sendChatAction(userId, fileType === 'photo' ? 'upload_photo' : 'upload_document')
 
       let tags: string[] = []
 
@@ -218,10 +325,10 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
               content: 'You job is to get the items in the reciept, do not get the prices or the total amount, just the items with the name of the product.',
             }, {
               role: 'system',
-              content: 'You will reply in json format like this: "{items: ["item1", "item2", "item3"]}"',
+              content: 'You will reply in json format like this: `{"items": ["item1", "item2", "item3"]}`',
             }, {
               role: 'system',
-              content: 'If is not a reciept, or no items are found, reply with "{items: []}"',
+              content: 'If is not a reciept, or no items are found, reply with `{"items": []}`',
             }, {
               role: 'user',
               content: [{
@@ -230,11 +337,13 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
                   url: fileUrl,
                 }
               }]
-            }
-            ]
+            }],
+            response_format: { type: 'json_object' },
+            temperature: 0.2,
           })
           if (!!aiTag.choices[0].message?.content) {
-            const jsonReply = JSON.parse(aiTag.choices[0].message.content)
+            const stringReply = aiTag.choices[0].message.content
+            const jsonReply = JSON.parse(stringReply)
             if (jsonReply.items) {
               tags = jsonReply.items
             }
@@ -244,12 +353,29 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         }
       }
 
+      // Expenses can only have one file
+      await prisma.aiTags.deleteMany({
+        where: {
+          file: {
+            expenseId: expenseToEdit.id
+          }
+        }
+      })
+
+      await prisma.files.deleteMany({
+        where: {
+          expenseId: expenseToEdit.id
+        }
+      })
+
+      console.log(tags)
+
       const file = await prisma.files.create({
         data: {
           fileId,
           fileType,
           expenseId: expenseToEdit.id,
-          validFrom: dayjs().tz(user.timezone).startOf('month').format(),
+          validFrom: dayjs().tz(book.owner.timezone).startOf('month').format(),
           ...(tags.length > 0 ? {
             aiTags: {
               createMany: {
@@ -257,6 +383,9 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
               }
             }
           } : {})
+        },
+        include: {
+          aiTags: true
         }
       })
 
@@ -284,7 +413,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
     if (fileToSend) {
       await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
       await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
-        caption: expenseText(expenseToEdit, user),
+        caption: expenseText(expenseToEdit, book),
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: expenseButtons(expenseToEdit.isIncome)
@@ -293,7 +422,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       return
     }
 
-    await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
+    await bot.sendMessage(userId, expenseText(expenseToEdit, book), {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: expenseButtons(expenseToEdit.isIncome)
@@ -367,7 +496,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
     if (fileToSend) {
       await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
       await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
-        caption: expenseText(expenseToEdit, user),
+        caption: expenseText(expenseToEdit, book),
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: expenseButtons(expenseToEdit.isIncome)
@@ -375,7 +504,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
       })
       return
     }
-    await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
+    await bot.sendMessage(userId, expenseText(expenseToEdit, book), {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: expenseButtons(expenseToEdit.isIncome)
@@ -408,6 +537,25 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         bot,
         query: query as QueryFromPrivate
       })
+      return
+    }
+
+    if (btnPress === 'split') {
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          state: 'expense',
+          data: {
+            action: 'edit',
+            property: 'split',
+            expenseId: expenseToEdit.id
+          }
+        }
+      })
+
+      await bot.sendMessage(userId, `Ingresa un monto mayor a 0 y menor a ${expenseToEdit.amount.amount}.`)
       return
     }
 
@@ -668,7 +816,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
     if (fileToSend) {
       await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
       await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
-        caption: expenseText(expenseToEdit, user),
+        caption: expenseText(expenseToEdit, book),
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: expenseButtons(expenseToEdit.isIncome)
@@ -676,7 +824,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
       })
       return
     }
-    await bot.sendMessage(userId, expenseText(expenseToEdit, user), {
+    await bot.sendMessage(userId, expenseText(expenseToEdit, book), {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: expenseButtons(expenseToEdit.isIncome)
@@ -689,16 +837,16 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
 export function expenseButtons(isIncome: boolean): TelegramBot.InlineKeyboardButton[][] {
   return [
     [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
-    [{ text: 'Categorizar', callback_data: 'category' }, { text: 'Adjuntar', callback_data: 'file' }],
+    [{ text: 'Categorizar', callback_data: 'category' }, { text: 'Adjuntar', callback_data: 'file' }, { text: 'Dividir', callback_data: 'split' }],
     [{ text: 'Cambiar Cuenta', callback_data: 'account' }, { text: 'Cambiar Monto', callback_data: 'amount' }],
     [{ text: isIncome ? 'Cambiar a Gasto' : 'Cambiar a Ingreso', callback_data: 'isIncome' }, { text: 'Cambiar Fecha', callback_data: 'date' }],
   ]
 }
 
-export function expenseText(expense: ExpenseWithAll, user: User, hideQuestion: boolean = false): string {
+export function expenseText(expense: ExpenseWithAll, book: BookWithOwnerAndShares, hideQuestion: boolean = false): string {
   const hasFile = expense.files.length > 0 ? '📎 ' : ''
   const category = expense.category ? `\nCategoría: ${expense.category.description}` : '\nSin categoría'
-  const spanishDate = dayjs(expense.createdAt).tz(user.timezone).format('LL hh:mma')
+  const spanishDate = dayjs(expense.createdAt).tz(book.owner.timezone).format('LL hh:mma')
   const isIncome = expense.isIncome ? ' (Ingreso)' : ''
 
   return `<i>${spanishDate}</i>\n${hasFile}<b>${expense.description}</b>\nCuenta: ${expense.account.description}\nMonto: ${numeral(expense.amount.amount).format('0,0.00')} ${expense.amount.currency}${isIncome}${category}${!hideQuestion ? `\n\n¿Qué deseas hacer con este gasto?` : ''}`

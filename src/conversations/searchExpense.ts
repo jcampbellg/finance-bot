@@ -134,7 +134,7 @@ export async function searchExpenseOnText({ bot, msg }: MsgProps) {
     }, [] as ExpenseWithAll[][])
 
     const listText = expenses.map((exp, i) => {
-      return `${i + 1}. ${expenseText(exp, user, true)}`
+      return `${i + 1}. ${expenseText(exp, book, true)}`
     }).join('\n\n')
 
     await bot.sendMessage(userId, `${listText}\n\nVer y editar:`, {
@@ -195,7 +195,7 @@ export async function searchExpenseOnCallbackQuery({ bot, query }: MsgAndQueryPr
   if (fileToSend) {
     await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
     await bot[fileToSend.type === 'photo' ? 'sendPhoto' : 'sendDocument'](userId, fileToSend.fileId, {
-      caption: expenseText(expense, user),
+      caption: expenseText(expense, book),
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: expenseButtons(expense.isIncome)
@@ -203,7 +203,7 @@ export async function searchExpenseOnCallbackQuery({ bot, query }: MsgAndQueryPr
     })
     return
   }
-  await bot.sendMessage(userId, expenseText(expense, user), {
+  await bot.sendMessage(userId, expenseText(expense, book), {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: expenseButtons(expense.isIncome)

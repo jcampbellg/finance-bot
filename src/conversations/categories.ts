@@ -10,11 +10,7 @@ import numeral from 'numeral'
 import { CategoryWithLimitsAndFiles, LimitsWithAmount } from '@customTypes/prismaTypes'
 import { Category, FileType } from '@prisma/client'
 import auth from '@utils/auth'
-import { isCurrencyValid, isMathValid, isTitleValid } from '@utils/isValid'
-import { create, all } from 'mathjs'
-
-const config = {}
-const math = create(all, config)
+import { currencyEval, isTitleValid, mathEval } from '@utils/isValid'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -168,55 +164,49 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
 
     if (conversationData.property === 'limit') {
       if (conversationData.limit === undefined) {
-        const isValid = isMathValid(text)
-        if (!isValid.success) {
-          await bot.sendMessage(userId, 'Solo se permiten números y operaciones matemáticas simples en una linea.')
+        const limit = mathEval(text)
+        if (!limit.isOk) {
+          await bot.sendMessage(userId, limit.error)
           return
         }
-        try {
-          const limit = math.evaluate(text)
-          if (Number.isNaN(limit) || limit < 0) {
-            await bot.sendMessage(userId, 'La respuesta debe ser un número mayor o igual a 0.')
-            return
-          }
 
-          await prisma.conversation.update({
-            where: {
-              chatId: userId
-            },
-            data: {
-              state: 'categories',
-              data: {
-                action: 'edit',
-                categoryId: categoryToEdit.id,
-                property: 'limit',
-                limit: limit
-              }
-            }
-          })
-
-          await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
-            parse_mode: 'HTML',
-          })
-          return
-        } catch (err) {
+        if (limit.value < 0) {
           await bot.sendMessage(userId, 'La respuesta debe ser un número mayor o igual a 0.')
           return
         }
-      }
 
-      const isValid = isCurrencyValid(text)
-      if (!isValid.success) {
-        await bot.sendMessage(userId, 'La respuesta debe ser de 3 letras.')
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            state: 'categories',
+            data: {
+              action: 'edit',
+              categoryId: categoryToEdit.id,
+              property: 'limit',
+              limit: limit.value
+            }
+          }
+        })
+
+        await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
+          parse_mode: 'HTML',
+        })
         return
       }
 
-      const currency = text.toUpperCase()
+      const currency = currencyEval(text)
+
+      if (!currency.isOk) {
+        await bot.sendMessage(userId, currency.error)
+        return
+      }
 
       const limitAmount = await prisma.amountCurrency.create({
         data: {
           amount: conversationData.limit,
-          currency: currency
+          currency: currency.value
         }
       })
 
@@ -226,7 +216,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
           categoryId: categoryToEdit.id,
           amountId: limitAmount.id,
           ignoreInBudget: categoryToEdit.limits[0]?.ignoreInBudget || false,
-          validFrom: dayjs().tz(user.timezone).startOf('month').format()
+          validFrom: dayjs().tz(book.owner.timezone).startOf('month').format()
         }
       })
 
@@ -277,13 +267,24 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
       }
 
       await bot.sendMessage(userId, 'Procesando archivo recibido...')
+      await bot.sendChatAction(userId, fileType === 'photo' ? 'upload_photo' : 'upload_document')
+
+      // Category can only have one file per month
+      const validFromMonth = dayjs().tz(book.owner.timezone).startOf('month').format()
+
+      await prisma.files.deleteMany({
+        where: {
+          categoryId: categoryToEdit.id,
+          validFrom: validFromMonth
+        }
+      })
 
       const file = await prisma.files.create({
         data: {
           fileId,
           fileType,
           categoryId: categoryToEdit.id,
-          validFrom: dayjs().tz(user.timezone).startOf('month').format()
+          validFrom: dayjs().tz(book.owner.timezone).startOf('month').format()
         }
       })
 

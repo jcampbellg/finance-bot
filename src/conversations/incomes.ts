@@ -11,11 +11,7 @@ import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { IncomeWithSalary } from '@customTypes/prismaTypes'
 import numeral from 'numeral'
-import { isCurrencyValid, isMathValid, isTitleValid } from '@utils/isValid'
-import { create, all } from 'mathjs'
-
-const config = {}
-const math = create(all, config)
+import { currencyEval, isTitleValid, mathEval } from '@utils/isValid'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -168,54 +164,47 @@ export async function incomesOnText({ bot, msg, query }: MsgAndQueryProps) {
 
     if (conversationData.property === 'salary') {
       if (conversationData.salary === undefined) {
-        const isValid = isMathValid(text)
-        if (!isValid.success) {
-          await bot.sendMessage(userId, 'Solo se permiten números y operaciones matemáticas simples en una linea.')
+        const salary = mathEval(text)
+        if (!salary.isOk) {
+          await bot.sendMessage(userId, salary.error)
           return
         }
 
-        try {
-          const salary = math.evaluate(text)
-          if (Number.isNaN(salary) || salary < 0) {
-            await bot.sendMessage(userId, 'La respuesta debe ser un número mayor o igual a 0.')
-            return
-          }
-          await prisma.conversation.update({
-            where: {
-              chatId: userId
-            },
+        if (salary.value < 0) {
+          await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
+          return
+        }
+
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            state: 'incomes',
             data: {
-              state: 'incomes',
-              data: {
-                action: 'edit',
-                incomeId: incomeToEdit.id,
-                property: 'salary',
-                salary: salary
-              }
+              action: 'edit',
+              incomeId: incomeToEdit.id,
+              property: 'salary',
+              salary: salary
             }
-          })
-          await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
-            parse_mode: 'HTML',
-          })
-          return
-        } catch (error) {
-          await bot.sendMessage(userId, 'La respuesta debe ser un número mayor o igual a 0.')
-          return
-        }
-      }
-
-      const isValid = isCurrencyValid(text)
-      if (!isValid.success) {
-        await bot.sendMessage(userId, 'La respuesta debe ser de 3 letras.')
+          }
+        })
+        await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
+          parse_mode: 'HTML',
+        })
         return
       }
 
-      const currency = text.toUpperCase()
+      const currency = currencyEval(text)
+      if (!currency.isOk) {
+        await bot.sendMessage(userId, currency.error)
+        return
+      }
 
       const salaryAmount = await prisma.amountCurrency.create({
         data: {
           amount: conversationData.salary,
-          currency: currency
+          currency: currency.value
         }
       })
 
@@ -223,7 +212,7 @@ export async function incomesOnText({ bot, msg, query }: MsgAndQueryProps) {
         data: {
           incomeId: incomeToEdit.id,
           amountId: salaryAmount.id,
-          validFrom: dayjs().tz(user.timezone).startOf('month').format()
+          validFrom: dayjs().tz(book.owner.timezone).startOf('month').format()
         },
         include: {
           amount: true

@@ -54,9 +54,11 @@ export default async function auth({ bot, msg, query }: MsgAndQueryProps, inBook
       ]
     },
     include: {
+      owner: true,
       shares: {
         include: {
-          shareWithGroup: true
+          shareWithGroup: true,
+          shareWithuser: true
         }
       }
     }

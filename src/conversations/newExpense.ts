@@ -3,11 +3,7 @@ import { prisma } from '@utils/prisma'
 import { accountsButtons } from '@conversations/accounts'
 import { expenseButtons, expenseText } from '@conversations/expense'
 import auth from '@utils/auth'
-import { isCurrencyValid, isMathValid, isTitleValid } from '@utils/isValid'
-import { create, all } from 'mathjs'
-
-const config = {}
-const math = create(all, config)
+import { currencyEval, isTitleValid, mathEval } from '@utils/isValid'
 
 export async function newExpenseOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const { user, book, userId } = await auth({ bot, msg, query } as MsgAndQueryProps)
@@ -103,52 +99,45 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
 
   if (conversationData.description && conversationData.accountId) {
     if (!conversationData.amount) {
-      const isValid = isMathValid(text)
-      if (!isValid.success) {
-        await bot.sendMessage(userId, 'Solo se permiten números y operaciones matemáticas simples en una linea.')
+      const amount = mathEval(text)
+      if (!amount.isOk) {
+        await bot.sendMessage(userId, amount.error)
         return
       }
 
-      try {
-        const amount = math.evaluate(text)
-        if (Number.isNaN(amount) || amount < 0) {
-          await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
-          return
-        }
-        await prisma.conversation.update({
-          where: {
-            chatId: userId
-          },
-          data: {
-            data: {
-              ...conversationData,
-              amount
-            }
-          }
-        })
-
-        await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
-          parse_mode: 'HTML',
-        })
-        return
-      } catch (error) {
+      if (amount.value < 0) {
         await bot.sendMessage(userId, 'La respuesta debe ser un número mayor a 0.')
         return
       }
-    }
 
-    const isValid = isCurrencyValid(text)
-    if (!isValid.success) {
-      await bot.sendMessage(userId, 'La respuesta debe ser de 3 letras.')
+      await prisma.conversation.update({
+        where: {
+          chatId: userId
+        },
+        data: {
+          data: {
+            ...conversationData,
+            amount
+          }
+        }
+      })
+
+      await bot.sendMessage(userId, `Su moneda, en 3 letras:`, {
+        parse_mode: 'HTML',
+      })
       return
     }
 
-    const currency = text.toUpperCase()
+    const currency = currencyEval(text)
+    if (!currency.isOk) {
+      await bot.sendMessage(userId, currency.error)
+      return
+    }
 
     const amountCurrency = await prisma.amountCurrency.create({
       data: {
         amount: conversationData.amount,
-        currency,
+        currency: currency.value,
       }
     })
 
@@ -183,7 +172,7 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
       }
     })
 
-    await bot.sendMessage(userId, expenseText(newExpense, user), {
+    await bot.sendMessage(userId, expenseText(newExpense, book), {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: expenseButtons(false)

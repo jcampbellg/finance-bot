@@ -34,9 +34,9 @@ export async function summaryOnStart({ bot, msg, query }: MsgAndQueryProps) {
     }
   })
 
-  const prevMonth = dayjs().tz(user.timezone).startOf('month').subtract(1, 'month')
-  const thisMonth = dayjs().tz(user.timezone).startOf('month')
-  const nextMonth = dayjs().tz(user.timezone).startOf('month').add(1, 'month')
+  const prevMonth = dayjs().tz(book.owner.timezone).startOf('month').subtract(1, 'month')
+  const thisMonth = dayjs().tz(book.owner.timezone).startOf('month')
+  const nextMonth = dayjs().tz(book.owner.timezone).startOf('month').add(1, 'month')
 
   await bot.sendMessage(userId, '¿Qué mes deseas ver?', {
     reply_markup: {
@@ -71,7 +71,7 @@ export async function summaryOnCallbackQuery({ bot, query }: QueryProps) {
     }
   })
 
-  await bot.sendMessage(userId, `<i>Generando resumen de ${dayjs(query.data).tz(user.timezone).format('MMMM YYYY')}</i>`, {
+  await bot.sendMessage(userId, `<i>Generando resumen de ${dayjs(query.data).tz(book.owner.timezone).format('MMMM YYYY')}</i>`, {
     parse_mode: 'HTML'
   })
 
@@ -104,8 +104,8 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
   if (!user) return
   if (!book) return
 
-  const monthTZStart = dayjs(monthYear).tz(user.timezone).startOf('month')
-  const monthTZEnd = dayjs(monthYear).tz(user.timezone).endOf('month')
+  const monthTZStart = dayjs(monthYear).tz(book.owner.timezone).startOf('month')
+  const monthTZEnd = dayjs(monthYear).tz(book.owner.timezone).endOf('month')
 
   const incomes = await prisma.income.findMany({
     where: {
@@ -454,7 +454,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
           ...(cat.expenses.length > 0 ? cat.expenses.map(exp => {
             const currency = exp.amount.currency
             const amount = exp.amount.amount
-            const date = dayjs(exp.createdAt).tz(user.timezone).format('LL hh:mma')
+            const date = dayjs(exp.createdAt).tz(book.owner.timezone).format('LL hh:mma')
             const account = exp.account.description.replace(regex, '').trim()
             const description = exp.description.replace(regex, '').trim()
             const isIncome = exp.isIncome ? ' (Ingreso)' : ''
@@ -515,7 +515,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         fontSize: 16,
         marginBottom: 20,
         alignment: 'left',
-        text: `${book.title.replace(regex, '')}\nGenerado el ${dayjs().tz(user.timezone).format('LL hh:mma')}`
+        text: `${book.title.replace(regex, '')}\nGenerado el ${dayjs().tz(book.owner.timezone).format('LL hh:mma')}`
       },
       {
         marginBottom: 20,
