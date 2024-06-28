@@ -400,8 +400,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         return
       }
 
-      const newDate = dayjs(text).tz(book.owner.timezone)
-      console.log(newDate.format())
+      const newDate = dayjs.tz(text, book.owner.timezone)
 
       const updatedExpense = await prisma.expense.update({
         where: {
