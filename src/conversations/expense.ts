@@ -404,7 +404,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           id: expenseToEdit.id
         },
         data: {
-          createdAt: dayjs(text).tz(book.owner.timezone).format()
+          createdAt: dayjs(text).tz(book.owner.timezone).utc().format()
         }
       })
       expenseToEdit.createdAt = updatedExpense.createdAt

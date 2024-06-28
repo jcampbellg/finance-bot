@@ -4,6 +4,7 @@ import { accountsButtons } from '@conversations/accounts'
 import { expenseButtons, expenseText } from '@conversations/expense'
 import auth from '@utils/auth'
 import { currencyEval, mathEval, titleEval } from '@utils/isValid'
+import dayjs from 'dayjs'
 
 export async function newExpenseOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const { user, book, userId } = await auth({ bot, msg, query } as MsgAndQueryProps)
@@ -148,6 +149,7 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
         accountId: conversationData.accountId,
         amountId: amountCurrency.id,
         createdById: userId,
+        createdAt: dayjs().utc().format(),
         bookId: book.id
       },
       include: {
