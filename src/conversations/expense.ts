@@ -344,6 +344,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
             temperature: 0.2,
           })
           if (!!aiTag.choices[0].message?.content) {
+            console.log(aiTag.choices[0].message.content)
             const stringReply = aiTag.choices[0].message.content
             const jsonReply = JSON.parse(stringReply)
             if (jsonReply.items) {

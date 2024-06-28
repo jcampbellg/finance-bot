@@ -185,7 +185,7 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
 
       if (group) {
         try {
-          await bot.sendMessage(Number(group), `Nuevo gasto en el libro <b>${book.title}</b>\nGasto registrado por ${user.firstName}:\n\n${expenseText}`, {
+          await bot.sendMessage(Number(group), `Nuevo gasto en el libro <b>${book.title}</b>\nGasto registrado por ${user.firstName}:\n\n${expenseText(newExpense, book)}`, {
             parse_mode: 'HTML'
           })
         } catch (error) {
