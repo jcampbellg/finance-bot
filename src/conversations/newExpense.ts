@@ -136,6 +136,7 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
 
     const amountCurrency = await prisma.amountCurrency.create({
       data: {
+        bookId: book.id,
         amount: conversationData.amount,
         currency: currency.value,
       }

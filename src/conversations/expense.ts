@@ -193,6 +193,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
 
       const newAmount = await prisma.amountCurrency.create({
         data: {
+          bookId: book.id,
           amount: splitAmmount.value,
           currency: expenseToEdit.amount.currency
         }
@@ -220,8 +221,9 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
 
       if (expenseToEdit.files.length > 0) {
         const tags = expenseToEdit.files[0].aiTags.map((tag) => tag.tag)
-        const copyLastFile = await prisma.files.create({
+        const copyLastFile = await prisma.file.create({
           data: {
+            bookId: book.id,
             fileId: expenseToEdit.files[0].fileId,
             fileType: expenseToEdit.files[0].fileType,
             expenseId: newExpense.id,
@@ -229,7 +231,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
             ...(tags.length > 0 ? {
               aiTags: {
                 createMany: {
-                  data: tags.map((tag) => ({ tag }))
+                  data: tags.map((tag) => ({ tag, bookId: book.id }))
                 }
               }
             } : {})
@@ -362,14 +364,15 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         }
       })
 
-      await prisma.files.deleteMany({
+      await prisma.file.deleteMany({
         where: {
           expenseId: expenseToEdit.id
         }
       })
 
-      const file = await prisma.files.create({
+      const file = await prisma.file.create({
         data: {
+          bookId: book.id,
           fileId,
           fileType,
           expenseId: expenseToEdit.id,
@@ -377,7 +380,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           ...(tags.length > 0 ? {
             aiTags: {
               createMany: {
-                data: tags.map((tag) => ({ tag }))
+                data: tags.map((tag) => ({ tag, bookId: book.id }))
               }
             }
           } : {})
@@ -635,7 +638,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         }
       })
 
-      await prisma.files.deleteMany({
+      await prisma.file.deleteMany({
         where: {
           expenseId: expenseToEdit.id
         }

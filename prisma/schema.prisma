@@ -45,11 +45,13 @@ model AiTags {
   tag       String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  file      Files?   @relation(fields: [fileId], references: [id])
+  file      File?    @relation(fields: [fileId], references: [id])
   fileId    Int?
+  book      Book     @relation(fields: [bookId], references: [id])
+  bookId    Int
 }
 
-model Files {
+model File {
   id         Int       @id @default(autoincrement())
   fileId     String
   fileType   FileType
@@ -58,10 +60,11 @@ model Files {
   updatedAt  DateTime  @updatedAt
   expense    Expense?  @relation(fields: [expenseId], references: [id])
   expenseId  Int?
-  paymentId  Int?
   categoryId Int?
   category   Category? @relation(fields: [categoryId], references: [id])
   validFrom  DateTime
+  book       Book      @relation(fields: [bookId], references: [id])
+  bookId     Int
 }
 
 model ChatGroup {
@@ -104,32 +107,35 @@ model ExchangeRate {
 }
 
 model ShareBook {
-  key             String     @id @unique @default(uuid())
-  bookId          Int
-  book            Book       @relation(fields: [bookId], references: [id])
-  shareWithUserId BigInt?
-  shareWithuser   User?      @relation(fields: [shareWithUserId], references: [id])
-  shareWithGroup  ChatGroup? @relation(fields: [chatGroupChatId], references: [chatId])
-  shareWithChatId BigInt?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  chatGroupChatId BigInt?
+  key              String     @id @unique @default(uuid())
+  bookId           Int
+  book             Book       @relation(fields: [bookId], references: [id])
+  shareWithUserId  BigInt?
+  shareWithuser    User?      @relation(fields: [shareWithUserId], references: [id])
+  shareWithGroup   ChatGroup? @relation(fields: [shareWithGroupId], references: [chatId])
+  shareWithGroupId BigInt?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 }
 
 model Book {
-  id            Int            @id @default(autoincrement())
-  title         String
-  ownerId       BigInt
-  owner         User           @relation(fields: [ownerId], references: [id])
-  shares        ShareBook[]
-  accounts      Account[]
-  categories    Category[]
-  expenses      Expense[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  exchangeRates ExchangeRate[]
-  limits        Limit[]
-  incomes       Income[]
+  id             Int              @id @default(autoincrement())
+  title          String
+  ownerId        BigInt
+  owner          User             @relation(fields: [ownerId], references: [id])
+  shares         ShareBook[]
+  accounts       Account[]
+  categories     Category[]
+  expenses       Expense[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  exchangeRates  ExchangeRate[]
+  limits         Limit[]
+  incomes        Income[]
+  AmountCurrency AmountCurrency[]
+  AiTags         AiTags[]
+  Files          File[]
+  Salary         Salary[]
 }
 
 model Account {
@@ -152,7 +158,7 @@ model Expense {
   amountId    Int            @unique
   amount      AmountCurrency @relation(fields: [amountId], references: [id])
   isIncome    Boolean        @default(false)
-  files       Files[]
+  files       File[]
   notes       String?
   createdById BigInt
   createdBy   User           @relation(fields: [createdById], references: [id])
@@ -181,6 +187,8 @@ model Salary {
   updatedAt DateTime       @updatedAt
   incomeId  Int
   income    Income         @relation(fields: [incomeId], references: [id])
+  book      Book           @relation(fields: [bookId], references: [id])
+  bookId    Int
 }
 
 model Category {
@@ -193,18 +201,20 @@ model Category {
   expenses    Expense[]
   book        Book      @relation(fields: [bookId], references: [id])
   bookId      Int
-  files       Files[]
+  files       File[]
 }
 
 model AmountCurrency {
-  id        Int       @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   amount    Float
   currency  String
-  limits    Limit[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  expenses  Expense[]
-  Salary    Salary?
+  limits    Limit?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expenses  Expense?
+  salary    Salary?
+  book      Book     @relation(fields: [bookId], references: [id])
+  bookId    Int
 }
 
 model Limit {

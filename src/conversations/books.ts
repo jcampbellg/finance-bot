@@ -392,6 +392,18 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
     }
 
     if (btnPress === 'deleteYes') {
+      await prisma.aiTags.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
+      await prisma.file.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
       await prisma.exchangeRate.deleteMany({
         where: {
           bookId: conversationData.bookId
@@ -439,6 +451,12 @@ export async function booksOnCallbackQuery({ bot, query }: QueryProps) {
       })
 
       await prisma.account.deleteMany({
+        where: {
+          bookId: conversationData.bookId
+        }
+      })
+
+      await prisma.amountCurrency.deleteMany({
         where: {
           bookId: conversationData.bookId
         }

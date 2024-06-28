@@ -206,7 +206,8 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
       const limitAmount = await prisma.amountCurrency.create({
         data: {
           amount: conversationData.limit,
-          currency: currency.value
+          currency: currency.value,
+          bookId: book.id
         }
       })
 
@@ -272,19 +273,20 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
       // Category can only have one file per month
       const validFromMonth = dayjs().tz(book.owner.timezone).startOf('month').format()
 
-      await prisma.files.deleteMany({
+      await prisma.file.deleteMany({
         where: {
           categoryId: categoryToEdit.id,
           validFrom: validFromMonth
         }
       })
 
-      const file = await prisma.files.create({
+      const file = await prisma.file.create({
         data: {
           fileId,
           fileType,
           categoryId: categoryToEdit.id,
-          validFrom: dayjs().tz(book.owner.timezone).startOf('month').format()
+          validFrom: dayjs().tz(book.owner.timezone).startOf('month').format(),
+          bookId: book.id
         }
       })
 

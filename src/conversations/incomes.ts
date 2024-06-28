@@ -190,6 +190,7 @@ export async function incomesOnText({ bot, msg, query }: MsgAndQueryProps) {
 
       const salaryAmount = await prisma.amountCurrency.create({
         data: {
+          bookId: book.id,
           amount: conversationData.salary,
           currency: currency.value
         }
@@ -197,6 +198,7 @@ export async function incomesOnText({ bot, msg, query }: MsgAndQueryProps) {
 
       const newSalary = await prisma.salary.create({
         data: {
+          bookId: book.id,
           incomeId: incomeToEdit.id,
           amountId: salaryAmount.id,
           validFrom: dayjs().tz(book.owner.timezone).startOf('month').format()
