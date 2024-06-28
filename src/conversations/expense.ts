@@ -344,7 +344,6 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
             temperature: 0.2,
           })
           if (!!aiTag.choices[0].message?.content) {
-            console.log(aiTag.choices[0].message.content)
             const stringReply = aiTag.choices[0].message.content
             const jsonReply = JSON.parse(stringReply)
             if (jsonReply.items) {
@@ -377,7 +376,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           fileId,
           fileType,
           expenseId: expenseToEdit.id,
-          validFrom: dayjs().tz(book.owner.timezone).startOf('month').format(),
+          validFrom: dayjs(expenseToEdit.createdAt).tz(book.owner.timezone).startOf('month').format(),
           ...(tags.length > 0 ? {
             aiTags: {
               createMany: {
@@ -405,7 +404,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           id: expenseToEdit.id
         },
         data: {
-          createdAt: dayjs(text).utc().format()
+          createdAt: dayjs(text).tz(book.owner.timezone).format()
         }
       })
       expenseToEdit.createdAt = updatedExpense.createdAt
