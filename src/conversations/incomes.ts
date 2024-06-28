@@ -11,7 +11,7 @@ import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { IncomeWithSalary } from '@customTypes/prismaTypes'
 import numeral from 'numeral'
-import { currencyEval, isTitleValid, mathEval } from '@utils/isValid'
+import { currencyEval, mathEval, titleEval } from '@utils/isValid'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -75,28 +75,15 @@ export async function incomesOnText({ bot, msg, query }: MsgAndQueryProps) {
   const conversationData: any = conversation?.data || {}
 
   if (conversationData.action === 'add') {
-    const isValid = isTitleValid(text)
-    if (!isValid.success) {
-      await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+    const newIncomeTitle = titleEval(text)
+    if (!newIncomeTitle.isOk) {
+      await bot.sendMessage(userId, newIncomeTitle.error)
       return
     }
 
-    await prisma.conversation.update({
-      where: {
-        chatId: userId
-      },
-      data: {
-        state: 'incomes',
-        data: {
-          action: 'add',
-          description: text
-        }
-      }
-    })
-
     const newIncome = await prisma.income.create({
       data: {
-        description: text,
+        description: newIncomeTitle.value,
         bookId: book.id
       },
       include: {
@@ -139,9 +126,9 @@ export async function incomesOnText({ bot, msg, query }: MsgAndQueryProps) {
     }
 
     if (conversationData.property === 'description') {
-      const isValid = isTitleValid(text)
-      if (!isValid.success) {
-        await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+      const editIncome = titleEval(text)
+      if (!editIncome.isOk) {
+        await bot.sendMessage(userId, editIncome.error)
         return
       }
 
@@ -150,11 +137,11 @@ export async function incomesOnText({ bot, msg, query }: MsgAndQueryProps) {
           id: incomeToEdit.id
         },
         data: {
-          description: text
+          description: editIncome.value
         }
       })
 
-      await bot.sendMessage(userId, `Ingreso actualizado:\n<b>${text}</b>`, {
+      await bot.sendMessage(userId, `Ingreso actualizado:\n<b>${editIncome.value}</b>`, {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: incomeButtons()
@@ -185,7 +172,7 @@ export async function incomesOnText({ bot, msg, query }: MsgAndQueryProps) {
               action: 'edit',
               incomeId: incomeToEdit.id,
               property: 'salary',
-              salary: salary
+              salary: salary.value
             }
           }
         })

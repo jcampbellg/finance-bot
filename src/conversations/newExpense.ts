@@ -3,7 +3,7 @@ import { prisma } from '@utils/prisma'
 import { accountsButtons } from '@conversations/accounts'
 import { expenseButtons, expenseText } from '@conversations/expense'
 import auth from '@utils/auth'
-import { currencyEval, isTitleValid, mathEval } from '@utils/isValid'
+import { currencyEval, mathEval, titleEval } from '@utils/isValid'
 
 export async function newExpenseOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const { user, book, userId } = await auth({ bot, msg, query } as MsgAndQueryProps)
@@ -62,9 +62,9 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
   const conversationData: any = conversation?.data || {}
 
   if (!conversationData.description) {
-    const isValid = isTitleValid(text)
-    if (!isValid.success) {
-      await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+    const expenseDesc = titleEval(text)
+    if (!expenseDesc.isOk) {
+      await bot.sendMessage(userId, expenseDesc.error)
       return
     }
 
@@ -75,7 +75,7 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
       data: {
         data: {
           ...conversationData,
-          description: msg.text
+          description: expenseDesc.value
         }
       }
     })
@@ -117,7 +117,7 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
         data: {
           data: {
             ...conversationData,
-            amount
+            amount: amount.value
           }
         }
       })

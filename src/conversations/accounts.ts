@@ -2,7 +2,7 @@ import { budgetOnStart } from '@conversations/budget'
 import { MsgAndQueryProps, QueryProps } from '@customTypes/messageTypes'
 import { Account } from '@prisma/client'
 import auth from '@utils/auth'
-import { isTitleValid } from '@utils/isValid'
+import { titleEval } from '@utils/isValid'
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
 
@@ -63,15 +63,15 @@ export async function accountsOnText({ bot, msg, query }: MsgAndQueryProps) {
   const conversationData: any = conversation?.data || {}
 
   if (conversationData.action === 'add') {
-    const isValid = isTitleValid(text)
-    if (!isValid.success) {
-      await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+    const accountName = titleEval(text)
+    if (!accountName.isOk) {
+      await bot.sendMessage(userId, accountName.error)
       return
     }
 
     const newAccount = await prisma.account.create({
       data: {
-        description: text,
+        description: accountName.value,
         bookId: book.id
       }
     })
@@ -89,7 +89,7 @@ export async function accountsOnText({ bot, msg, query }: MsgAndQueryProps) {
       }
     })
 
-    await bot.sendMessage(userId, `Cuenta <b>${text}</b> agregada.`, {
+    await bot.sendMessage(userId, `Cuenta <b>${accountName.value}</b> agregada.`, {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: accountButtons()
@@ -99,9 +99,9 @@ export async function accountsOnText({ bot, msg, query }: MsgAndQueryProps) {
 
   if (conversationData.action === 'edit') {
     if (conversationData.property === 'description') {
-      const isValid = isTitleValid(text)
-      if (!isValid.success) {
-        await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+      const editDescription = titleEval(text)
+      if (!editDescription.isOk) {
+        await bot.sendMessage(userId, editDescription.error)
         return
       }
 
@@ -123,11 +123,11 @@ export async function accountsOnText({ bot, msg, query }: MsgAndQueryProps) {
           id: account.id
         },
         data: {
-          description: text
+          description: editDescription.value
         }
       })
 
-      await bot.sendMessage(userId, `Cuenta actualizada: <b>${text}</b>`, {
+      await bot.sendMessage(userId, `Cuenta actualizada:\n<b>${editDescription.value}</b>`, {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: accountButtons()

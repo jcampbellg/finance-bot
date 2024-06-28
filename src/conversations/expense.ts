@@ -5,7 +5,7 @@ import TelegramBot from 'node-telegram-bot-api'
 import numeral from 'numeral'
 import { waitingForCommandOnStart } from '@conversations/waitingForCommand'
 import { BookWithOwnerAndShares, ExpenseWithAll } from '@customTypes/prismaTypes'
-import { categoriesButtons } from '@conversations/categories'
+import { categoriesButtons, maxCategories } from '@conversations/categories'
 import { FileType } from '@prisma/client'
 import auth from '@utils/auth'
 import dayjs from 'dayjs'
@@ -13,7 +13,7 @@ import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
-import { currencyEval, isDateValid, isTitleValid, mathEval } from '@utils/isValid'
+import { currencyEval, isDateValid, mathEval, titleEval } from '@utils/isValid'
 import openAi from '@utils/openAi'
 
 dayjs.locale('es')
@@ -102,9 +102,9 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
     }
 
     if (conversationData.property === 'description') {
-      const isValid = isTitleValid(text)
-      if (!isValid.success) {
-        await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+      const description = titleEval(text)
+      if (!description.isOk) {
+        await bot.sendMessage(userId, description.error)
         return
       }
 
@@ -113,10 +113,10 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           id: expenseToEdit.id
         },
         data: {
-          description: text
+          description: description.value
         }
       })
-      expenseToEdit.description = text
+      expenseToEdit.description = description.value
     }
 
     if (conversationData.property === 'amount') {
@@ -407,6 +407,37 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       expenseToEdit.createdAt = updatedExpense.createdAt
     }
 
+    if (conversationData.property === 'category' && conversationData.isNew) {
+      const categoryText = titleEval(text)
+      if (!categoryText.isOk) {
+        await bot.sendMessage(userId, categoryText.error)
+        return
+      }
+
+      const newCategory = await prisma.category.create({
+        data: {
+          description: categoryText.value,
+          bookId: book.id
+        }
+      })
+
+      await prisma.expense.update({
+        where: {
+          id: expenseToEdit.id
+        },
+        data: {
+          categoryId: newCategory.id
+        },
+        include: {
+          category: true
+        }
+      })
+
+      await bot.sendMessage(userId, `Categoría <b>${categoryText.value}</b> creada.`, { parse_mode: 'HTML' })
+
+      expenseToEdit.category = newCategory
+    }
+
     const fileToSend = expenseFile(expenseToEdit)
     if (fileToSend) {
       await bot.sendChatAction(userId, fileToSend.type === 'photo' ? 'upload_photo' : 'upload_document')
@@ -693,7 +724,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
       await bot.sendMessage(userId, 'Selecciona la nueva categoría:', {
         reply_markup: {
           inline_keyboard: [
-            [{ text: 'Sin Categorizar', callback_data: 'noCategory' }],
+            [{ text: 'Sin Categorizar', callback_data: 'noCategory' }, { text: 'Crear Categoría', callback_data: 'newCategory' }],
             ...categoriesButtons(categories)
           ]
         }
@@ -769,32 +800,50 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
     }
 
     if (conversationData.property === 'category') {
-      if (btnPress === 'noCategory') {
-        await prisma.expense.update({
+      if (btnPress === 'newCategory') {
+        const categoriesCount = await prisma.category.count({
           where: {
-            id: expenseToEdit.id
-          },
-          data: {
-            categoryId: null
+            bookId: book.id
           }
         })
 
-        expenseToEdit.category = null
+        if (categoriesCount >= maxCategories) {
+          await bot.sendMessage(userId, `No puedes agregar más de ${maxCategories} categorías.`)
+          return
+        }
+
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            state: 'expense',
+            data: {
+              expenseId: expenseToEdit.id,
+              action: 'edit',
+              property: 'category',
+              isNew: true
+            }
+          }
+        })
+
+        await bot.sendMessage(userId, 'Escribe la descripción de la categoría a agregar.')
+        return
       }
 
-      const newCategory = await prisma.expense.update({
+      const expenseWithCategoryChange = await prisma.expense.update({
         where: {
           id: expenseToEdit.id
         },
         data: {
-          categoryId: parseInt(btnPress)
+          categoryId: btnPress === 'noCategory' ? null : parseInt(btnPress)
         },
         include: {
           category: true
         }
       })
 
-      expenseToEdit.category = newCategory.category
+      expenseToEdit.category = expenseWithCategoryChange.category
     }
 
     await prisma.conversation.update({

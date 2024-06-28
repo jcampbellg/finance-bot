@@ -1,6 +1,6 @@
 import { MsgAndQueryProps, MsgProps, QueryProps } from '@customTypes/messageTypes'
 import auth from '@utils/auth'
-import { isTitleValid } from '@utils/isValid'
+import { titleEval } from '@utils/isValid'
 import { prisma } from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
 
@@ -79,15 +79,15 @@ export async function booksOnText({ bot, msg }: MsgProps) {
   const conversationData: any = conversation?.data || {}
 
   if (conversationData.action === 'create') {
-    const isValid = isTitleValid(text)
-    if (!isValid.success) {
-      await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+    const newBookName = titleEval(text)
+    if (!newBookName.isOk) {
+      await bot.sendMessage(userId, newBookName.error)
       return
     }
 
     const newBook = await prisma.book.create({
       data: {
-        title: text,
+        title: newBookName.value,
         ownerId: userId,
         accounts: {
           create: {
@@ -138,9 +138,9 @@ export async function booksOnText({ bot, msg }: MsgProps) {
     }
 
     if (conversationData.property === 'title') {
-      const isValid = isTitleValid(text)
-      if (!isValid.success) {
-        await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+      const newTitle = titleEval(text)
+      if (!newTitle.isOk) {
+        await bot.sendMessage(userId, newTitle.error)
         return
       }
 
@@ -149,7 +149,7 @@ export async function booksOnText({ bot, msg }: MsgProps) {
           id: bookId
         },
         data: {
-          title: text
+          title: newTitle.value
         }
       })
 
@@ -166,7 +166,7 @@ export async function booksOnText({ bot, msg }: MsgProps) {
         }
       })
 
-      await bot.sendMessage(userId, `Libro contable renombrado:\n\n<s>${bookToEdit.title}</s>\n<b>${text}</b>`, {
+      await bot.sendMessage(userId, `Libro contable renombrado:\n\n<s>${bookToEdit.title}</s>\n<b>${newTitle.value}</b>`, {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: bookButtons(user.bookSelectedId !== bookToEdit.id)

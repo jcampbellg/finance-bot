@@ -10,12 +10,12 @@ import numeral from 'numeral'
 import { CategoryWithLimitsAndFiles, LimitsWithAmount } from '@customTypes/prismaTypes'
 import { Category, FileType } from '@prisma/client'
 import auth from '@utils/auth'
-import { currencyEval, isTitleValid, mathEval } from '@utils/isValid'
+import { currencyEval, mathEval, titleEval } from '@utils/isValid'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
-const maxCategories = 50
+export const maxCategories = 50
 
 export async function categoriesOnStart({ bot, msg, query }: MsgAndQueryProps) {
   const { user, book, userId } = await auth({ bot, msg, query } as MsgAndQueryProps)
@@ -80,15 +80,15 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
   const conversationData: any = conversation?.data || {}
 
   if (conversationData.action === 'add') {
-    const isValid = isTitleValid(text)
-    if (!isValid.success) {
-      await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+    const newCatTitle = titleEval(text)
+    if (!newCatTitle.isOk) {
+      await bot.sendMessage(userId, newCatTitle.error)
       return
     }
 
     const newCategory = await prisma.category.create({
       data: {
-        description: text,
+        description: newCatTitle.value,
         bookId: book.id
       },
       include: {
@@ -139,9 +139,9 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
     }
 
     if (conversationData.property === 'description') {
-      const isValid = isTitleValid(text)
-      if (!isValid.success) {
-        await bot.sendMessage(userId, 'La respuesta debe ser entre 3 y 50 caracteres.')
+      const newTitle = titleEval(text)
+      if (!newTitle.isOk) {
+        await bot.sendMessage(userId, newTitle.error)
         return
       }
 
@@ -150,7 +150,7 @@ export async function categoriesOnText({ bot, msg }: MsgProps) {
           id: categoryToEdit.id
         },
         data: {
-          description: text
+          description: newTitle.value
         },
         include: {
           files: true

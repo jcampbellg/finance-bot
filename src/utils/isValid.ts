@@ -80,3 +80,21 @@ export const currencyEval = (text: string): ReturnType => {
     value: text.toUpperCase()
   }
 }
+
+export const titleEval = (text: string): ReturnType => {
+  const isValid = isTitleValid(text)
+  if (!isValid.success) {
+    return {
+      isError: true,
+      error: 'La respuesta debe ser entre 3 y 50 caracteres.',
+      isOk: false,
+      value: text
+    }
+  }
+
+  return {
+    isError: false,
+    isOk: true,
+    value: text
+  }
+}
