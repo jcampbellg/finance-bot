@@ -399,12 +399,16 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         await bot.sendMessage(userId, 'La respuesta debe ser una fecha válida.')
         return
       }
+
+      const newDate = dayjs(text).tz(book.owner.timezone)
+      console.log(newDate.format())
+
       const updatedExpense = await prisma.expense.update({
         where: {
           id: expenseToEdit.id
         },
         data: {
-          createdAt: dayjs(text).tz(book.owner.timezone).format()
+          createdAt: newDate.format()
         }
       })
       expenseToEdit.createdAt = updatedExpense.createdAt
