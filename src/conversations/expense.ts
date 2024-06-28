@@ -896,7 +896,7 @@ export function expenseButtons(isIncome: boolean): TelegramBot.InlineKeyboardBut
 export function expenseText(expense: ExpenseWithAll, book: BookWithOwnerAndShares, hideQuestion: boolean = false): string {
   const hasFile = expense.files.length > 0 ? '📎 ' : ''
   const category = expense.category ? `\nCategoría: ${expense.category.description}` : '\nSin categoría'
-  const spanishDate = dayjs(expense.createdAt).tz(book.owner.timezone).format('LL hh:mma')
+  const spanishDate = dayjs(expense.createdAt).utc().tz(book.owner.timezone).format('LL hh:mma')
   const isIncome = expense.isIncome ? ' (Ingreso)' : ''
 
   return `<i>${spanishDate}</i>\n${hasFile}<b>${expense.description}</b>\nCuenta: ${expense.account.description}\nMonto: ${numeral(expense.amount.amount).format('0,0.00')} ${expense.amount.currency}${isIncome}${category}${!hideQuestion ? `\n\n¿Qué deseas hacer con este gasto?` : ''}`
