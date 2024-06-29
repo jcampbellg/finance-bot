@@ -183,8 +183,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     where: {
       bookId: book.id,
       validFrom: {
-        gte: monthTZStart.format(),
-        lte: monthTZEnd.format()
+        lte: monthTZStart.format()
       }
     }
   })
