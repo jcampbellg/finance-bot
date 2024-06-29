@@ -514,7 +514,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
         fontSize: 16,
         marginBottom: 20,
         alignment: 'left',
-        text: `${book.title.replace(regex, '')}\nGenerado el ${monthTZStart.tz(book.owner.timezone).format('LL hh:mma')}`
+        text: `${book.title.replace(regex, '')}\nGenerado el ${dayjs().tz(book.owner.timezone).format('LL hh:mma')}`
       },
       {
         marginBottom: 20,
