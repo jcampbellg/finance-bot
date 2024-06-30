@@ -127,11 +127,12 @@ export async function searchExpenseOnText({ bot, msg }: MsgProps) {
     }
 
     // Group expenses by rows of 5
+    type ExpenseWithAllWithIndex = ExpenseWithAll & {index: number}
     const expensesBtn = expenses.reduce((acc, exp, i) => {
       const index = Math.floor(i / 2)
-      acc[index] = [...(acc[index] || []), exp]
+      acc[index] = [...(acc[index] || []), {...exp, index: i}]
       return acc
-    }, [] as ExpenseWithAll[][])
+    }, [] as ExpenseWithAllWithIndex[][])
 
     const listText = expenses.map((exp, i) => {
       return `${i + 1}. ${expenseText(exp, book, true)}`
@@ -142,7 +143,7 @@ export async function searchExpenseOnText({ bot, msg }: MsgProps) {
       reply_markup: {
         inline_keyboard: expensesBtn.map((group) => {
           return group.map((e, i) => {
-            return { text: `${i + 1}`, callback_data: `${e.id}` }
+            return { text: `${e.index + 1}`, callback_data: `${e.id}` }
           })
         })
       }
