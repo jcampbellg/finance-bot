@@ -714,12 +714,12 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         },
         orderBy: [
           {
-            description: 'asc',
-          },
-          {
             expenses: {
               _count: 'asc'
             }
+          },
+          {
+            description: 'asc',
           }
         ],
         include: {
