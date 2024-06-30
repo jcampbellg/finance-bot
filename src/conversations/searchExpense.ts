@@ -142,7 +142,7 @@ export async function searchExpenseOnText({ bot, msg }: MsgProps) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: expensesBtn.map((group) => {
-          return group.map((e, i) => {
+          return group.map((e) => {
             return { text: `${e.index + 1}`, callback_data: `${e.id}` }
           })
         })
