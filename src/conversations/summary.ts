@@ -132,9 +132,16 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     where: {
       bookId: book.id
     },
-    orderBy: {
-      description: 'asc'
-    },
+    orderBy: [
+      {
+        expenses: {
+          _count: 'asc'
+        }
+      },
+      {
+        description: 'asc',
+      }
+    ],
     include: {
       limits: {
         where: {
@@ -201,7 +208,13 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
 
   const allCategories = [...(expensesWithNoCategory.length > 0 ? [noCategoryExpenses] : []), ...categories]
 
-  const categoriesSummary: TableCell[][] = allCategories.filter(c => !c.isPayment).map(cat => {
+  const categoriesSummary: TableCell[][] = allCategories.filter(c => {
+    const hasExpenses = c.expenses.length > 0
+    const hasLimit = c.limits.length > 0 && c.limits[0].amount.amount > 0
+    const isPayment = c.isPayment
+
+    return !isPayment && (hasLimit || hasExpenses)
+  }).map(cat => {
     const hasLimit = cat.limits.length > 0 && cat.limits[0].amount.amount > 0
     const description = `${cat.description.replace(regex, '').trim()}${hasLimit ? (cat.limits[0].ignoreInBudget ? ' *' : '') : ''}`
 
@@ -433,7 +446,11 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     ]
   }).reduce((acc, curr) => [...acc, ...curr], [])
 
-  const expensesListSummary: TableCell[][] = allCategories.map(cat => {
+  const expensesListSummary: TableCell[][] = allCategories.filter(c => {
+    const hasExpenses = c.expenses.length > 0
+
+    return hasExpenses
+  }).map(cat => {
     const hasLimit = cat.limits.length > 0 && cat.limits[0].amount.amount > 0
     const description = cat.description.replace(regex, '').trim() + (hasLimit ? (cat.limits[0].ignoreInBudget ? ' *' : '') : '')
 
