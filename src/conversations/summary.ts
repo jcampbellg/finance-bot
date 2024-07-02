@@ -322,7 +322,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
       return accumulator + (amount * exchangeRate)
     }, 0) : 0
 
-    const hasPaid = hasLimit ? totalInLimitCurrency >= cat.limits[0].amount.amount * 0.65 : false
+    const hasPaid = hasLimit ? totalInLimitCurrency >= cat.limits[0].amount.amount * 0.65 : cat.expenses.length > 0
     const hasExceeded = hasLimit ? totalInLimitCurrency > cat.limits[0].amount.amount : false
 
     const limitSumTable = hasLimit ? [{
@@ -354,7 +354,7 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
 
     return [
       {
-        text: [description, { text: !hasLimit ? '' : (hasExceeded ? '\nPago de mas' : (hasPaid ? '\nPagado' : '\nSin pagar')), bold: true, color: hasExceeded || !hasPaid ? 'red' : 'green' }],
+        text: [description, { text: hasExceeded ? '\nPago de mas' : (hasPaid ? '\nPagado' : '\nSin pagar'), bold: true, color: hasExceeded ? 'orange' : (!hasPaid ? 'red' : 'green') }],
       },
       {
         layout: 'noBorders',
