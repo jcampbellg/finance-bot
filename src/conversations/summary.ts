@@ -391,7 +391,21 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
     if (cat.limits.length > 0 && cat.limits[0].amount.amount > 0 && cat.limits[0].ignoreInBudget) return accumulator
 
     const expenses = cat.expenses.reduce((acc, exp) => {
-      return { ...acc, [exp.amount.currency]: (acc[exp.amount.currency] || 0) + (exp.isIncome ? -exp.amount.amount : exp.amount.amount) }
+      return { ...acc, [exp.amount.currency]: (acc[exp.amount.currency] || 0) + (exp.isIncome ? 0 : exp.amount.amount) }
+    }, {} as Record<string, number>)
+
+    const newAccumulator = Object.keys(expenses).reduce((acc, currency) => {
+      return { ...acc, [currency]: (acc[currency] || 0) + expenses[currency] }
+    }, accumulator)
+
+    return { ...accumulator, ...newAccumulator }
+  }, {} as Record<string, number>)
+
+  const byCurrencyExpensesIncome = allCategories.reduce((accumulator, cat) => {
+    if (cat.limits.length > 0 && cat.limits[0].amount.amount > 0 && cat.limits[0].ignoreInBudget) return accumulator
+
+    const expenses = cat.expenses.reduce((acc, exp) => {
+      return { ...acc, [exp.amount.currency]: (acc[exp.amount.currency] || 0) + (exp.isIncome ? exp.amount.amount : 0) }
     }, {} as Record<string, number>)
 
     const newAccumulator = Object.keys(expenses).reduce((acc, currency) => {
@@ -486,9 +500,9 @@ async function createPDF({ bot, query, monthYear }: CreatePDFProps) {
   })
 
   const expesesSummary: TableCell[][] = allCoins.map(coin => {
-    const income = Object.keys(byCurrencyIncomes).reduce((accumulator, inc) => {
+    const income = Object.keys(byCurrencyExpensesIncome).reduce((accumulator, inc) => {
       const currency = inc
-      const amount = byCurrencyIncomes[inc]
+      const amount = byCurrencyExpensesIncome[inc]
 
       const exchangeRate = exchangeRates.find(rate => rate.to === coin && rate.from === currency)?.amount || 1
       return accumulator + (amount * exchangeRate)
