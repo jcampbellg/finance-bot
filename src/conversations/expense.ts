@@ -997,8 +997,8 @@ export function expenseButtons(expense: ExpenseWithAll): TelegramBot.InlineKeybo
     [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
     [...(isPayRoll ? [] : [{ text: 'Categorizar', callback_data: 'category' }]), { text: 'Adjuntar', callback_data: 'file' }, { text: 'Dividir', callback_data: 'split' }],
     [{ text: 'Cambiar Cuenta', callback_data: 'account' }, { text: 'Cambiar Monto', callback_data: 'amount' }],
-    [{ text: isIncome ? 'Cambiar a Gasto' : 'Cambiar a Ingreso', callback_data: 'isIncome' }, { text: 'Cambiar Fecha', callback_data: 'date' }],
-    [{ text: isPayRoll ? 'Cambiar a Transacción' : 'Cambiar a Pago de Salario', callback_data: 'payRoll' }]
+    [{ text: isIncome ? 'Cambiar a Gasto' : 'Cambiar a Deposito', callback_data: 'isIncome' }, { text: 'Cambiar Fecha', callback_data: 'date' }],
+    [{ text: isPayRoll ? 'Cambiar a Transacción' : 'Cambiar a Ingreso Fijo', callback_data: 'payRoll' }]
   ]
 }
 
@@ -1007,7 +1007,7 @@ export function expenseText(expense: ExpenseWithAll, book: BookWithOwnerAndShare
   const category = expense.isPayRoll ? '' : (expense.category ? `\nCategoría: ${expense.category.description}` : '\nSin categoría')
   const spanishDate = dayjs(expense.createdAt).tz(book.owner.timezone).format('LL hh:mma')
   const isIncome = expense.isIncome ? ' <i>(Ingreso)</i>' : ''
-  const isPayRoll = expense.isPayRoll ? '\n<i>Pago de Salario</i>' : ''
+  const isPayRoll = expense.isPayRoll ? '\n<i>Ingreso Fijo</i>' : ''
 
   return `<i>${spanishDate}</i>${isPayRoll}\n${hasFile}<b>${expense.description}</b>\nCuenta: ${expense.account.description}\nMonto: ${numeral(expense.amount.amount).format('0,0.00')} ${expense.amount.currency}${isIncome}${category}${!hideQuestion ? `\n\n¿Qué deseas hacer con este gasto?` : ''}`
 }
