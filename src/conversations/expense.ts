@@ -829,6 +829,11 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
           }
         })
 
+        if (incomes.length === 0) {
+          await bot.sendMessage(userId, 'No se encontraron ingresos. Crear un ingreso primero en /presupuesto.')
+          return
+        }
+
         bot.sendMessage(userId, 'Selecciona de donde proviene el pago:', {
           reply_markup: {
             inline_keyboard: incomesButtons(incomes)
