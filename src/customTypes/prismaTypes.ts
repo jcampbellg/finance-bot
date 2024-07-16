@@ -26,7 +26,8 @@ export type ExpenseWithAll = Prisma.ExpenseGetPayload<{
     amount: true,
     category: true,
     createdBy: true,
-    files: true
+    files: true,
+    payRoll: true
   }
 }>
 

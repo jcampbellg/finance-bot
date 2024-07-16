@@ -108,6 +108,7 @@ export async function searchExpenseOnText({ bot, msg }: MsgProps) {
         createdAt: 'desc'
       },
       include: {
+        payRoll: true,
         category: true,
         account: true,
         amount: true,
@@ -127,10 +128,10 @@ export async function searchExpenseOnText({ bot, msg }: MsgProps) {
     }
 
     // Group expenses by rows of 5
-    type ExpenseWithAllWithIndex = ExpenseWithAll & {index: number}
+    type ExpenseWithAllWithIndex = ExpenseWithAll & { index: number }
     const expensesBtn = expenses.reduce((acc, exp, i) => {
       const index = Math.floor(i / 2)
-      acc[index] = [...(acc[index] || []), {...exp, index: i}]
+      acc[index] = [...(acc[index] || []), { ...exp, index: i }]
       return acc
     }, [] as ExpenseWithAllWithIndex[][])
 
@@ -164,6 +165,7 @@ export async function searchExpenseOnCallbackQuery({ bot, query }: MsgAndQueryPr
       id: expenseId
     },
     include: {
+      payRoll: true,
       amount: true,
       category: true,
       account: true,
@@ -199,7 +201,7 @@ export async function searchExpenseOnCallbackQuery({ bot, query }: MsgAndQueryPr
       caption: expenseText(expense, book),
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: expenseButtons(expense.isIncome)
+        inline_keyboard: expenseButtons(expense)
       }
     })
     return
@@ -207,7 +209,7 @@ export async function searchExpenseOnCallbackQuery({ bot, query }: MsgAndQueryPr
   await bot.sendMessage(userId, expenseText(expense, book), {
     parse_mode: 'HTML',
     reply_markup: {
-      inline_keyboard: expenseButtons(expense.isIncome)
+      inline_keyboard: expenseButtons(expense)
     }
   })
   return

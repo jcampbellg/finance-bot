@@ -405,9 +405,9 @@ export function incomesButtons(incomes: Income[]): TelegramBot.InlineKeyboardBut
   }, [] as Income[][])
 
   return incomesGroups.map(group => {
-    return group.map(acc => ({
-      text: `${acc.description}`,
-      callback_data: `${acc.id}`
+    return group.map(inc => ({
+      text: `${inc.description}`,
+      callback_data: `${inc.id}`
     }))
   })
 }

@@ -151,6 +151,7 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
         bookId: book.id
       },
       include: {
+        payRoll: true,
         amount: true,
         account: true,
         createdBy: true,
@@ -176,7 +177,7 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
     await bot.sendMessage(userId, expenseText(newExpense, book), {
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: expenseButtons(false)
+        inline_keyboard: expenseButtons(newExpense)
       }
     })
 

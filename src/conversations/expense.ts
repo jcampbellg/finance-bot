@@ -15,6 +15,7 @@ import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { currencyEval, isDateValid, mathEval, titleEval } from '@utils/isValid'
 import openAi from '@utils/openAi'
+import { incomesButtons } from '@conversations/incomes'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -80,6 +81,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         id: conversationData.expenseId || 0
       },
       include: {
+        payRoll: true,
         account: true,
         amount: true,
         category: true,
@@ -211,6 +213,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           bookId: book.id
         },
         include: {
+          payRoll: true,
           files: true,
           amount: true,
           account: true,
@@ -280,7 +283,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           caption: expenseText(newExpense, book),
           parse_mode: 'HTML',
           reply_markup: {
-            inline_keyboard: expenseButtons(newExpense.isIncome)
+            inline_keyboard: expenseButtons(newExpense)
           }
         })
         return
@@ -289,7 +292,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
       await bot.sendMessage(userId, expenseText(newExpense, book), {
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: expenseButtons(newExpense.isIncome)
+          inline_keyboard: expenseButtons(newExpense)
         }
       })
       return
@@ -451,7 +454,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         caption: expenseText(expenseToEdit, book),
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: expenseButtons(expenseToEdit.isIncome)
+          inline_keyboard: expenseButtons(expenseToEdit)
         }
       })
       return
@@ -460,7 +463,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
     await bot.sendMessage(userId, expenseText(expenseToEdit, book), {
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: expenseButtons(expenseToEdit.isIncome)
+        inline_keyboard: expenseButtons(expenseToEdit)
       }
     })
     return
@@ -497,6 +500,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         id: expenseId
       },
       include: {
+        payRoll: true,
         account: true,
         amount: true,
         category: true,
@@ -534,7 +538,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         caption: expenseText(expenseToEdit, book),
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: expenseButtons(expenseToEdit.isIncome)
+          inline_keyboard: expenseButtons(expenseToEdit)
         }
       })
       return
@@ -542,7 +546,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
     await bot.sendMessage(userId, expenseText(expenseToEdit, book), {
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: expenseButtons(expenseToEdit.isIncome)
+        inline_keyboard: expenseButtons(expenseToEdit)
       }
     })
     return
@@ -554,6 +558,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         id: conversationData.expenseId || 0
       },
       include: {
+        payRoll: true,
         account: true,
         amount: true,
         category: true,
@@ -770,6 +775,96 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
       expenseToEdit.isIncome = !expenseToEdit.isIncome
     }
 
+    if (btnPress === 'payRoll') {
+      const newIsPayRoll = !expenseToEdit.isPayRoll
+
+      if (!newIsPayRoll) {
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            state: 'expense',
+            data: {
+              expenseId: expenseToEdit.id,
+            }
+          }
+        })
+
+        const updatedExpense = await prisma.expense.update({
+          where: {
+            id: expenseToEdit.id
+          },
+          data: {
+            isPayRoll: false,
+            payRollId: null
+          },
+          include: {
+            payRoll: true
+          }
+        })
+
+        expenseToEdit.isPayRoll = updatedExpense.isPayRoll
+      } else {
+        await prisma.conversation.update({
+          where: {
+            chatId: userId
+          },
+          data: {
+            state: 'expense',
+            data: {
+              expenseId: expenseToEdit.id,
+              action: 'edit',
+              property: 'payRoll'
+            }
+          }
+        })
+
+        const incomes = await prisma.income.findMany({
+          where: {
+            bookId: book.id
+          },
+          include: {
+            salary: true
+          }
+        })
+
+        bot.sendMessage(userId, 'Selecciona de donde proviene el pago:', {
+          reply_markup: {
+            inline_keyboard: incomesButtons(incomes)
+          }
+        })
+        return
+      }
+    }
+
+    if (conversationData.property === 'payRoll') {
+      const incomeId = parseInt(btnPress)
+      if (Number.isNaN(incomeId)) {
+        await bot.sendMessage(userId, 'No se encontró el ingreso.')
+        return
+      }
+
+      const expenseUpdate = await prisma.expense.update({
+        where: {
+          id: expenseToEdit.id
+        },
+        data: {
+          isPayRoll: true,
+          payRollId: incomeId,
+          categoryId: null,
+          isIncome: true
+        },
+        include: {
+          payRoll: true
+        }
+      })
+
+      expenseToEdit.isPayRoll = expenseUpdate.isPayRoll
+      expenseToEdit.payRollId = expenseUpdate.payRollId
+      expenseToEdit.payRoll = expenseUpdate.payRoll
+    }
+
     if (btnPress === 'date') {
       await prisma.conversation.update({
         where: {
@@ -842,7 +937,9 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
           id: expenseToEdit.id
         },
         data: {
-          categoryId: btnPress === 'noCategory' ? null : parseInt(btnPress)
+          isPayRoll: false,
+          payRollId: null,
+          categoryId: btnPress === 'noCategory' ? null : parseInt(btnPress),
         },
         include: {
           category: true
@@ -872,7 +969,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         caption: expenseText(expenseToEdit, book),
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: expenseButtons(expenseToEdit.isIncome)
+          inline_keyboard: expenseButtons(expenseToEdit)
         }
       })
       return
@@ -880,29 +977,34 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
     await bot.sendMessage(userId, expenseText(expenseToEdit, book), {
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: expenseButtons(expenseToEdit.isIncome)
+        inline_keyboard: expenseButtons(expenseToEdit)
       }
     })
     return
   }
 }
 
-export function expenseButtons(isIncome: boolean): TelegramBot.InlineKeyboardButton[][] {
+export function expenseButtons(expense: ExpenseWithAll): TelegramBot.InlineKeyboardButton[][] {
+  const isIncome = expense.isIncome
+  const isPayRoll = expense.isPayRoll
+
   return [
     [{ text: 'Renombrar', callback_data: 'description' }, { text: 'Eliminar', callback_data: 'delete' }],
-    [{ text: 'Categorizar', callback_data: 'category' }, { text: 'Adjuntar', callback_data: 'file' }, { text: 'Dividir', callback_data: 'split' }],
+    [...(isPayRoll ? [] : [{ text: 'Categorizar', callback_data: 'category' }]), { text: 'Adjuntar', callback_data: 'file' }, { text: 'Dividir', callback_data: 'split' }],
     [{ text: 'Cambiar Cuenta', callback_data: 'account' }, { text: 'Cambiar Monto', callback_data: 'amount' }],
     [{ text: isIncome ? 'Cambiar a Gasto' : 'Cambiar a Ingreso', callback_data: 'isIncome' }, { text: 'Cambiar Fecha', callback_data: 'date' }],
+    [{ text: isPayRoll ? 'Cambiar a Transacción' : 'Cambiar a Pago de Salario', callback_data: 'payRoll' }]
   ]
 }
 
 export function expenseText(expense: ExpenseWithAll, book: BookWithOwnerAndShares, hideQuestion: boolean = false): string {
   const hasFile = expense.files.length > 0 ? '📎 ' : ''
-  const category = expense.category ? `\nCategoría: ${expense.category.description}` : '\nSin categoría'
+  const category = expense.isPayRoll ? '' : (expense.category ? `\nCategoría: ${expense.category.description}` : '\nSin categoría')
   const spanishDate = dayjs(expense.createdAt).tz(book.owner.timezone).format('LL hh:mma')
-  const isIncome = expense.isIncome ? ' (Ingreso)' : ''
+  const isIncome = expense.isIncome ? ' <i>(Ingreso)</i>' : ''
+  const isPayRoll = expense.isPayRoll ? '\n<i>Pago de Salario</i>' : ''
 
-  return `<i>${spanishDate}</i>\n${hasFile}<b>${expense.description}</b>\nCuenta: ${expense.account.description}\nMonto: ${numeral(expense.amount.amount).format('0,0.00')} ${expense.amount.currency}${isIncome}${category}${!hideQuestion ? `\n\n¿Qué deseas hacer con este gasto?` : ''}`
+  return `<i>${spanishDate}</i>${isPayRoll}\n${hasFile}<b>${expense.description}</b>\nCuenta: ${expense.account.description}\nMonto: ${numeral(expense.amount.amount).format('0,0.00')} ${expense.amount.currency}${isIncome}${category}${!hideQuestion ? `\n\n¿Qué deseas hacer con este gasto?` : ''}`
 }
 
 export function expenseFile(expense: ExpenseWithAll): { fileId: string, type: FileType } | null {
