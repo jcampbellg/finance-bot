@@ -1007,7 +1007,7 @@ export function expenseText(expense: ExpenseWithAll, book: BookWithOwnerAndShare
   const category = expense.isPayRoll ? '' : (expense.category ? `\nCategoría: ${expense.category.description}` : '\nSin categoría')
   const spanishDate = dayjs(expense.createdAt).tz(book.owner.timezone).format('LL hh:mma')
   const isIncome = expense.isIncome ? ' <i>(Ingreso)</i>' : ''
-  const isPayRoll = expense.isPayRoll ? '\n<i>Ingreso Fijo</i>' : ''
+  const isPayRoll = expense.isPayRoll ? `\n<i>Ingreso Fijo (${expense.payRoll?.description})</i>` : ''
 
   return `<i>${spanishDate}</i>${isPayRoll}\n${hasFile}<b>${expense.description}</b>\nCuenta: ${expense.account.description}\nMonto: ${numeral(expense.amount.amount).format('0,0.00')} ${expense.amount.currency}${isIncome}${category}${!hideQuestion ? `\n\n¿Qué deseas hacer con este gasto?` : ''}`
 }
