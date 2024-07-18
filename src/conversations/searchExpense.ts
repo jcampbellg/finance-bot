@@ -108,6 +108,7 @@ export async function searchExpenseOnText({ bot, msg }: MsgProps) {
         createdAt: 'desc'
       },
       include: {
+        groupNotification: true,
         payRoll: true,
         category: true,
         account: true,
@@ -165,6 +166,7 @@ export async function searchExpenseOnCallbackQuery({ bot, query }: MsgAndQueryPr
       id: expenseId
     },
     include: {
+      groupNotification: true,
       payRoll: true,
       amount: true,
       category: true,
