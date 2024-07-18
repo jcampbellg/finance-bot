@@ -200,7 +200,7 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
           })
         } catch (error) {
           if (error.response.body.error_code === 403) {
-            await bot.sendMessage(userId, `No se pudo enviar mensajes a un grupo.`)
+            await bot.sendMessage(userId, `No se pudo enviar mensajes a un grupo. Se borrara el grupo.`)
 
             await prisma.groupNotification.deleteMany({
               where: {
