@@ -81,6 +81,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         id: conversationData.expenseId || 0
       },
       include: {
+        groupNotification: true,
         payRoll: true,
         account: true,
         amount: true,
@@ -208,11 +209,14 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           accountId: expenseToEdit.accountId,
           amountId: newAmount.id,
           isIncome: expenseToEdit.isIncome,
+          isPayRoll: expenseToEdit.isPayRoll,
+          payRollId: expenseToEdit.payRollId,
           categoryId: expenseToEdit.categoryId,
           createdAt: expenseToEdit.createdAt,
           bookId: book.id
         },
         include: {
+          groupNotification: true,
           payRoll: true,
           files: true,
           amount: true,
@@ -263,6 +267,18 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         parse_mode: 'HTML'
       })
 
+      for (const noti of expenseToEdit.groupNotification) {
+        try {
+          await bot.editMessageText(`Nuevo gasto en el libro <b>${book.title}</b>\nGasto editado por ${user.firstName}:\n\n${expenseText(expenseToEdit, book, true)}`, {
+            chat_id: Number(noti.groupId),
+            message_id: Number(noti.messageId),
+            parse_mode: 'HTML'
+          })
+        } catch (error) {
+          console.error(error)
+        }
+      }
+
       await prisma.conversation.update({
         where: {
           chatId: userId
@@ -295,6 +311,24 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           inline_keyboard: expenseButtons(newExpense)
         }
       })
+
+      for (const noti of expenseToEdit.groupNotification) {
+        try {
+          const groupMsg = await bot.sendMessage(Number(noti.groupId), `Nuevo gasto en el libro <b>${book.title}</b>\nGasto registrado por ${user.firstName}:\n\n${expenseText(newExpense, book, true)}`, {
+            parse_mode: 'HTML'
+          })
+
+          await prisma.groupNotification.create({
+            data: {
+              groupId: noti.groupId,
+              messageId: groupMsg.message_id,
+              expenseId: newExpense.id
+            }
+          })
+        } catch (error) {
+          console.error(error)
+        }
+      }
       return
     }
 
@@ -466,6 +500,18 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         inline_keyboard: expenseButtons(expenseToEdit)
       }
     })
+
+    for (const noti of expenseToEdit.groupNotification) {
+      try {
+        await bot.editMessageText(`Nuevo gasto en el libro <b>${book.title}</b>\nGasto editado por ${user.firstName}:\n\n${expenseText(expenseToEdit, book, true)}`, {
+          chat_id: Number(noti.groupId),
+          message_id: Number(noti.messageId),
+          parse_mode: 'HTML'
+        })
+      } catch (error) {
+        console.error(error)
+      }
+    }
     return
   }
 }
@@ -500,6 +546,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         id: expenseId
       },
       include: {
+        groupNotification: true,
         payRoll: true,
         account: true,
         amount: true,
@@ -549,6 +596,18 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         inline_keyboard: expenseButtons(expenseToEdit)
       }
     })
+
+    for (const noti of expenseToEdit.groupNotification) {
+      try {
+        await bot.editMessageText(`Nuevo gasto en el libro <b>${book.title}</b>\nGasto editado por ${user.firstName}:\n\n${expenseText(expenseToEdit, book, true)}`, {
+          chat_id: Number(noti.groupId),
+          message_id: Number(noti.messageId),
+          parse_mode: 'HTML'
+        })
+      } catch (error) {
+        console.error(error)
+      }
+    }
     return
   }
 
@@ -558,6 +617,7 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         id: conversationData.expenseId || 0
       },
       include: {
+        groupNotification: true,
         payRoll: true,
         account: true,
         amount: true,
@@ -985,6 +1045,18 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
         inline_keyboard: expenseButtons(expenseToEdit)
       }
     })
+
+    for (const noti of expenseToEdit.groupNotification) {
+      try {
+        await bot.editMessageText(`Nuevo gasto en el libro <b>${book.title}</b>\nGasto editado por ${user.firstName}:\n\n${expenseText(expenseToEdit, book, true)}`, {
+          chat_id: Number(noti.groupId),
+          message_id: Number(noti.messageId),
+          parse_mode: 'HTML'
+        })
+      } catch (error) {
+        console.error(error)
+      }
+    }
     return
   }
 }

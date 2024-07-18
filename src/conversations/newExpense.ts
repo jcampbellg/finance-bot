@@ -151,6 +151,7 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
         bookId: book.id
       },
       include: {
+        groupNotification: true,
         payRoll: true,
         amount: true,
         account: true,
@@ -186,12 +187,27 @@ export async function newExpenseOnText({ bot, msg }: MsgProps) {
 
       if (group) {
         try {
-          await bot.sendMessage(Number(group), `Nuevo gasto en el libro <b>${book.title}</b>\nGasto registrado por ${user.firstName}:\n\n${expenseText(newExpense, book, true)}`, {
+          const groupMsg = await bot.sendMessage(Number(group), `Nuevo gasto en el libro <b>${book.title}</b>\nGasto registrado por ${user.firstName}:\n\n${expenseText(newExpense, book, true)}`, {
             parse_mode: 'HTML'
+          })
+
+          await prisma.groupNotification.create({
+            data: {
+              groupId: group,
+              messageId: groupMsg.message_id,
+              expenseId: newExpense.id
+            }
           })
         } catch (error) {
           if (error.response.body.error_code === 403) {
             await bot.sendMessage(userId, `No se pudo enviar mensajes a un grupo.`)
+
+            await prisma.groupNotification.deleteMany({
+              where: {
+                groupId: group
+              }
+            })
+
             await prisma.shareBook.deleteMany({
               where: {
                 shareWithGroup: {

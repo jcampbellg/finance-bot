@@ -148,27 +148,38 @@ model Account {
   bookId      Int
 }
 
+model GroupNotification {
+  id        Int      @id @default(autoincrement())
+  expenseId Int
+  expense   Expense  @relation(fields: [expenseId], references: [id])
+  groupId   BigInt
+  messageId BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Expense {
-  id          Int            @id @default(autoincrement())
-  description String
-  categoryId  Int?
-  category    Category?      @relation(fields: [categoryId], references: [id])
-  accountId   Int
-  account     Account        @relation(fields: [accountId], references: [id])
-  amountId    Int            @unique
-  amount      AmountCurrency @relation(fields: [amountId], references: [id])
-  isIncome    Boolean        @default(false)
-  isPayRoll   Boolean        @default(false)
-  payRollId   Int?
-  payRoll     Income?        @relation(fields: [payRollId], references: [id])
-  files       File[]
-  notes       String?
-  createdById BigInt
-  createdBy   User           @relation(fields: [createdById], references: [id])
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  book        Book           @relation(fields: [bookId], references: [id])
-  bookId      Int
+  id                Int                 @id @default(autoincrement())
+  description       String
+  categoryId        Int?
+  category          Category?           @relation(fields: [categoryId], references: [id])
+  accountId         Int
+  account           Account             @relation(fields: [accountId], references: [id])
+  amountId          Int                 @unique
+  amount            AmountCurrency      @relation(fields: [amountId], references: [id])
+  isIncome          Boolean             @default(false)
+  isPayRoll         Boolean             @default(false)
+  payRollId         Int?
+  payRoll           Income?             @relation(fields: [payRollId], references: [id])
+  files             File[]
+  notes             String?
+  createdById       BigInt
+  createdBy         User                @relation(fields: [createdById], references: [id])
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  book              Book                @relation(fields: [bookId], references: [id])
+  bookId            Int
+  groupNotification GroupNotification[]
 }
 
 model Income {
