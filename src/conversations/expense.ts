@@ -726,6 +726,20 @@ export async function expenseOnCallbackQuery({ bot, query }: QueryProps) {
     }
 
     if (btnPress === 'delete') {
+      // Delete Group Message
+      for (const noti of expenseToEdit.groupNotification) {
+        try {
+          await bot.deleteMessage(Number(noti.groupId), Number(noti.messageId))
+        } catch (error) {
+          console.error(error)
+        }
+      }
+      await prisma.groupNotification.deleteMany({
+        where: {
+          expenseId: expenseToEdit.id
+        }
+      })
+
       await prisma.aiTags.deleteMany({
         where: {
           file: {
