@@ -262,6 +262,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         }
       })
 
+      expenseToEdit.description = `${expenseToEdit.description} (Original)`
       expenseToEdit.amount.amount -= splitAmmount.value
 
       await bot.sendMessage(userId, expenseText(expenseToEdit, book, true), {
