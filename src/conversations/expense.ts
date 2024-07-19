@@ -253,6 +253,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
           id: expenseToEdit.id
         },
         data: {
+          description: `${expenseToEdit.description} (Original)`,
           amount: {
             update: {
               amount: expenseToEdit.amount.amount - splitAmmount.value
@@ -269,7 +270,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
 
       for (const noti of expenseToEdit.groupNotification) {
         try {
-          await bot.editMessageText(`Nuevo gasto en el libro <b>${book.title}</b>\nGasto editado por ${user.firstName}:\n\n${expenseText(expenseToEdit, book, true)}`, {
+          await bot.editMessageText(`Nuevo gasto en el libro <b>${book.title}</b>\nGasto dividido por ${user.firstName}:\n\n${expenseText(expenseToEdit, book, true)}`, {
             chat_id: Number(noti.groupId),
             message_id: Number(noti.messageId),
             parse_mode: 'HTML'
@@ -312,21 +313,47 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
         }
       })
 
-      for (const noti of expenseToEdit.groupNotification) {
-        try {
-          const groupMsg = await bot.sendMessage(Number(noti.groupId), `Nuevo gasto en el libro <b>${book.title}</b>\nGasto registrado por ${user.firstName}:\n\n${expenseText(newExpense, book, true)}`, {
-            parse_mode: 'HTML'
-          })
+      for (const share of book.shares) {
+        const group = share.shareWithGroup?.chatId
 
-          await prisma.groupNotification.create({
-            data: {
-              groupId: noti.groupId,
-              messageId: groupMsg.message_id,
-              expenseId: newExpense.id
+        if (group) {
+          try {
+            const groupMsg = await bot.sendMessage(Number(group), `Nuevo gasto en el libro <b>${book.title}</b>\nGasto registrado por ${user.firstName}:\n\n${expenseText(newExpense, book, true)}`, {
+              parse_mode: 'HTML'
+            })
+
+            await prisma.groupNotification.create({
+              data: {
+                groupId: group,
+                messageId: groupMsg.message_id,
+                expenseId: newExpense.id
+              }
+            })
+          } catch (error) {
+            if (error.response.body.error_code === 403) {
+              await bot.sendMessage(userId, `No se pudo enviar mensajes a un grupo. Se borrara el grupo.`)
+
+              await prisma.groupNotification.deleteMany({
+                where: {
+                  groupId: group
+                }
+              })
+
+              await prisma.shareBook.deleteMany({
+                where: {
+                  shareWithGroup: {
+                    chatId: group
+                  }
+                }
+              })
+
+              await prisma.chatGroup.delete({
+                where: {
+                  chatId: group
+                }
+              })
             }
-          })
-        } catch (error) {
-          console.error(error)
+          }
         }
       }
       return
