@@ -1,84 +1,59 @@
-import { MsgAndQueryProps } from '@customTypes/messageTypes'
-import { prisma } from '@utils/prisma'
+import { ConversationProps, MsgOrQueryProps } from '@customTypes/messageTypes'
+import prisma from '@utils/prisma'
 import { waitingForCommandNoBook } from '@conversations/waitingForCommand'
 
-export default async function auth({ bot, msg, query }: MsgAndQueryProps, inBooks: boolean = false) {
+export default async function auth({ bot, msg, query }: MsgOrQueryProps, inBooks: boolean = false): Promise<ConversationProps> {
   const userId = msg?.chat.id || query?.message.chat.id as number
+  const text = msg?.text?.trim() || ''
 
-  const user = await prisma.user.findUnique({
+  const user = await prisma.user.upsert({
     where: {
-      id: userId
-    }
-  })
-
-  if (!user) {
-    await bot.sendMessage(userId, 'No se encontró el usuario.\n\n Usa /start para comenzar.')
-    return {
-      user: null,
-      book: null,
-      userId
-    }
-  }
-
-  if (user.bookSelectedId === null) {
-    if (!inBooks) {
-      await waitingForCommandNoBook({ bot, msg, query } as MsgAndQueryProps)
-    }
-    return {
-      user,
-      book: null,
-      userId
-    }
-  }
-
-  const book = await prisma.book.findFirst({
-    where: {
-      AND: [
-        {
-          id: user.bookSelectedId
-        },
-        {
-          OR: [
-            {
-              ownerId: userId
-            },
-            {
-              shares: {
-                some: {
-                  shareWithUserId: userId
-                }
-              }
-            }
-          ]
-        }
-      ]
+      telegramId: userId
     },
-    include: {
-      owner: true,
-      shares: {
-        include: {
-          shareWithGroup: true,
-          shareWithuser: true
+    create: {
+      telegramId: userId,
+      conversation: {
+        create: {
+          subject: 'start'
         }
       }
+    },
+    update: {},
+    include: {
+      bookSelected: true,
+      books: true,
+      conversation: true
     }
   })
 
-  if (!book) {
+  if (!user.bookSelected) {
     if (!inBooks) {
-      await waitingForCommandNoBook({ bot, msg, query } as MsgAndQueryProps)
+      await waitingForCommandNoBook({
+        userId,
+        user,
+        text,
+        bot,
+        msg,
+        query
+      } as ConversationProps)
     }
 
     return {
+      userId,
       user,
-      book: null,
-      userId
-    }
+      text,
+      bot,
+      msg,
+      query
+    } as ConversationProps
   }
 
   return {
+    userId,
     user,
-    book,
-    userId
-  }
+    text,
+    bot,
+    msg,
+    query
+  } as ConversationProps
 }

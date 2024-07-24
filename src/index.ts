@@ -1,21 +1,8 @@
+import waitingForCommand from '@conversations/waitingForCommand'
+import { MsgProps } from '@customTypes/messageTypes'
+import auth from '@utils/auth'
 import dotenv from 'dotenv'
 import TelegramBot from 'node-telegram-bot-api'
-import { prisma } from '@utils/prisma'
-import waitingForCommand from '@conversations/waitingForCommand'
-import { MessageFromGroup, MessageFromPrivate, QueryFromPrivate } from '@customTypes/messageTypes'
-import { booksOnText, booksOnCallbackQuery } from '@conversations/books'
-import { onboardingOnCallbackQuery } from '@conversations/onboarding'
-import { bundgetOnCallbackQuery } from '@conversations/budget'
-import { accountsOnCallbackQuery, accountsOnText } from '@conversations/accounts'
-import { categoriesOnCallbackQuery, categoriesOnText } from '@conversations/categories'
-import { newExpenseOnCallbackQuery, newExpenseOnText } from '@conversations/newExpense'
-import { expenseOnCallbackQuery, expenseOnText } from '@conversations/expense'
-import { incomesOnCallbackQuery, incomesOnText } from '@conversations/incomes'
-import { exchangeRatesOnText } from '@conversations/exchangeRates'
-import { summaryOnCallbackQuery } from '@conversations/summary'
-import { searchExpenseOnCallbackQuery, searchExpenseOnText } from '@conversations/searchExpense'
-import { shareOnCallbackQuery, shareOnText } from '@conversations/share'
-import { groupOnText } from '@conversations/group'
 
 dotenv.config()
 
@@ -28,110 +15,19 @@ const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true })
 
 bot.on('message', async (msg) => {
   if (msg.chat.type === 'group') {
-    await groupOnText({
-      bot,
-      msg: msg as MessageFromGroup
-    })
+    // TODO: Handle group messages
     return
   }
 
   if (msg.chat.type !== 'private') return
 
-  const userId = msg.chat.id
+  const conversation = await auth({ bot, msg } as MsgProps)
+  const { text, userId } = conversation
+
   bot.sendChatAction(userId, 'typing')
 
-  const conversation = await prisma.conversation.upsert({
-    where: {
-      chatId: userId,
-    },
-    create: {
-      chatId: msg.chat.id,
-      state: 'waitingForCommand',
-      data: {}
-    },
-    update: {}
-  })
-
-  const text = msg.text?.trim() || ''
-
-  if (conversation.state === 'waitingForCommand' || text.startsWith('/')) {
-    waitingForCommand({
-      bot,
-      msg: msg as MessageFromPrivate
-    })
-    return
-  }
-
-  if (conversation.state === 'books') {
-    booksOnText({
-      bot,
-      msg: msg as MessageFromPrivate
-    })
-    return
-  }
-
-  if (conversation.state === 'incomes') {
-    await incomesOnText({
-      bot,
-      msg: msg as MessageFromPrivate
-    })
-    return
-  }
-
-  if (conversation.state === 'accounts') {
-    await accountsOnText({
-      bot,
-      msg: msg as MessageFromPrivate
-    })
-    return
-  }
-
-  if (conversation.state === 'categories') {
-    await categoriesOnText({
-      bot,
-      msg: msg as MessageFromPrivate
-    })
-    return
-  }
-
-  if (conversation.state === 'newExpense') {
-    await newExpenseOnText({
-      bot,
-      msg: msg as MessageFromPrivate
-    })
-    return
-  }
-
-  if (conversation.state === 'expense') {
-    await expenseOnText({
-      bot,
-      msg: msg as MessageFromPrivate
-    })
-    return
-  }
-
-  if (conversation.state === 'newExchangeRate') {
-    await exchangeRatesOnText({
-      bot,
-      msg: msg as MessageFromPrivate
-    })
-    return
-  }
-
-  if (conversation.state === 'searchExpense') {
-    await searchExpenseOnText({
-      bot,
-      msg: msg as MessageFromPrivate
-    })
-    return
-  }
-
-  if (conversation.state === 'share') {
-    await shareOnText({
-      bot,
-      msg: msg as MessageFromPrivate
-    })
-    return
+  if (text.startsWith('/')) {
+    waitingForCommand(conversation)
   }
 })
 
@@ -140,93 +36,4 @@ bot.on('callback_query', async (query) => {
 
   const userId = query.message.chat.id
   bot.sendChatAction(userId, 'typing')
-
-  const conversation = await prisma.conversation.upsert({
-    where: {
-      chatId: userId,
-    },
-    create: {
-      chatId: userId,
-      state: 'waitingForCommand',
-      data: {}
-    },
-    update: {}
-  })
-
-  if (conversation.state === 'onboarding') {
-    onboardingOnCallbackQuery({
-      bot,
-      query: query as QueryFromPrivate
-    })
-  }
-
-  if (conversation.state === 'books') {
-    booksOnCallbackQuery({
-      bot,
-      query: query as QueryFromPrivate
-    })
-  }
-
-  if (conversation.state === 'budget') {
-    bundgetOnCallbackQuery({
-      bot,
-      query: query as QueryFromPrivate
-    })
-  }
-
-  if (conversation.state === 'accounts') {
-    accountsOnCallbackQuery({
-      bot,
-      query: query as QueryFromPrivate
-    })
-  }
-
-  if (conversation.state === 'incomes') {
-    incomesOnCallbackQuery({
-      bot,
-      query: query as QueryFromPrivate
-    })
-  }
-
-  if (conversation.state === 'categories') {
-    categoriesOnCallbackQuery({
-      bot,
-      query: query as QueryFromPrivate
-    })
-  }
-
-  if (conversation.state === 'newExpense') {
-    newExpenseOnCallbackQuery({
-      bot,
-      query: query as QueryFromPrivate
-    })
-  }
-
-  if (conversation.state === 'expense') {
-    expenseOnCallbackQuery({
-      bot,
-      query: query as QueryFromPrivate
-    })
-  }
-
-  if (conversation.state === 'summary') {
-    summaryOnCallbackQuery({
-      bot,
-      query: query as QueryFromPrivate
-    })
-  }
-
-  if (conversation.state === 'searchExpense') {
-    searchExpenseOnCallbackQuery({
-      bot,
-      query: query as QueryFromPrivate
-    })
-  }
-
-  if (conversation.state === 'share') {
-    shareOnCallbackQuery({
-      bot,
-      query: query as QueryFromPrivate
-    })
-  }
 })
