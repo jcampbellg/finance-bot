@@ -88,7 +88,7 @@ export const titleEval = (text: string): ReturnType => {
   if (!isValid.success) {
     return {
       isError: true,
-      error: 'La respuesta debe ser entre 3 y 50 caracteres.',
+      error: 'Para continuar, asegúrate de que la respuesta tenga entre 3 y 50 caracteres. ¡Gracias!',
       isOk: false,
       value: text
     }

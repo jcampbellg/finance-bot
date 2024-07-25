@@ -2,8 +2,8 @@ import { ConversationProps } from '@customTypes/messageTypes'
 import prisma from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
 
-export async function onNewConversationStart(params: ConversationProps) {
-  const { bot, userId, ctx, firstName, bookSelected } = params
+export async function onNewConversationBegin(params: ConversationProps) {
+  const { bot, userId, ctx, firstName, bookSelected, conversation } = params
 
   if (!ctx) {
     throw new Error('ctx must be provided')
@@ -11,12 +11,14 @@ export async function onNewConversationStart(params: ConversationProps) {
 
   const noBook = !bookSelected ? '\n\n<i>No tienes un libro contable seleccionado.</i>' : ''
 
-  await bot.sendMessage(userId, `¡Hola ${firstName}!\n¿En qué puedo ayudarte?${noBook}`, {
+  const botMsg = await bot.sendMessage(userId, `¡Hola ${firstName}!\n¿En qué puedo ayudarte?${noBook}`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: newConversationButtons(params)
     }
   })
+
+  await prisma.conversation.waiting(conversation.id, botMsg.message_id)
   return
 }
 
@@ -28,9 +30,18 @@ export async function onNewConversationEnd(params: ConversationProps) {
   return
 }
 
-export function newConversationButtons({ bookSelected }: ConversationProps): TelegramBot.InlineKeyboardButton[][] {
-  const noBook = !bookSelected
-  if (noBook) {
+export function newConversationButtons({ bookSelected, user: { books } }: ConversationProps): TelegramBot.InlineKeyboardButton[][] {
+  const noBookSelected = !bookSelected
+  const noBookCreated = books.length === 0
+
+  if (noBookCreated) {
+    return [
+      [{ text: '📚 Crear Libro', callback_data: 'new_book' }],
+      [{ text: '📚 Añadir Libro Existente', callback_data: 'add_book' }],
+    ]
+  }
+
+  if (noBookSelected) {
     return [
       [{ text: '📚 Ver y Seleccionar Libro', callback_data: 'books' }],
     ]
@@ -41,4 +52,8 @@ export function newConversationButtons({ bookSelected }: ConversationProps): Tel
     [{ text: '📚 Ver y Seleccionar Libro', callback_data: 'books' }],
     [{ text: '📝 Preparar Presupuesto', callback_data: 'books' }]
   ]
+}
+
+export function endButton(): TelegramBot.InlineKeyboardButton[][] {
+  return [[{ text: '👋 Terminar Conversación', callback_data: 'end_conversation' }]]
 }

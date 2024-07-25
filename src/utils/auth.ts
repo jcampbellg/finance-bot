@@ -11,14 +11,6 @@ export default async function auth({ bot, ctx, query }: MsgOrQueryProps): Promis
 
   const user = await prisma.user.auth(userId)
 
-  if (user.conversation.messageId) {
-    try {
-      await bot.deleteMessage(userId, user.conversation.messageId)
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
   return {
     userId,
     user,

@@ -1,7 +1,12 @@
-import { Book, Prisma, Role } from '@prisma/client'
+import { Book, Prisma, Role, User } from '@prisma/client'
 
 export type BookWithRole = Book & {
   role: Role
+}
+
+export type BookWithRoleAndOwner = Book & {
+  role: Role
+  owner: User
 }
 
 export type ByncUser = Prisma.UserGetPayload<{

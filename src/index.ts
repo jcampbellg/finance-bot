@@ -1,4 +1,5 @@
-import { onNewConversationEnd, onNewConversationStart } from '@conversations/newConversation'
+import { onNewBookBegin, onNewBookText } from '@conversations/newBook'
+import { onNewConversationEnd, onNewConversationBegin } from '@conversations/newConversation'
 import { onStartBegin, onStartCallback, onStartText } from '@conversations/start'
 import { MsgProps, QueryProps } from '@customTypes/messageTypes'
 import auth from '@utils/auth'
@@ -25,10 +26,10 @@ bot.on('message', async (ctx) => {
   const msg = await auth({ bot, ctx } as MsgProps)
   const { text, userId, conversation } = msg
 
-  bot.sendChatAction(userId, 'typing')
+  await bot.sendChatAction(userId, 'typing')
 
   if (conversation.subject === 'waiting') {
-    await onNewConversationStart(msg)
+    await onNewConversationBegin(msg)
     return
   }
 
@@ -41,6 +42,11 @@ bot.on('message', async (ctx) => {
     await onStartText(msg)
     return
   }
+
+  if (conversation.subject === 'new_book') {
+    await onNewBookText(msg)
+    return
+  }
 })
 
 bot.on('callback_query', async (query) => {
@@ -49,10 +55,15 @@ bot.on('callback_query', async (query) => {
   const msg = await auth({ bot, query } as QueryProps)
   const { userId, conversation } = msg
 
-  bot.sendChatAction(userId, 'typing')
+  await bot.sendChatAction(userId, 'typing')
 
   if (query.data === 'end_conversation') {
     await onNewConversationEnd(msg)
+    return
+  }
+
+  if (query.data === 'new_book') {
+    await onNewBookBegin(msg)
     return
   }
 

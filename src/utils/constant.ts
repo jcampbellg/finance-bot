@@ -1,0 +1,1 @@
+export const MAX_OWN_BOOKS = 5

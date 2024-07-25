@@ -1,7 +1,9 @@
-import { ByncUser } from '@customTypes/prismaTypes'
-import { PrismaClient } from '@prisma/client'
+import { BookWithRoleAndOwner, ByncUser } from '@customTypes/prismaTypes'
+import { Prisma, PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient().$extends({
+const prisma = new PrismaClient()
+
+const xprisma = prisma.$extends({
   model: {
     user: {
       async auth(userId: number): Promise<ByncUser> {
@@ -38,6 +40,14 @@ const prisma = new PrismaClient().$extends({
             role: user.bookSelected.role[0]
           } : null
         }
+      },
+      async update(userId: number, data: Omit<Prisma.UserUpdateInput, 'id' | 'telegramId'>) {
+        await prisma.user.update({
+          where: {
+            telegramId: userId
+          },
+          data: data
+        })
       }
     },
     conversation: {
@@ -64,8 +74,37 @@ const prisma = new PrismaClient().$extends({
           }
         })
       }
+    },
+    book: {
+      async create(user: ByncUser, data: Omit<Prisma.BookCreateInput, 'user' | 'userId' | 'role'>): Promise<BookWithRoleAndOwner> {
+        const newBook = await prisma.book.create({
+          data: {
+            ...data,
+            role: {
+              create: {
+                permision: 'OWNER',
+                userId: user.id
+              }
+            },
+            user: {
+              connect: {
+                id: user.id
+              }
+            }
+          },
+          include: {
+            role: true
+          }
+        })
+
+        return {
+          ...newBook,
+          role: newBook.role[0],
+          owner: user
+        }
+      }
     }
   }
 })
 
-export default prisma
+export default xprisma

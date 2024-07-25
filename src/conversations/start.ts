@@ -2,7 +2,7 @@ import { ConversationProps } from '@customTypes/messageTypes'
 import prisma from '@utils/prisma'
 import ct from 'countries-and-timezones'
 import localizeCountry from 'localized-countries'
-import { onNewConversationStart } from './newConversation'
+import { onNewConversationBegin } from './newConversation'
 
 export async function onStartBegin(params: ConversationProps) {
   const { bot, userId, ctx, conversation, firstName } = params
@@ -12,7 +12,7 @@ export async function onStartBegin(params: ConversationProps) {
   }
 
   if (conversation.subject !== 'start') {
-    onNewConversationStart(params)
+    onNewConversationBegin(params)
     return
   }
 
@@ -21,7 +21,7 @@ export async function onStartBegin(params: ConversationProps) {
 }
 
 export async function onStartText(params: ConversationProps) {
-  const { bot, userId, ctx, conversation, text, user, firstName } = params
+  const { bot, userId, ctx, conversation, text, firstName } = params
 
   if (!ctx) {
     throw new Error('ctx must be provided')
@@ -58,14 +58,7 @@ export async function onStartText(params: ConversationProps) {
     }
 
     await prisma.conversation.updateSubject(conversation.id, 'start', 'end')
-    await prisma.user.update({
-      where: {
-        id: user.id
-      },
-      data: {
-        timezone: data.name
-      }
-    })
+    await prisma.user.update(userId, { timezone: data.name })
 
     await bot.sendMessage(userId, `¡Hola ${firstName}! 👋\n\n¡Bienvenido a Bync Bot! Veo que estás en la zona horaria ${data.name}.\n¡Espero que tengas un día increíble! Si necesitas algo, estoy aquí para ayudarte.`, {
       reply_markup: {
