@@ -1,9 +1,14 @@
-import { Prisma } from '@prisma/client'
+import { Book, Prisma, Role } from '@prisma/client'
 
-export type UserWithAll = Prisma.UserGetPayload<{
+export type BookWithRole = Book & {
+  role: Role
+}
+
+export type ByncUser = Prisma.UserGetPayload<{
   include: {
-    bookSelected: true,
     books: true,
     conversation: true
   }
-}>
+}> & {
+  bookSelected: BookWithRole | null
+}

@@ -1,5 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api'
-import { UserWithAll } from './prismaTypes'
+import { BookWithRole, ByncUser } from './prismaTypes'
+import { Conversation } from '@prisma/client'
 
 export type MessageFromPrivate =
   Omit<TelegramBot.Message, 'chat'> &
@@ -21,18 +22,18 @@ export type QueryFromPrivate =
 export type MsgOrQueryProps = {
   bot: TelegramBot
 } & (
-    | { msg?: MessageFromPrivate; query: QueryFromPrivate }
-    | { msg: MessageFromPrivate; query?: QueryFromPrivate }
+    | { ctx?: MessageFromPrivate; query: QueryFromPrivate }
+    | { ctx: MessageFromPrivate; query?: QueryFromPrivate }
   )
 
 export type MsgProps = {
   bot: TelegramBot
-  msg: MessageFromPrivate
+  ctx: MessageFromPrivate
 }
 
 export type MsgGroupProps = {
   bot: TelegramBot
-  msg: MessageFromGroup
+  ctx: MessageFromGroup
 }
 
 export type QueryProps = {
@@ -42,10 +43,13 @@ export type QueryProps = {
 
 export type ConversationProps = {
   userId: number
-  user: UserWithAll
+  user: ByncUser
+  bookSelected: BookWithRole | null
+  conversation: Conversation
+  firstName: string
   text: string
   bot: TelegramBot
 } & (
-    | { msg?: MessageFromPrivate; query: QueryFromPrivate }
-    | { msg: MessageFromPrivate; query?: QueryFromPrivate }
+    | { ctx?: MessageFromPrivate; query: QueryFromPrivate }
+    | { ctx: MessageFromPrivate; query?: QueryFromPrivate }
   )

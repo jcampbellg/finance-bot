@@ -1,59 +1,33 @@
 import { ConversationProps, MsgOrQueryProps } from '@customTypes/messageTypes'
 import prisma from '@utils/prisma'
-import { waitingForCommandNoBook } from '@conversations/waitingForCommand'
 
-export default async function auth({ bot, msg, query }: MsgOrQueryProps, inBooks: boolean = false): Promise<ConversationProps> {
-  const userId = msg?.chat.id || query?.message.chat.id as number
-  const text = msg?.text?.trim() || ''
+export default async function auth({ bot, ctx, query }: MsgOrQueryProps): Promise<ConversationProps> {
+  if (!ctx && !query) {
+    throw new Error('Either ctx or query must be provided')
+  }
 
-  const user = await prisma.user.upsert({
-    where: {
-      telegramId: userId
-    },
-    create: {
-      telegramId: userId,
-      conversation: {
-        create: {
-          subject: 'start'
-        }
-      }
-    },
-    update: {},
-    include: {
-      bookSelected: true,
-      books: true,
-      conversation: true
+  const userId = ctx?.chat.id || query?.message.chat.id as number
+  const text = ctx?.text?.trim() || ''
+
+  const user = await prisma.user.auth(userId)
+
+  if (user.conversation.messageId) {
+    try {
+      await bot.deleteMessage(userId, user.conversation.messageId)
+    } catch (error) {
+      console.error(error)
     }
-  })
-
-  if (!user.bookSelected) {
-    if (!inBooks) {
-      await waitingForCommandNoBook({
-        userId,
-        user,
-        text,
-        bot,
-        msg,
-        query
-      } as ConversationProps)
-    }
-
-    return {
-      userId,
-      user,
-      text,
-      bot,
-      msg,
-      query
-    } as ConversationProps
   }
 
   return {
     userId,
     user,
+    bookSelected: user.bookSelected,
+    conversation: user.conversation,
     text,
+    firstName: ctx?.chat.first_name || query?.message.chat.first_name || ctx?.chat.username || query?.message.chat.username || 'usuario',
     bot,
-    msg,
+    ctx,
     query
   } as ConversationProps
 }

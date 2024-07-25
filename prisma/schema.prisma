@@ -9,14 +9,17 @@ generator client {
 }
 
 model User {
-  conversation   Conversation? @relation(name: "UserConversation")
-  id             String        @id @default(cuid())
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @default(now()) @updatedAt
-  telegramId     Int           @unique
-  books          Book[]        @relation(name: "BooksUserCanAccess")
-  bookSelected   Book?         @relation(name: "BookSelectedByUser", fields: [bookSelectedId], references: [id])
+  conversation   Conversation @relation(name: "UserConversation", fields: [conversationId], references: [id])
+  id             String       @id @default(cuid())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now()) @updatedAt
+  telegramId     Int          @unique
+  books          Book[]       @relation(name: "BooksUserCanAccess")
+  bookSelected   Book?        @relation(name: "BookSelectedByUser", fields: [bookSelectedId], references: [id])
   bookSelectedId String?
+  role           Role[]       @relation(name: "UserToRole")
+  timezone       String
+  conversationId String       @unique
 }
 
 model Book {
@@ -31,10 +34,12 @@ model Book {
   account        Account[]      @relation(name: "AccountInBook")
   categories     Category[]     @relation(name: "CategoryInBook")
   exchangeRate   ExchangeRate[] @relation(name: "ExchangeRateInBook")
+  role           Role[]         @relation(name: "BookToRole")
   groupChats     GroupChat[]    @relation(name: "BooksGroupChatGetNotified")
 }
 
 model Account {
+  currency     Currency[]     @relation(name: "CurrencyInAccount")
   conversation Conversation[] @relation(name: "AccountSelectedInConversation")
   id           String         @id @default(cuid())
   createdAt    DateTime       @default(now())
@@ -42,7 +47,6 @@ model Account {
   description  String
   notes        String?
   showBalance  Boolean        @default(false)
-  balance      Balance[]      @relation(name: "AccountWithBalance")
   transaction  Transaction[]  @relation(name: "TransactionWithAccount")
   book         Book           @relation(name: "AccountInBook", fields: [bookId], references: [id])
   bookId       String
@@ -118,13 +122,12 @@ model GroupNotification {
 }
 
 model Balance {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  currency  String
-  amount    Int
-  account   Account  @relation(name: "AccountWithBalance", fields: [accountId], references: [id])
-  accountId String
+  currency   Currency @relation(name: "AccountWithBalance", fields: [currencyId], references: [id])
+  currencyId String
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  amount     Int
 }
 
 model GroupChat {
@@ -167,9 +170,30 @@ model Conversation {
   accountSelectedId     String?
   categorySelected      Category?    @relation(name: "CategorySelectedInConversation", fields: [categorySelectedId], references: [id])
   categorySelectedId    String?
-  user                  User         @relation(name: "UserConversation", fields: [userId], references: [id])
+  user                  User?        @relation(name: "UserConversation")
   subject               String
-  userId                String       @unique
+  subSubject            String
+  messageId             Int?
+}
+
+model Role {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(name: "UserToRole", fields: [userId], references: [id])
+  userId    String
+  book      Book      @relation(name: "BookToRole", fields: [bookId], references: [id])
+  bookId    String
+  permision Permision
+}
+
+model Currency {
+  balance   Balance[] @relation(name: "AccountWithBalance")
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  account   Account   @relation(name: "CurrencyInAccount", fields: [accountId], references: [id])
+  accountId String
 }
 
 enum CategoryType {
@@ -187,4 +211,10 @@ enum TransactionType {
 enum FileType {
   PHOTO
   DOCUMENT
+}
+
+enum Permision {
+  OWNER
+  ADMIN
+  EDITOR
 }

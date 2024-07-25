@@ -26,6 +26,8 @@ export const isMathValid = (text: string) => z.string().regex(/^[0-9.+\-*/ \(\)]
 
 export const isDateValid = (text: string) => z.string().regex(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/).safeParse(text)
 
+export const isCountryValid = (text: string) => z.string().toUpperCase().trim().regex(/[a-zA-Z]+/).length(2).safeParse(text)
+
 export const mathEval = (text: string): ReturnType => {
   const isValid = isMathValid(text)
   if (!isValid.success) {
@@ -96,5 +98,23 @@ export const titleEval = (text: string): ReturnType => {
     isError: false,
     isOk: true,
     value: text
+  }
+}
+
+export const countryEval = (text: string): ReturnType => {
+  const isValid = isCountryValid(text)
+  if (!isValid.success) {
+    return {
+      isError: true,
+      error: 'Para continuar, necesito que escribas el nombre de tu país usando solo dos letras. Por ejemplo, para Estados Unidos sería "US". ¡Muchas gracias!',
+      isOk: false,
+      value: isValid.data
+    }
+  }
+
+  return {
+    isError: false,
+    isOk: true,
+    value: isValid.data
   }
 }
