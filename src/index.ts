@@ -1,4 +1,4 @@
-import { onBookBegin } from '@conversations/book'
+import { onBookBegin, onBookCallback } from '@conversations/book'
 import { onBooksBegin } from '@conversations/books'
 import { onNewBookBegin, onNewBookText } from '@conversations/newBook'
 import { onNewConversationEnd, onNewConversationBegin } from '@conversations/newConversation'
@@ -59,6 +59,11 @@ bot.on('callback_query', async (query) => {
 
   await bot.sendChatAction(userId, 'typing')
 
+  if (query.data === 'menu') {
+    await onNewConversationBegin(msg)
+    return
+  }
+
   if (query.data === 'end_conversation') {
     await onNewConversationEnd(msg)
     return
@@ -71,6 +76,11 @@ bot.on('callback_query', async (query) => {
 
   if (query.data === 'books') {
     await onBooksBegin(msg)
+    return
+  }
+
+  if (query.data.startsWith('bookedit')) {
+    await onBookCallback(msg)
     return
   }
 

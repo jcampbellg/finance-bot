@@ -35,7 +35,7 @@ export async function booksFormat(books: BookWithRoleAndOwner[]): Promise<[strin
     parse_mode: 'HTML', reply_markup: {
       inline_keyboard: [
         ...books.map((book) => [{ text: book.title, callback_data: `book_${book.id}` }]),
-        ...endButton()
+        ...endButton(true, 'menu', '☰ Menú')
       ]
     }
   }]

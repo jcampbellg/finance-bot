@@ -23,7 +23,6 @@ model User {
 }
 
 model Book {
-  conversation   Conversation[] @relation(name: "BookSelectedInConversation")
   id             String         @id @default(cuid())
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @default(now()) @updatedAt
@@ -39,33 +38,31 @@ model Book {
 }
 
 model Account {
-  currency     Currency[]     @relation(name: "CurrencyInAccount")
-  conversation Conversation[] @relation(name: "AccountSelectedInConversation")
-  id           String         @id @default(cuid())
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  description  String
-  notes        String?
-  showBalance  Boolean        @default(false)
-  transaction  Transaction[]  @relation(name: "TransactionWithAccount")
-  book         Book           @relation(name: "AccountInBook", fields: [bookId], references: [id])
-  bookId       String
-  files        File[]         @relation(name: "AccountWithFile")
+  currency    Currency[]    @relation(name: "CurrencyInAccount")
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  description String
+  notes       String?
+  showBalance Boolean       @default(false)
+  transaction Transaction[] @relation(name: "TransactionWithAccount")
+  book        Book          @relation(name: "AccountInBook", fields: [bookId], references: [id])
+  bookId      String
+  files       File[]        @relation(name: "AccountWithFile")
 }
 
 model Category {
-  conversation Conversation[] @relation(name: "CategorySelectedInConversation")
-  id           String         @id @default(cuid())
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  description  String
-  type         CategoryType   @default(LIMITLESS)
-  notes        String?
-  transaction  Transaction[]  @relation(name: "TransactionWithCategory")
-  bookId       String
-  book         Book           @relation(name: "CategoryInBook", fields: [bookId], references: [id])
-  files        File[]         @relation(name: "CategoryWithFile")
-  limits       Limit[]        @relation(name: "CategoryWithLimit")
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  description String
+  type        CategoryType  @default(LIMITLESS)
+  notes       String?
+  transaction Transaction[] @relation(name: "TransactionWithCategory")
+  bookId      String
+  book        Book          @relation(name: "CategoryInBook", fields: [bookId], references: [id])
+  files       File[]        @relation(name: "CategoryWithFile")
+  limits      Limit[]       @relation(name: "CategoryWithLimit")
 }
 
 model Limit {
@@ -93,7 +90,6 @@ model ExchangeRate {
 }
 
 model Transaction {
-  conversation       Conversation[]      @relation(name: "TransactionSelectedInConversation")
   id                 String              @id @default(cuid())
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
@@ -161,21 +157,13 @@ model Tag {
 }
 
 model Conversation {
-  id                    String       @id @default(cuid())
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
-  transactionSelected   Transaction? @relation(name: "TransactionSelectedInConversation", fields: [transactionSelectedId], references: [id])
-  transactionSelectedId String?
-  accountSelected       Account?     @relation(name: "AccountSelectedInConversation", fields: [accountSelectedId], references: [id])
-  accountSelectedId     String?
-  categorySelected      Category?    @relation(name: "CategorySelectedInConversation", fields: [categorySelectedId], references: [id])
-  categorySelectedId    String?
-  bookSelected          Book?        @relation(name: "BookSelectedInConversation", fields: [bookSelectedId], references: [id])
-  bookSelectedId        String?
-  user                  User?        @relation(name: "UserConversation")
-  subject               String
-  subSubject            String
-  messageId             Int?
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User?    @relation(name: "UserConversation")
+  subject    String
+  subSubject String
+  messageId  Int?
 }
 
 model Role {

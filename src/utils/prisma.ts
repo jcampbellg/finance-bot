@@ -1,13 +1,13 @@
 import { BookWithRoleAndOwner, ByncUser } from '@customTypes/prismaTypes'
 import { Prisma, PrismaClient } from '@prisma/client'
 
-const pris = new PrismaClient()
+const prsma = new PrismaClient()
 
-const prisma = pris.$extends({
+const prisma = prsma.$extends({
   model: {
     user: {
       async auth(userId: number): Promise<ByncUser> {
-        const user = await pris.user.upsert({
+        const user = await prsma.user.upsert({
           where: {
             telegramId: userId
           },
@@ -25,7 +25,13 @@ const prisma = pris.$extends({
           include: {
             bookSelected: {
               include: {
-                role: true
+                role: {
+                  where: {
+                    user: {
+                      telegramId: userId
+                    }
+                  }
+                }
               }
             },
             books: true,
@@ -42,17 +48,53 @@ const prisma = pris.$extends({
         }
       },
       async update(userId: number, data: Omit<Prisma.UserUpdateInput, 'id' | 'telegramId'>) {
-        await pris.user.update({
+        const user = await prsma.user.update({
           where: {
             telegramId: userId
           },
-          data: data
+          data: data,
+          include: {
+            bookSelected: {
+              include: {
+                role: {
+                  where: {
+                    user: {
+                      telegramId: userId
+                    }
+                  }
+                }
+              }
+            },
+            books: true,
+            conversation: true
+          }
         })
+
+        return {
+          ...user,
+          bookSelected: !!user.bookSelected ? {
+            ...user.bookSelected,
+            role: user.bookSelected.role[0]
+          } : null
+        }
       }
     },
     conversation: {
+      async removeLastMessage(userId: number) {
+        await prsma.conversation.updateMany({
+          where: {
+            user: {
+              telegramId: userId
+            }
+          },
+          data: {
+            messageId: null
+          }
+        })
+
+      },
       async update(id: string, data: Omit<Prisma.ConversationUpdateInput, 'id'>) {
-        return await pris.conversation.update({
+        return await prsma.conversation.update({
           where: {
             id: id
           },
@@ -60,7 +102,7 @@ const prisma = pris.$extends({
         })
       },
       async updateSubject(id: string, subject?: string, subSubject?: string) {
-        return await pris.conversation.update({
+        return await prsma.conversation.update({
           where: {
             id: id
           },
@@ -71,7 +113,7 @@ const prisma = pris.$extends({
         })
       },
       async waiting(id: string, messageId?: number | null) {
-        return await pris.conversation.update({
+        return await prsma.conversation.update({
           where: {
             id: id
           },
@@ -85,7 +127,7 @@ const prisma = pris.$extends({
     },
     book: {
       async create(user: ByncUser, data: Omit<Prisma.BookCreateInput, 'user' | 'userId' | 'role'>): Promise<BookWithRoleAndOwner> {
-        const newBook = await pris.book.create({
+        const newBook = await prsma.book.create({
           data: {
             ...data,
             role: {
@@ -101,7 +143,11 @@ const prisma = pris.$extends({
             }
           },
           include: {
-            role: true
+            role: {
+              where: {
+                userId: user.id
+              }
+            }
           }
         })
 
@@ -112,7 +158,7 @@ const prisma = pris.$extends({
         }
       },
       async findManyWithAccess(user: ByncUser): Promise<BookWithRoleAndOwner[]> {
-        const books = await pris.book.findMany({
+        const books = await prsma.book.findMany({
           where: {
             user: {
               some: {
@@ -121,7 +167,11 @@ const prisma = pris.$extends({
             }
           },
           include: {
-            role: true,
+            role: {
+              where: {
+                userId: user.id
+              }
+            },
             user: {
               where: {
                 books: {
@@ -144,13 +194,28 @@ const prisma = pris.$extends({
           owner: book.user[0]
         }))
       },
-      async findUnique(id: string): Promise<BookWithRoleAndOwner | null> {
-        const book = await pris.book.findUnique({
+      async findUniqueWithAccess(user: ByncUser, id: string): Promise<BookWithRoleAndOwner | null> {
+        const book = await prsma.book.findFirst({
           where: {
-            id: id
+            AND: [
+              {
+                id: id
+              },
+              {
+                user: {
+                  some: {
+                    id: user.id
+                  }
+                }
+              }
+            ]
           },
           include: {
-            role: true,
+            role: {
+              where: {
+                userId: user.id
+              }
+            },
             user: {
               where: {
                 books: {
@@ -178,7 +243,7 @@ const prisma = pris.$extends({
         }
       },
       async exists(id: string): Promise<boolean> {
-        return !!(await pris.book.findUnique({
+        return !!(await prsma.book.findUnique({
           where: {
             id: id
           }

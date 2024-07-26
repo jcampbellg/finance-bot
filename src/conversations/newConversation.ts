@@ -3,11 +3,7 @@ import prisma from '@utils/prisma'
 import TelegramBot from 'node-telegram-bot-api'
 
 export async function onNewConversationBegin(params: ConversationProps) {
-  const { bot, userId, ctx, firstName, bookSelected, conversation } = params
-
-  if (!ctx) {
-    throw new Error('ctx must be provided')
-  }
+  const { bot, userId, firstName, bookSelected, conversation } = params
 
   const noBook = !bookSelected ? '\n\n<i>No tienes un libro contable seleccionado.</i>' : ''
 
@@ -54,6 +50,13 @@ export function newConversationButtons({ bookSelected, user: { books } }: Conver
   ]
 }
 
-export function endButton(): TelegramBot.InlineKeyboardButton[][] {
-  return [[{ text: '👋 Terminar Conversación', callback_data: 'end_conversation' }]]
+
+
+export function endButton(canGoBack?: boolean, callback_data: string = 'menu', text: string = '🔙 Volver'): TelegramBot.InlineKeyboardButton[][] {
+  return [
+    [
+      ...(!!canGoBack ? [{ text, callback_data }] : []),
+      { text: '👋 Terminar Conversación', callback_data: 'end_conversation' }
+    ]
+  ]
 }

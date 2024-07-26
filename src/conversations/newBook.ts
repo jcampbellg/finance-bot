@@ -55,17 +55,10 @@ export async function onNewBookText(params: ConversationProps) {
       title: title.value || ''
     })
 
-    await prisma.conversation.update(conversation.id, {
-      subject: 'book',
-      subSubject: '',
-      bookSelected: {
-        connect: {
-          id: newBook.id
-        }
-      }
-    })
+    await prisma.conversation.updateSubject(conversation.id, 'book')
 
     const msg = await bookFormat(bot, user, newBook)
-    await bot.sendMessage(userId, `¡Perfecto! Tu libro contable "${newBook.title}" ha sido creado.\n\n${msg[0]}`, msg[1])
+    const botMsg = await bot.sendMessage(userId, `¡Perfecto! Tu libro contable "${newBook.title}" ha sido creado.\n\n${msg[0]}`, msg[1])
+    await prisma.conversation.update(conversation.id, { messageId: botMsg.message_id })
   }
 }

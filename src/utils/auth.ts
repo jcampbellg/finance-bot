@@ -9,6 +9,11 @@ export default async function auth({ bot, ctx, query }: MsgOrQueryProps): Promis
   const userId = ctx?.chat.id || query?.message.chat.id as number
   const text = ctx?.text?.trim() || ''
 
+  if (ctx) {
+    // Something was send by the user
+    await prisma.conversation.removeLastMessage(userId)
+  }
+
   const user = await prisma.user.auth(userId)
 
   return {
