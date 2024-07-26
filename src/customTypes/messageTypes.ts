@@ -53,3 +53,5 @@ export type ConversationProps = {
     | { ctx?: MessageFromPrivate; query: QueryFromPrivate }
     | { ctx: MessageFromPrivate; query?: QueryFromPrivate }
   )
+
+export type TelegramOptions = Omit<TelegramBot.EditMessageTextOptions, 'chat_id' | 'message_id'>

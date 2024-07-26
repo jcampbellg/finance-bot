@@ -23,12 +23,12 @@ model User {
 }
 
 model Book {
+  conversation   Conversation[] @relation(name: "BookSelectedInConversation")
   id             String         @id @default(cuid())
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @default(now()) @updatedAt
   title          String
   lockKey        String?
-  timezone       String
   user           User[]         @relation(name: "BooksUserCanAccess")
   selectedByUser User[]         @relation(name: "BookSelectedByUser")
   account        Account[]      @relation(name: "AccountInBook")
@@ -116,7 +116,7 @@ model GroupNotification {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   groupId       Int
-  messageId     String
+  messageId     Int
   transaction   Transaction @relation(name: "TransactionsWithGroupNotification", fields: [transactionId], references: [id])
   transactionId String
 }
@@ -170,6 +170,8 @@ model Conversation {
   accountSelectedId     String?
   categorySelected      Category?    @relation(name: "CategorySelectedInConversation", fields: [categorySelectedId], references: [id])
   categorySelectedId    String?
+  bookSelected          Book?        @relation(name: "BookSelectedInConversation", fields: [bookSelectedId], references: [id])
+  bookSelectedId        String?
   user                  User?        @relation(name: "UserConversation")
   subject               String
   subSubject            String

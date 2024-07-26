@@ -4,16 +4,16 @@ import { create, all } from 'mathjs'
 const config = {}
 const math = create(all, config)
 
-type ReturnType = {
+type ReturnType<T> = {
   isError: true
   error: string
   isOk: false
-  value: any
+  value: T
 } | {
   isError: false
   error?: string
   isOk: true
-  value: any
+  value: T
 }
 
 export const isTitleValid = (text: string) => z.string().min(3).max(50).safeParse(text)
@@ -26,9 +26,7 @@ export const isMathValid = (text: string) => z.string().regex(/^[0-9.+\-*/ \(\)]
 
 export const isDateValid = (text: string) => z.string().regex(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/).safeParse(text)
 
-export const isCountryValid = (text: string) => z.string().toUpperCase().trim().regex(/[a-zA-Z]+/).length(2).safeParse(text)
-
-export const mathEval = (text: string): ReturnType => {
+export const mathEval = (text: string): ReturnType<number | string> => {
   const isValid = isMathValid(text)
   if (!isValid.success) {
     return {
@@ -65,7 +63,7 @@ export const mathEval = (text: string): ReturnType => {
   }
 }
 
-export const currencyEval = (text: string): ReturnType => {
+export const currencyEval = (text: string): ReturnType<string> => {
   const isValid = isCurrencyValid(text)
   if (!isValid.success) {
     return {
@@ -83,7 +81,7 @@ export const currencyEval = (text: string): ReturnType => {
   }
 }
 
-export const titleEval = (text: string): ReturnType => {
+export const titleEval = (text: string): ReturnType<string> => {
   const isValid = isTitleValid(text)
   if (!isValid.success) {
     return {
@@ -98,23 +96,5 @@ export const titleEval = (text: string): ReturnType => {
     isError: false,
     isOk: true,
     value: text
-  }
-}
-
-export const countryEval = (text: string): ReturnType => {
-  const isValid = isCountryValid(text)
-  if (!isValid.success) {
-    return {
-      isError: true,
-      error: 'Para continuar, necesito que escribas el nombre de tu país usando solo dos letras. Por ejemplo, para Estados Unidos sería "US". ¡Muchas gracias!',
-      isOk: false,
-      value: isValid.data
-    }
-  }
-
-  return {
-    isError: false,
-    isOk: true,
-    value: isValid.data
   }
 }

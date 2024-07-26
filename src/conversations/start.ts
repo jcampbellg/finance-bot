@@ -2,7 +2,7 @@ import { ConversationProps } from '@customTypes/messageTypes'
 import prisma from '@utils/prisma'
 import ct from 'countries-and-timezones'
 import localizeCountry from 'localized-countries'
-import { onNewConversationBegin } from './newConversation'
+import { onNewConversationBegin } from '@conversations/newConversation'
 
 export async function onStartBegin(params: ConversationProps) {
   const { bot, userId, ctx, conversation, firstName } = params

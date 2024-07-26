@@ -1,13 +1,13 @@
 import { BookWithRoleAndOwner, ByncUser } from '@customTypes/prismaTypes'
 import { Prisma, PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient()
+const pris = new PrismaClient()
 
-const xprisma = prisma.$extends({
+const prisma = pris.$extends({
   model: {
     user: {
       async auth(userId: number): Promise<ByncUser> {
-        const user = await prisma.user.upsert({
+        const user = await pris.user.upsert({
           where: {
             telegramId: userId
           },
@@ -42,7 +42,7 @@ const xprisma = prisma.$extends({
         }
       },
       async update(userId: number, data: Omit<Prisma.UserUpdateInput, 'id' | 'telegramId'>) {
-        await prisma.user.update({
+        await pris.user.update({
           where: {
             telegramId: userId
           },
@@ -51,8 +51,16 @@ const xprisma = prisma.$extends({
       }
     },
     conversation: {
+      async update(id: string, data: Omit<Prisma.ConversationUpdateInput, 'id'>) {
+        return await pris.conversation.update({
+          where: {
+            id: id
+          },
+          data: data
+        })
+      },
       async updateSubject(id: string, subject?: string, subSubject?: string) {
-        await prisma.conversation.update({
+        return await pris.conversation.update({
           where: {
             id: id
           },
@@ -63,7 +71,7 @@ const xprisma = prisma.$extends({
         })
       },
       async waiting(id: string, messageId?: number | null) {
-        await prisma.conversation.update({
+        return await pris.conversation.update({
           where: {
             id: id
           },
@@ -77,7 +85,7 @@ const xprisma = prisma.$extends({
     },
     book: {
       async create(user: ByncUser, data: Omit<Prisma.BookCreateInput, 'user' | 'userId' | 'role'>): Promise<BookWithRoleAndOwner> {
-        const newBook = await prisma.book.create({
+        const newBook = await pris.book.create({
           data: {
             ...data,
             role: {
@@ -102,9 +110,82 @@ const xprisma = prisma.$extends({
           role: newBook.role[0],
           owner: user
         }
+      },
+      async findManyWithAccess(user: ByncUser): Promise<BookWithRoleAndOwner[]> {
+        const books = await pris.book.findMany({
+          where: {
+            user: {
+              some: {
+                id: user.id
+              }
+            }
+          },
+          include: {
+            role: true,
+            user: {
+              where: {
+                books: {
+                  every: {
+                    role: {
+                      some: {
+                        permision: 'OWNER'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })
+
+        return books.map((book) => ({
+          ...book,
+          role: book.role[0],
+          owner: book.user[0]
+        }))
+      },
+      async findUnique(id: string): Promise<BookWithRoleAndOwner | null> {
+        const book = await pris.book.findUnique({
+          where: {
+            id: id
+          },
+          include: {
+            role: true,
+            user: {
+              where: {
+                books: {
+                  every: {
+                    role: {
+                      some: {
+                        permision: 'OWNER'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })
+
+        if (!book) {
+          return null
+        }
+
+        return {
+          ...book,
+          role: book.role[0],
+          owner: book.user[0]
+        }
+      },
+      async exists(id: string): Promise<boolean> {
+        return !!(await pris.book.findUnique({
+          where: {
+            id: id
+          }
+        }))
       }
     }
   }
 })
 
-export default xprisma
+export default prisma

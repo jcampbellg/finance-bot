@@ -1,8 +1,8 @@
 import { ConversationProps } from '@customTypes/messageTypes'
 import prisma from '@utils/prisma'
-import { endButton } from './newConversation'
+import { endButton } from '@conversations/newConversation'
 import { titleEval } from '@utils/isValid'
-import { bookFormat } from './book'
+import { bookFormat } from '@conversations/book'
 
 export async function onNewBookBegin(params: ConversationProps) {
   const { userId, bot, firstName, conversation } = params
@@ -52,13 +52,20 @@ export async function onNewBookText(params: ConversationProps) {
     }
 
     const newBook = await prisma.book.create(user, {
-      title: title.value || '',
-      timezone: user.timezone
+      title: title.value || ''
     })
 
-    await prisma.conversation.updateSubject(conversation.id, 'book')
+    await prisma.conversation.update(conversation.id, {
+      subject: 'book',
+      subSubject: '',
+      bookSelected: {
+        connect: {
+          id: newBook.id
+        }
+      }
+    })
 
-    const msg = await bookFormat(bot, newBook)
+    const msg = await bookFormat(bot, user, newBook)
     await bot.sendMessage(userId, `¡Perfecto! Tu libro contable "${newBook.title}" ha sido creado.\n\n${msg[0]}`, msg[1])
   }
 }

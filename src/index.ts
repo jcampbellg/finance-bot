@@ -1,3 +1,5 @@
+import { onBookBegin } from '@conversations/book'
+import { onBooksBegin } from '@conversations/books'
 import { onNewBookBegin, onNewBookText } from '@conversations/newBook'
 import { onNewConversationEnd, onNewConversationBegin } from '@conversations/newConversation'
 import { onStartBegin, onStartCallback, onStartText } from '@conversations/start'
@@ -64,6 +66,16 @@ bot.on('callback_query', async (query) => {
 
   if (query.data === 'new_book') {
     await onNewBookBegin(msg)
+    return
+  }
+
+  if (query.data === 'books') {
+    await onBooksBegin(msg)
+    return
+  }
+
+  if (query.data.startsWith('book_')) {
+    await onBookBegin(msg)
     return
   }
 
