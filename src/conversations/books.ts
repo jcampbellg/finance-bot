@@ -1,7 +1,8 @@
 import { ConversationProps, TelegramOptions } from '@customTypes/messageTypes'
-import { BookWithRoleAndOwner } from '@customTypes/prismaTypes'
-import prisma from '@utils/prisma'
-import { endButton } from './newConversation'
+import { BookWithRolesAndOwner, ByncUser } from '@customTypes/prismaTypes'
+import xprisma from '@utils/xprisma'
+import { endButtons } from '@conversations/mainMenu'
+import { newBookButtons } from '@conversations/newBook'
 
 export async function onBooksBegin(params: ConversationProps) {
   const { query, user, bot, conversation, userId } = params
@@ -10,11 +11,11 @@ export async function onBooksBegin(params: ConversationProps) {
     throw new Error('query must be provided')
   }
 
-  const books = await prisma.book.findManyWithAccess(user)
+  const books = await xprisma.book.findManyWithAccess(user)
 
-  const [botText, botOptions] = await booksFormat(books)
+  const [botText, botOptions] = await booksFormat(user, books)
 
-  if (conversation.messageId) {
+  if (conversation.messageId === query.message.message_id) {
     try {
       await bot.editMessageText(botText, {
         chat_id: userId,
@@ -27,15 +28,17 @@ export async function onBooksBegin(params: ConversationProps) {
     }
   }
 
-  await bot.sendMessage(userId, botText, botOptions)
+  const botMsg = await bot.sendMessage(userId, botText, botOptions)
+  await xprisma.conversation.update(conversation.id, { messageId: botMsg.message_id })
 }
 
-export async function booksFormat(books: BookWithRoleAndOwner[]): Promise<[string, TelegramOptions]> {
-  return [`Por favor, selecciona el libro que te gustaría ver. 📚`, {
+export async function booksFormat(user: ByncUser, books: BookWithRolesAndOwner[]): Promise<[string, TelegramOptions]> {
+  return [`📚 Por favor, selecciona el libro que te gustaría ver.`, {
     parse_mode: 'HTML', reply_markup: {
       inline_keyboard: [
-        ...books.map((book) => [{ text: book.title, callback_data: `book_${book.id}` }]),
-        ...endButton(true, 'menu', '☰ Menú')
+        ...await newBookButtons(user),
+        ...books.map((book) => [{ text: `${book.isSelected ? '⦿ ' : ''}${book.title}`, callback_data: `book_${book.id}` }]),
+        ...endButtons('menu')
       ]
     }
   }]

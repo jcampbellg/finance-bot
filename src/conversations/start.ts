@@ -1,8 +1,8 @@
 import { ConversationProps } from '@customTypes/messageTypes'
-import prisma from '@utils/prisma'
+import xprisma from '@utils/xprisma'
 import ct from 'countries-and-timezones'
 import localizeCountry from 'localized-countries'
-import { onNewConversationBegin } from '@conversations/newConversation'
+import { onMenuBegin } from '@conversations/mainMenu'
 
 export async function onStartBegin(params: ConversationProps) {
   const { bot, userId, ctx, conversation, firstName } = params
@@ -12,7 +12,7 @@ export async function onStartBegin(params: ConversationProps) {
   }
 
   if (conversation.subject !== 'start') {
-    onNewConversationBegin(params)
+    onMenuBegin(params)
     return
   }
 
@@ -35,12 +35,12 @@ export async function onStartText(params: ConversationProps) {
       return
     }
 
-    await prisma.conversation.updateSubject(conversation.id, 'start', 'timezone')
+    await xprisma.conversation.updateSubject(conversation.id, 'start', 'timezone')
 
     const countryName = localizeCountry('es').get(data.id)
 
     const timezones = data.timezones.map(tz => `<code>${tz}</code>`).join('\n\n')
-    await bot.sendMessage(userId, `¡Gracias por compartir que vives en ${countryName}! 🌍\n\nAhora, ¿podrías elegir una zona horaria de tu país? Esto nos ayudará a ajustar mejor nuestra comunicación.\n\n<i>Copia y pega la zona horaria:</i>\n\n${timezones}`, {
+    await bot.sendMessage(userId, `¡Gracias por compartir que vives en ${countryName}! 🌍\n\nAhora, ¿podrías elegir una zona horaria de tu país? Esto nos ayudará a ajustar mejor nuestra comunicación.\n\n<i>Click para copiar y pega la zona horaria:</i>\n\n${timezones}`, {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [[{ text: '🔄 Cambiar País', callback_data: 'change_country' }]]
@@ -57,14 +57,15 @@ export async function onStartText(params: ConversationProps) {
       return
     }
 
-    await prisma.conversation.updateSubject(conversation.id, 'start', 'end')
-    await prisma.user.update(userId, { timezone: data.name })
+    await xprisma.conversation.updateSubject(conversation.id, 'start', 'end')
+    await xprisma.user.update(userId, { timezone: data.name })
 
-    await bot.sendMessage(userId, `¡Hola ${firstName}! 👋\n\n¡Bienvenido a Bync Bot! Veo que estás en la zona horaria ${data.name}.\n¡Espero que tengas un día increíble! Si necesitas algo, estoy aquí para ayudarte.`, {
+    await bot.sendMessage(userId, `¡Hola ${firstName}! 👋\n\n¡Bienvenido a Bync Bot! Veo que estás en la zona horaria <b>${data.name}</b>.\n¡Espero que tengas un día increíble! Si necesitas algo, estoy aquí para ayudarte.`, {
+      parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
           [{ text: '🔄 Cambiar País', callback_data: 'change_country' }],
-          [{ text: '¡Estoy Listo!', callback_data: 'end_conversation' }]
+          [{ text: '¡Estoy Listo!', callback_data: 'menu' }]
         ]
       }
     })
@@ -79,7 +80,7 @@ export async function onStartCallback(params: ConversationProps) {
   }
 
   if (query.data === 'change_country') {
-    await prisma.conversation.updateSubject(conversation.id, 'start', 'country')
+    await xprisma.conversation.updateSubject(conversation.id, 'start', 'country')
     await bot.sendMessage(userId, `¡Claro, ${firstName}! ¿Podrías decirme en qué país vives? Solo necesito el código de 2 letras.\n¡Gracias!`)
     return
   }

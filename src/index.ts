@@ -1,12 +1,18 @@
-import { onBookBegin, onBookCallback } from '@conversations/book'
+import { onBookBegin, onBookCallback, onBookText } from '@conversations/book'
 import { onBooksBegin } from '@conversations/books'
 import { onNewBookBegin, onNewBookText } from '@conversations/newBook'
-import { onNewConversationEnd, onNewConversationBegin } from '@conversations/newConversation'
+import { onConversationEnd, onMenuBegin } from '@conversations/mainMenu'
 import { onStartBegin, onStartCallback, onStartText } from '@conversations/start'
 import { MsgProps, QueryProps } from '@customTypes/messageTypes'
 import auth from '@utils/auth'
 import dotenv from 'dotenv'
 import TelegramBot from 'node-telegram-bot-api'
+import { onAddBookBegin } from '@conversations/addBook'
+import { onRoleAddBegin, onRoleAddText } from '@conversations/roleAdd'
+import { onRolesBegin } from '@conversations/roles'
+import { onGiveUpBegin, onGiveUpYes } from '@conversations/giveUp'
+import { onBudgetBegin } from '@conversations/budget'
+import { onAccountsBegin } from '@conversations/accounts'
 
 dotenv.config()
 
@@ -31,7 +37,7 @@ bot.on('message', async (ctx) => {
   await bot.sendChatAction(userId, 'typing')
 
   if (conversation.subject === 'waiting') {
-    await onNewConversationBegin(msg)
+    await onMenuBegin(msg)
     return
   }
 
@@ -49,23 +55,57 @@ bot.on('message', async (ctx) => {
     await onNewBookText(msg)
     return
   }
+
+  if (conversation.subject === 'book' && !!conversation.editId) {
+    await onBookText(msg)
+    return
+  }
+
+  if (conversation.subject === 'role_add' && !!conversation.editId) {
+    await onRoleAddText(msg)
+    return
+  }
 })
 
 bot.on('callback_query', async (query) => {
   if (!query.message || !query.data) return
 
   const msg = await auth({ bot, query } as QueryProps)
-  const { userId, conversation } = msg
+  const { userId, conversation, user } = msg
 
   await bot.sendChatAction(userId, 'typing')
 
-  if (query.data === 'menu') {
-    await onNewConversationBegin(msg)
+  if (query.data === 'menu' && !!user.timezone) {
+    await onMenuBegin(msg)
     return
   }
 
-  if (query.data === 'end_conversation') {
-    await onNewConversationEnd(msg)
+  if (query.data === 'end_conversation' && !!user.timezone) {
+    await onConversationEnd(msg)
+    return
+  }
+
+  if (conversation.subject === 'start') {
+    await onStartCallback(msg)
+    return
+  }
+
+  if (user.timezone === null) {
+    return
+  }
+
+  if (query.data === 'budget') {
+    await onBudgetBegin(msg)
+    return
+  }
+
+  if (query.data === 'accounts') {
+    await onAccountsBegin(msg)
+    return
+  }
+
+  if (query.data === 'add_book') {
+    await onAddBookBegin(msg)
     return
   }
 
@@ -84,13 +124,28 @@ bot.on('callback_query', async (query) => {
     return
   }
 
+  if (query.data.startsWith('roles_')) {
+    await onRolesBegin(msg)
+    return
+  }
+
+  if (query.data.startsWith('role_add')) {
+    await onRoleAddBegin(msg)
+    return
+  }
+
   if (query.data.startsWith('book_')) {
     await onBookBegin(msg)
     return
   }
 
-  if (conversation.subject === 'start') {
-    await onStartCallback(msg)
+  if (query.data.startsWith('giveup_yes')) {
+    await onGiveUpYes(msg)
+    return
+  }
+
+  if (query.data.startsWith('giveup_')) {
+    await onGiveUpBegin(msg)
     return
   }
 })

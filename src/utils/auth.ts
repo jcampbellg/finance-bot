@@ -1,5 +1,5 @@
 import { ConversationProps, MsgOrQueryProps } from '@customTypes/messageTypes'
-import prisma from '@utils/prisma'
+import xprisma from '@utils/xprisma'
 
 export default async function auth({ bot, ctx, query }: MsgOrQueryProps): Promise<ConversationProps> {
   if (!ctx && !query) {
@@ -11,10 +11,10 @@ export default async function auth({ bot, ctx, query }: MsgOrQueryProps): Promis
 
   if (ctx) {
     // Something was send by the user
-    await prisma.conversation.removeLastMessage(userId)
+    await xprisma.conversation.removeLastMessage(userId)
   }
 
-  const user = await prisma.user.auth(userId)
+  const user = await xprisma.user.auth(userId)
 
   return {
     userId,
