@@ -1,7 +1,7 @@
 import { ConversationProps, TelegramOptions } from '@customTypes/messageTypes'
-import xprisma from '@utils/xprisma'
 import TelegramBot from 'node-telegram-bot-api'
 import { newBookButtons } from '@conversations/newBook'
+import xprisma from '@utils/xprisma'
 
 export async function onMenuBegin(params: ConversationProps) {
   const { bot, userId, firstName, bookSelected, conversation } = params

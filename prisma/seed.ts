@@ -6,7 +6,10 @@ const jcId = 1116747732
 async function main() {
   const tere = await xprisma.user.auth(tereId)
   await xprisma.user.update(tereId, { timezone: 'America/Tegucigalpa' })
-  await xprisma.conversation.updateSubject(tere.conversation.id, 'start', 'end')
+  await xprisma.conversation.update(tere.conversation.id, {
+    subject: 'start',
+    subsubect: 'end'
+  })
 
   const newBook = await xprisma.book.create(tere, { title: 'SPENDER JC libro' })
 

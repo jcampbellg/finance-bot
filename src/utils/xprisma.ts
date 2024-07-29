@@ -1,4 +1,4 @@
-import { BookWithRolesAndOwner, ByncUser, RoleCreate, RoleWithUser } from '@customTypes/prismaTypes'
+import { AccountWithBookAndCurrency, BookWithRolesAndOwner, ByncUser, ConversationUpdateInput, RoleCreate, RoleWithUser } from '@customTypes/prismaTypes'
 import { Prisma, PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -60,7 +60,11 @@ const xprisma = prisma.$extends({
             role: role
           } : null) : null,
           books: user.roles.map(r => ({ ...r.book, role: r })),
-          canPrepareBudget: role?.permission !== 'SPENDER'
+          canPrepareBudget: role?.permission !== 'SPENDER',
+          conversation: {
+            ...user.conversation,
+            edit: user.conversation.edit || {}
+          }
         }
       },
       async update(userId: number, data: Omit<Prisma.UserUpdateInput, 'id' | 'telegramId'>): Promise<ByncUser> {
@@ -85,7 +89,11 @@ const xprisma = prisma.$extends({
             role: role
           } : null) : null,
           books: user.roles.map(r => ({ ...r.book, role: r })),
-          canPrepareBudget: role?.permission !== 'SPENDER'
+          canPrepareBudget: role?.permission !== 'SPENDER',
+          conversation: {
+            ...user.conversation,
+            edit: user.conversation.edit || {}
+          }
         }
       }
     },
@@ -103,23 +111,12 @@ const xprisma = prisma.$extends({
         })
 
       },
-      async update(id: string, data: Omit<Prisma.ConversationUpdateInput, 'id'>) {
+      async update(id: string, data: ConversationUpdateInput) {
         return await prisma.conversation.update({
           where: {
             id: id
           },
           data: data
-        })
-      },
-      async updateSubject(id: string, subject?: string, subSubject?: string) {
-        return await prisma.conversation.update({
-          where: {
-            id: id
-          },
-          data: {
-            subject: subject,
-            subSubject: subject ? (subSubject || '') : subSubject
-          }
         })
       },
       async waiting(id: string, messageId?: number | null) {
@@ -130,7 +127,8 @@ const xprisma = prisma.$extends({
           data: {
             subject: 'waiting',
             subSubject: '',
-            messageId: messageId || null
+            messageId: messageId || null,
+            edit: {}
           }
         })
       }
@@ -255,7 +253,7 @@ const xprisma = prisma.$extends({
         }
 
         await prisma.file.deleteMany({ where: { OR: [{ transaction: { account: { bookId: id } } }, { account: { bookId: id } }, { category: { bookId: id } }] } })
-        await prisma.tag.deleteMany({ where: { transaction: { account: { bookId: id } } } })
+        await prisma.item.deleteMany({ where: { transaction: { account: { bookId: id } } } })
         await prisma.groupNotification.deleteMany({ where: { transaction: { account: { bookId: id } } } })
         await prisma.transaction.deleteMany({ where: { account: { bookId: id } } })
         await prisma.balance.deleteMany({ where: { currency: { account: { bookId: id } } } })
@@ -264,6 +262,8 @@ const xprisma = prisma.$extends({
         await prisma.category.deleteMany({ where: { bookId: id } })
         await prisma.exchangeRate.deleteMany({ where: { bookId: id } })
         await prisma.role.deleteMany({ where: { bookId: id } })
+        await prisma.limit.deleteMany({ where: { budget: { bookId: id } } })
+        await prisma.budgetRule.deleteMany({ where: { bookId: id } })
 
         await prisma.user.updateMany({
           where: {
@@ -384,6 +384,39 @@ const xprisma = prisma.$extends({
       }
     },
     account: {
+      async create(user: ByncUser, description: string): Promise<AccountWithBookAndCurrency | null> {
+        if (!user.bookSelected) {
+          return null
+        }
+
+        const acc = await prisma.account.create({
+          data: {
+            description,
+            bookId: user.bookSelected?.id
+          },
+          include: { book: true, currency: { include: { balance: true } } }
+        })
+
+        return acc
+      },
+      async findUnique(user: ByncUser, id: string): Promise<AccountWithBookAndCurrency | null> {
+        const acc = await prisma.account.findUnique({
+          where: { id: id },
+          include: { book: true, currency: { include: { balance: true } } }
+        })
+
+        if (!acc) {
+          return null
+        }
+
+        const haveAccessToThisBook = user.books.some(b => b.id === acc.book.id)
+
+        if (!haveAccessToThisBook) {
+          return null
+        }
+
+        return acc
+      },
       async findMany(bookId: string) {
         return await prisma.account.findMany({
           where: { bookId: bookId },

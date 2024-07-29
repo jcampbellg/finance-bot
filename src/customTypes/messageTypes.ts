@@ -1,6 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api'
-import { BookWithRole, ByncUser } from './prismaTypes'
-import { Conversation } from '@prisma/client'
+import { BookWithRole, ByncUser, ConversationWithEdit } from './prismaTypes'
 
 export type MessageFromPrivate =
   Omit<TelegramBot.Message, 'chat'> &
@@ -45,7 +44,7 @@ export type ConversationProps = {
   userId: number
   user: ByncUser
   bookSelected: BookWithRole | null
-  conversation: Conversation
+  conversation: ConversationWithEdit
   firstName: string
   text: string
   bot: TelegramBot

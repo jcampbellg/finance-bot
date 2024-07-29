@@ -22,7 +22,11 @@ export async function onBookBegin(params: ConversationProps) {
     return
   }
 
-  await xprisma.conversation.updateSubject(conversation.id, 'book')
+  await xprisma.conversation.update(conversation.id, {
+    subject: 'book',
+    subSubject: '',
+    edit: {}
+  })
   const [botText, botOptions] = await bookFormat(user, book)
 
   if (conversation.messageId === query.message.message_id) {
@@ -58,7 +62,7 @@ export async function onBookText(params: ConversationProps) {
       return
     }
 
-    const updateBook = await xprisma.book.update(user, conversation.editId as string, { title: title.value })
+    const updateBook = await xprisma.book.update(user, conversation.edit.bookId as string, { title: title.value })
 
     if (!updateBook) {
       await bot.sendMessage(userId, 'Parece que el libro que buscas no existe o no tienes acceso a él. 😕')
@@ -66,7 +70,10 @@ export async function onBookText(params: ConversationProps) {
       return
     }
 
-    await xprisma.conversation.updateSubject(conversation.id, 'book')
+    await xprisma.conversation.update(conversation.id, {
+      subject: 'book',
+      subSubject: ''
+    })
 
     const msg = await bookFormat(user, updateBook)
     const botMsg = await bot.sendMessage(userId, `${msg[0]}`, msg[1])
@@ -93,7 +100,10 @@ export async function onBookCallback(params: ConversationProps) {
   const action = query.data.replace(`bookedit_${bookId}_`, '')
 
   if (['select', 'rename', 'delete', 'delete_confirm'].indexOf(action) !== -1) {
-    await xprisma.conversation.updateSubject(conversation.id, 'book')
+    await xprisma.conversation.update(conversation.id, {
+      subject: 'book',
+      subSubject: ''
+    })
 
     let updateUser = user
 
@@ -112,9 +122,9 @@ export async function onBookCallback(params: ConversationProps) {
         subject: 'book',
         subSubject: 'rename',
         messageId: null,
-        editId: book.id
+        edit: { bookId: book.id }
       })
-      await bot.sendMessage(userId, 'Vamos a renombrar tu libro contable. 📚\n\nPor favor, dime el nuevo nombre que te gustaría darle.')
+      await bot.sendMessage(userId, '📚 Vamos a renombrar tu libro contable.\n\nPor favor, dime el nuevo nombre que te gustaría darle.')
       return
     }
 

@@ -16,7 +16,11 @@ export async function onAccountsBegin(params: ConversationProps) {
     return
   }
 
-  await xprisma.conversation.updateSubject(conversation.id, 'accounts')
+  await xprisma.conversation.update(conversation.id, {
+    subject: 'accounts',
+    subSubject: '',
+    edit: {},
+  })
   const [botText, botOptions] = await accountsFormat(params)
 
   if (conversation.messageId === query.message.message_id) {
@@ -37,7 +41,16 @@ export async function onAccountsBegin(params: ConversationProps) {
   return
 }
 
-export async function accountsFormat({ user }: ConversationProps): Promise<[string, TelegramOptions]> {
+type AccountsFormatOptions = {
+  menu?: boolean
+  callback_data?: {
+    account: string
+    new: string
+  }
+}
+
+export async function accountsFormat({ user }: ConversationProps, options?: AccountsFormatOptions): Promise<[string, TelegramOptions]> {
+  const call = options?.callback_data || { account: 'account', new: 'new_account' }
   if (!user.bookSelected) {
     throw new Error('No book selected')
   }
@@ -48,9 +61,9 @@ export async function accountsFormat({ user }: ConversationProps): Promise<[stri
   return [`🏛️ Por favor, selecciona la cuenta que te gustaría ver.`, {
     parse_mode: 'HTML', reply_markup: {
       inline_keyboard: [
-        [...(canCreateMore ? [{ text: '🏛️ Crear Cuenta', callback_data: 'new_book' }] : [])],
-        ...accounts.map((a) => [{ text: `${a.description}`, callback_data: `account_${a.id}` }]),
-        ...endButtons(true, 'budget')
+        [...(canCreateMore ? [{ text: '🏛️ Crear Cuenta', callback_data: call.new }] : [])],
+        ...accounts.map((a) => [{ text: `${a.description}`, callback_data: `${call.account}_${a.id}` }]),
+        ...(!!options?.menu ? endButtons('menu') : endButtons(true, 'budget'))
       ]
     }
   }]

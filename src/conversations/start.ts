@@ -35,7 +35,9 @@ export async function onStartText(params: ConversationProps) {
       return
     }
 
-    await xprisma.conversation.updateSubject(conversation.id, 'start', 'timezone')
+    await xprisma.conversation.update(conversation.id, {
+      subSubject: 'timezone'
+    })
 
     const countryName = localizeCountry('es').get(data.id)
 
@@ -57,7 +59,9 @@ export async function onStartText(params: ConversationProps) {
       return
     }
 
-    await xprisma.conversation.updateSubject(conversation.id, 'start', 'end')
+    await xprisma.conversation.update(conversation.id, {
+      subSubject: 'end'
+    })
     await xprisma.user.update(userId, { timezone: data.name })
 
     await bot.sendMessage(userId, `¡Hola ${firstName}! 👋\n\n¡Bienvenido a Bync Bot! Veo que estás en la zona horaria <b>${data.name}</b>.\n¡Espero que tengas un día increíble! Si necesitas algo, estoy aquí para ayudarte.`, {
@@ -80,7 +84,10 @@ export async function onStartCallback(params: ConversationProps) {
   }
 
   if (query.data === 'change_country') {
-    await xprisma.conversation.updateSubject(conversation.id, 'start', 'country')
+    await xprisma.conversation.update(conversation.id, {
+      subject: 'start',
+      subSubject: 'country'
+    })
     await bot.sendMessage(userId, `¡Claro, ${firstName}! ¿Podrías decirme en qué país vives? Solo necesito el código de 2 letras.\n¡Gracias!`)
     return
   }

@@ -15,7 +15,11 @@ export async function onBudgetBegin(params: ConversationProps) {
     return
   }
 
-  await xprisma.conversation.updateSubject(conversation.id, 'budget')
+  await xprisma.conversation.update(conversation.id, {
+    subject: 'budget',
+    subSubject: '',
+    edit: {}
+  })
   const [botText, botOptions] = await budgetFormat(params)
 
   if (conversation.messageId === query.message.message_id) {
@@ -40,22 +44,18 @@ export async function budgetFormat({ firstName, user }: ConversationProps): Prom
   if (!user.bookSelected) {
     throw new Error('No book selected')
   }
-  const accounts = await xprisma.account.findMany(user.bookSelected.id)
-  const noAccounts = accounts.length === 0
-
-  const noAccountsText = noAccounts ? '\n\n<i>Necesitas crear una cuenta.</i>' : ''
 
   return [
-    `¡Hola ${firstName}! 👋\n\n📝 Vamos a preparar tu presupuesto.\n¿En qué puedo ayudarte?${noAccountsText}`,
+    `¡Hola ${firstName}! 👋\n\n📝 Vamos a preparar tu presupuesto.\n¿En qué puedo ayudarte?`,
     {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
           [{ text: '🏛️ Ver Cuentas', callback_data: 'accounts' }],
-          ...(noAccounts ? [] : [[{ text: '🗂️ Ver Categorias', callback_data: 'categories' }]]),
-          ...(noAccounts ? [] : [[{ text: '🤑 Ver Ingresos', callback_data: 'incomes' }]]),
-          ...(noAccounts ? [] : [[{ text: '💸 Ver Gastos Fijos', callback_data: 'payments' }]]),
-          ...(noAccounts ? [] : [[{ text: '💱 Ver Intercambios de Moneda', callback_data: 'exchange' }]]),
+          [{ text: '🗂️ Ver Categorias', callback_data: 'categories' }],
+          [{ text: '🤑 Ver Ingresos', callback_data: 'incomes' }],
+          [{ text: '💸 Ver Gastos Fijos', callback_data: 'payments' }],
+          [{ text: '💱 Ver Intercambios de Moneda', callback_data: 'exchange' }],
           ...endButtons('menu')
         ]
       }

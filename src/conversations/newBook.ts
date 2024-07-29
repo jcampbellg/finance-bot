@@ -10,11 +10,15 @@ import { MAX_OWN_BOOKS } from '@utils/constant'
 export async function onNewBookBegin(params: ConversationProps) {
   const { userId, bot, firstName, conversation, query } = params
 
-  await xprisma.conversation.updateSubject(params.conversation.id, 'new_book', 'title')
+  await xprisma.conversation.update(params.conversation.id, {
+    subject: 'new_book',
+    subSubject: 'title',
+    edit: {}
+  })
 
   if (conversation.messageId === query?.message.message_id) {
     try {
-      await bot.editMessageText(`Vamos a crear un nuevo libro contable. ¿Cómo te gustaría llamarlo? 📚`, {
+      await bot.editMessageText(`📚 Vamos a crear un nuevo libro contable. ¿Cómo te gustaría llamarlo?`, {
         chat_id: userId,
         message_id: conversation.messageId,
         reply_markup: {
@@ -27,7 +31,7 @@ export async function onNewBookBegin(params: ConversationProps) {
     }
   }
 
-  const botMsg = await bot.sendMessage(userId, `¡Hola ${firstName}!\n\nVamos a crear un nuevo libro contable. ¿Cómo te gustaría llamarlo? 📚`, {
+  const botMsg = await bot.sendMessage(userId, `¡Hola ${firstName}!\n\n📚 Vamos a crear un nuevo libro contable. ¿Cómo te gustaría llamarlo?`, {
     reply_markup: {
       inline_keyboard: endButtons()
     }
@@ -59,7 +63,10 @@ export async function onNewBookText(params: ConversationProps) {
       title: title.value || ''
     })
 
-    await xprisma.conversation.updateSubject(conversation.id, 'book')
+    await xprisma.conversation.update(conversation.id, {
+      subject: 'book',
+      subSubject: ''
+    })
 
     const msg = await bookFormat(user, newBook)
     const botMsg = await bot.sendMessage(userId, `¡Perfecto! Tu libro contable "${newBook.title}" ha sido creado.\n\n${msg[0]}`, msg[1])

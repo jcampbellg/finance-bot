@@ -25,7 +25,7 @@ export async function onRolesBegin(params: ConversationProps) {
     return
   }
 
-  await xprisma.conversation.update(conversation.id, { subSubject: 'share', editId: book.id })
+  await xprisma.conversation.update(conversation.id, { subSubject: 'share', edit: { bookId: book.id } })
   const [botText] = await bookFormat(user, book)
 
   const rolesText = await Promise.all(book.roles.map(async (role) => {

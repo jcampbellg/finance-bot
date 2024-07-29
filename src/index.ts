@@ -13,6 +13,7 @@ import { onRolesBegin } from '@conversations/roles'
 import { onGiveUpBegin, onGiveUpYes } from '@conversations/giveUp'
 import { onBudgetBegin } from '@conversations/budget'
 import { onAccountsBegin } from '@conversations/accounts'
+import { onNewTransactionAccountCallback, onNewTransactionBegin, onNewTransactionNewAccountCallback, onNewTransactionText } from '@conversations/newTransaction'
 
 dotenv.config()
 
@@ -56,13 +57,18 @@ bot.on('message', async (ctx) => {
     return
   }
 
-  if (conversation.subject === 'book' && !!conversation.editId) {
+  if (conversation.subject === 'book' && !!conversation.edit.bookId) {
     await onBookText(msg)
     return
   }
 
-  if (conversation.subject === 'role_add' && !!conversation.editId) {
+  if (conversation.subject === 'role_add' && !!conversation.edit.bookId) {
     await onRoleAddText(msg)
+    return
+  }
+
+  if (conversation.subject === 'new_transaction') {
+    await onNewTransactionText(msg)
     return
   }
 })
@@ -91,6 +97,21 @@ bot.on('callback_query', async (query) => {
   }
 
   if (user.timezone === null) {
+    return
+  }
+
+  if (query.data === 'new_transaction') {
+    onNewTransactionBegin(msg)
+    return
+  }
+
+  if (query.data.startsWith('new_transaction_account')) {
+    await onNewTransactionAccountCallback(msg)
+    return
+  }
+
+  if (query.data === 'new_transaction_new_account') {
+    await onNewTransactionNewAccountCallback(msg)
     return
   }
 

@@ -33,10 +33,11 @@ model Book {
   exchangeRate   ExchangeRate[] @relation(name: "ExchangeRateInBook")
   roles          Role[]         @relation(name: "BookToRole")
   groupChats     GroupChat[]    @relation(name: "BooksGroupChatGetNotified")
+  budgetRules    BudgetRule[]   @relation(name: "BookToBudget")
 }
 
 model Account {
-  type        AccountType
+  type        AccountType   @default(TRACK_SPEND)
   currency    Currency[]    @relation(name: "CurrencyInAccount")
   id          String        @id @default(cuid())
   createdAt   DateTime      @default(now())
@@ -60,18 +61,19 @@ model Category {
   bookId      String
   book        Book          @relation(name: "CategoryInBook", fields: [bookId], references: [id])
   files       File[]        @relation(name: "CategoryWithFile")
+  payment     Payment[]     @relation(name: "CategoryToPayment")
 }
 
 model ExchangeRate {
-  id                 String   @id @default(cuid())
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  from               String
-  to                 String
-  amount             Float
-  validFromYearMonth Int
-  book               Book     @relation(name: "ExchangeRateInBook", fields: [bookId], references: [id])
-  bookId             String
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  from      String
+  to        String
+  amount    Float
+  validFrom Int
+  book      Book     @relation(name: "ExchangeRateInBook", fields: [bookId], references: [id])
+  bookId    String
 }
 
 model Transaction {
@@ -80,14 +82,13 @@ model Transaction {
   updatedAt          DateTime            @updatedAt
   description        String
   amount             Int
-  currency           String
   type               TransactionType     @default(EXPENSE)
   account            Account             @relation(name: "TransactionWithAccount", fields: [accountId], references: [id])
   accountId          String
   category           Category?           @relation(name: "TransactionWithCategory", fields: [categoryId], references: [id])
   categoryId         String?
   groupNotifications GroupNotification[] @relation(name: "TransactionsWithGroupNotification")
-  tags               Tag[]               @relation(name: "TransactionWithTag")
+  items              Item[]              @relation(name: "TransactionWithTag")
   files              File?               @relation(name: "TransactionWithFile", fields: [filesId], references: [id])
   filesId            String?             @unique
 }
@@ -103,12 +104,13 @@ model GroupNotification {
 }
 
 model Balance {
-  currency   Currency @relation(name: "AccountWithBalance", fields: [currencyId], references: [id])
+  currency   Currency        @relation(name: "AccountWithBalance", fields: [currencyId], references: [id])
   currencyId String
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  amount     Int
+  id         String          @id @default(cuid())
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  amount     Float
+  type       TransactionType
 }
 
 model GroupChat {
@@ -132,13 +134,14 @@ model File {
   category    Category?    @relation(name: "CategoryWithFile", fields: [categoryId], references: [id])
 }
 
-model Tag {
+model Item {
   id            String      @id @default(cuid())
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-  item          String
+  description   String
   transactionId String
   transaction   Transaction @relation(name: "TransactionWithTag", fields: [transactionId], references: [id])
+  price         Float?
 }
 
 model Conversation {
@@ -149,7 +152,7 @@ model Conversation {
   subject    String
   subSubject String
   messageId  Int?
-  editId     String?
+  edit       Json?
 }
 
 model Role {
@@ -170,6 +173,42 @@ model Currency {
   updatedAt DateTime  @updatedAt
   account   Account   @relation(name: "CurrencyInAccount", fields: [accountId], references: [id])
   accountId String
+  symbol    String
+}
+
+model BudgetRule {
+  book              Book            @relation(name: "BookToBudget", fields: [bookId], references: [id])
+  bookId            String
+  id                String          @id @default(cuid())
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  description       String
+  limit             Limit[]         @relation(name: "BudgetTagToLimit")
+  hasLimit          Boolean         @default(false)
+  trackingDirection TransactionType @default(EXPENSE)
+  rules             Json[]
+}
+
+model Limit {
+  budget    BudgetRule @relation(name: "BudgetTagToLimit", fields: [budgetId], references: [id])
+  budgetId  String
+  id        String     @id @default(cuid())
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  amount    Float
+  currency  String
+  validFrom Int
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  amount     Float
+  currency   String
+  category   Category @relation(name: "CategoryToPayment", fields: [categoryId], references: [id])
+  categoryId String
+  validFrom  Int
 }
 
 enum CategoryType {

@@ -14,7 +14,7 @@ export async function onRoleAddBegin(params: ConversationProps) {
 
   await xprisma.conversation.update(conversation.id, {
     subject: 'role_add',
-    editId: bookId,
+    edit: { bookId },
     subSubject: roleType
   })
 
@@ -28,7 +28,7 @@ export async function onRoleAddText(params: ConversationProps) {
     throw new Error('ctx must be provided')
   }
 
-  const bookId = conversation.editId as string
+  const bookId = conversation.edit.bookId as string
 
   if (['admin', 'owner', 'spender'].indexOf(conversation.subSubject) !== -1) {
     const success = await xprisma.role.create(user, {
@@ -45,7 +45,7 @@ export async function onRoleAddText(params: ConversationProps) {
       await xprisma.conversation.update(conversation.id, {
         subject: 'book',
         subSubject: '',
-        editId: null,
+        edit: {},
         messageId: null
       })
 
