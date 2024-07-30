@@ -5,6 +5,7 @@ import transExpenseNewPress from '@onBegin/transExpenseNewPress'
 import { bookAddPress } from '@onCallback/bookAddPress'
 import { bookCreatePress } from '@onCallback/bookCreatePress'
 import { bookRenamePress } from '@onCallback/bookRenamePress'
+import { bookSelectPress } from '@onCallback/bookSelectPress'
 import { bookViewPress } from '@onCallback/bookViewPress'
 import countryChangePress from '@onCallback/countryChangePress'
 import countryPress from '@onCallback/countryPress'
@@ -130,6 +131,11 @@ bot.on('callback_query', async (query) => {
 
   if (btnPress.startsWith('book_view_')) {
     await bookViewPress(msg)
+    return
+  }
+
+  if (btnPress.startsWith('book_select_')) {
+    await bookSelectPress(msg)
     return
   }
 

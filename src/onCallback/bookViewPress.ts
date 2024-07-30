@@ -17,8 +17,9 @@ export async function bookViewPress(params: ConversationProps) {
     return
   }
 
-  const isSelected = user.bookSelectedId === book.id ? '\n<i>Libro Seleccionado</i>' : ''
-  bot.editMessageText(`Editando\n\n<b>${book.title}</b>${isSelected}`, {
+  const isSelected = user.bookSelectedId === book.id
+  const owner = book.isOwner ? 'Tú' : await bot.getChat(book.owner.telegramId).then((res) => res.first_name || res.username || 'Desconocido').catch(() => 'Desconocido')
+  bot.editMessageText(`Editando Libro\n\n<b>Nombre:</b> ${book.title}\n<b>Dueño:</b> ${owner}\n<b>Selecionado:</b> ${isSelected ? 'Si' : 'no'}`, {
     chat_id: chatId,
     message_id: query.message.message_id,
     parse_mode: 'HTML',

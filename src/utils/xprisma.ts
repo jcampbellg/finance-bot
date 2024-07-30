@@ -1,4 +1,4 @@
-import { BookWithOwner, ByncUser, ConversationUpdateInput, Edit } from '@customTypes/prismaTypes'
+import { BookWithOwner, ByncUser, ConversationUpdateInput, Edit, UserUpdate } from '@customTypes/prismaTypes'
 import { Prisma, PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -56,7 +56,7 @@ const xprisma = prisma.$extends({
           }
         }
       },
-      async update(chatId: number, data: Omit<Prisma.UserUpdateInput, 'id' | 'telegramId'>): Promise<ByncUser> {
+      async update(chatId: number, data: UserUpdate): Promise<ByncUser> {
         const user = await prisma.user.update({
           where: {
             telegramId: chatId
