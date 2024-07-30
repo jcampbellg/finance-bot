@@ -1,6 +1,6 @@
 import { ConversationProps } from '@customTypes/messageTypes'
 import bookUpdateSend from '@onSend/bookUpdateSend'
-import noBookAccess from '@onSend/noBookAccess'
+import noBookAccessSend from '@onSend/noBookAccessSend'
 import xprisma from '@utils/xprisma'
 
 export async function bookSelectPress(params: ConversationProps) {
@@ -13,7 +13,7 @@ export async function bookSelectPress(params: ConversationProps) {
   const bookId = query.data.replace('book_select_', '')
   const book = await xprisma.book.findUnique(user, bookId)
   if (!book) {
-    await noBookAccess(params)
+    await noBookAccessSend(params)
     return
   }
 

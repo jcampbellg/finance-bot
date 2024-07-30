@@ -191,6 +191,63 @@ const xprisma = prisma.$extends({
           ...updatedBook,
           isOwner
         }
+      },
+      async delete(user: ByncUser, id: string): Promise<boolean> {
+        const book = await prisma.book.findUnique({
+          where: { id },
+          include: { owner: true, shares: true }
+        })
+
+        if (!book) {
+          return false
+        }
+
+        const isShare = book.shares.some(share => share.userId === user.id)
+        const isOwner = book.ownerId === user.id
+
+        if (!isShare && !isOwner) {
+          return false
+        }
+
+        if (isOwner) {
+          await prisma.file.deleteMany({ where: { OR: [{ transaction: { account: { bookId: id } } }, { account: { bookId: id } }, { category: { bookId: id } }] } })
+          await prisma.item.deleteMany({ where: { transaction: { account: { bookId: id } } } })
+          await prisma.groupNotification.deleteMany({ where: { transaction: { account: { bookId: id } } } })
+          await prisma.transaction.deleteMany({ where: { account: { bookId: id } } })
+          await prisma.balance.deleteMany({ where: { currency: { account: { bookId: id } } } })
+          await prisma.currency.deleteMany({ where: { account: { bookId: id } } })
+          await prisma.account.deleteMany({ where: { bookId: id } })
+          await prisma.category.deleteMany({ where: { bookId: id } })
+          await prisma.exchangeRate.deleteMany({ where: { bookId: id } })
+          await prisma.share.deleteMany({ where: { bookId: id } })
+          await prisma.limit.deleteMany({ where: { budget: { bookId: id } } })
+          await prisma.budgetRule.deleteMany({ where: { bookId: id } })
+
+          await prisma.book.update({
+            where: { id: book.id },
+            data: { groupChats: { set: [] }, selectedByUser: { set: [] } }
+          })
+
+          await prisma.book.delete({
+            where: { id: id }
+          })
+
+          return true
+        }
+
+        // Remove share
+        await prisma.share.deleteMany({
+          where: { bookId: id, userId: user.id }
+        })
+
+        if (user.bookSelectedId === id) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { bookSelectedId: null }
+          })
+        }
+
+        return true
       }
     }
   }

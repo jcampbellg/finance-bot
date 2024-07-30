@@ -3,7 +3,7 @@ import { titleEval } from '@utils/isValid'
 import xprisma from '@utils/xprisma'
 
 export default async function stringReply(params: ConversationProps, next: NextFunction<string>) {
-  const { bot, ctx, firstName, chatId, text, conversation } = params
+  const { bot, ctx, chatId, text, conversation } = params
 
   if (!ctx) {
     throw new Error('ctx is required')

@@ -4,6 +4,7 @@ import startPress from '@onBegin/startPress'
 import transExpenseNewPress from '@onBegin/transExpenseNewPress'
 import { bookAddPress } from '@onCallback/bookAddPress'
 import { bookCreatePress } from '@onCallback/bookCreatePress'
+import { bookDeleteYesPress } from '@onCallback/bookDeleteYesPress'
 import { bookRenamePress } from '@onCallback/bookRenamePress'
 import { bookSelectPress } from '@onCallback/bookSelectPress'
 import { bookViewPress } from '@onCallback/bookViewPress'
@@ -13,6 +14,7 @@ import timezonePress from '@onCallback/timezonePress'
 import accountsSend from '@onSend/accountsSend'
 import bookCreateSend from '@onSend/bookCreateSend'
 import bookRenameSend from '@onSend/bookRenameSend'
+import booleanSend from '@onSend/booleanSend'
 import menuSend from '@onSend/menuSend'
 import countrySearchReply from '@onText/countrySearchReply'
 import stringReply from '@onText/stringReply'
@@ -141,6 +143,16 @@ bot.on('callback_query', async (query) => {
 
   if (btnPress.startsWith('book_rename_')) {
     await bookRenamePress(msg)
+    return
+  }
+
+  if (btnPress.startsWith('book_delete_')) {
+    if (btnPress.startsWith('book_delete_yes_')) {
+      await bookDeleteYesPress(msg)
+      return
+    }
+    const bookId = btnPress.replace('book_delete_', '')
+    await booleanSend(msg, { action: 'eliminar este libro', callbackYes: `book_delete_yes_${bookId}`, callbackNo: `book_view_${bookId}` })
     return
   }
 

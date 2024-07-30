@@ -1,6 +1,6 @@
 import menuBtn from '@buttons/menuBtn'
 import { ConversationProps } from '@customTypes/messageTypes'
-import noBookAccess from '@onSend/noBookAccess'
+import noBookAccessSend from '@onSend/noBookAccessSend'
 import xprisma from '@utils/xprisma'
 
 export async function bookViewPress(params: ConversationProps) {
@@ -13,7 +13,7 @@ export async function bookViewPress(params: ConversationProps) {
   const bookId = query.data.replace('book_view_', '')
   const book = await xprisma.book.findUnique(user, bookId)
   if (!book) {
-    await noBookAccess(params)
+    await noBookAccessSend(params)
     return
   }
 
