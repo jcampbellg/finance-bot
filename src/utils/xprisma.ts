@@ -1,5 +1,5 @@
-import { BookUpdate, BookWithOwner, ByncUser, ConversationUpdateInput, Edit, UserUpdate } from '@customTypes/prismaTypes'
-import { Prisma, PrismaClient } from '@prisma/client'
+import { BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, Edit, UserUpdate } from '@customTypes/prismaTypes'
+import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -149,10 +149,10 @@ const xprisma = prisma.$extends({
           isOwner: book.ownerId === user.id
         }))
       },
-      async findUnique(user: ByncUser, id: string): Promise<BookWithOwner | null> {
+      async findUnique(user: ByncUser, id: string): Promise<BookWithOwnerAndShares | null> {
         const book = await prisma.book.findUnique({
           where: { id },
-          include: { owner: true, shares: true }
+          include: { owner: true, shares: { include: { user: true } } }
         })
 
         if (!book) {
