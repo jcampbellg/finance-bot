@@ -4,11 +4,14 @@ import startPress from '@onBegin/startPress'
 import transExpenseNewPress from '@onBegin/transExpenseNewPress'
 import { bookAddPress } from '@onCallback/bookAddPress'
 import { bookCreatePress } from '@onCallback/bookCreatePress'
+import { bookRenamePress } from '@onCallback/bookRenamePress'
+import { bookViewPress } from '@onCallback/bookViewPress'
 import countryChangePress from '@onCallback/countryChangePress'
 import countryPress from '@onCallback/countryPress'
 import timezonePress from '@onCallback/timezonePress'
 import accountsSend from '@onSend/accountsSend'
 import bookCreateSend from '@onSend/bookCreateSend'
+import bookRenameSend from '@onSend/bookRenameSend'
 import menuSend from '@onSend/menuSend'
 import countrySearchReply from '@onText/countrySearchReply'
 import stringReply from '@onText/stringReply'
@@ -70,6 +73,13 @@ bot.on('message', async (ctx) => {
     }
     return
   }
+
+  if (conversation.subject === 'bookRename') {
+    if (conversation.subSubject === 'title') {
+      stringReply(params, bookRenameSend)
+    }
+    return
+  }
 })
 
 bot.on('callback_query', async (query) => {
@@ -116,6 +126,16 @@ bot.on('callback_query', async (query) => {
 
   if (btnPress === 'book_create') {
     await bookCreatePress(msg)
+  }
+
+  if (btnPress.startsWith('book_view_')) {
+    await bookViewPress(msg)
+    return
+  }
+
+  if (btnPress.startsWith('book_rename_')) {
+    await bookRenamePress(msg)
+    return
   }
 
   if (btnPress === 'trans_expense_new') {

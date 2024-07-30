@@ -7,7 +7,7 @@ export default async function bookCreateSend(params: ConversationProps, title: s
   const { bot, chatId, user } = params
 
   if (!title) {
-    upsSend(params)
+    await upsSend(params)
     return
   }
 

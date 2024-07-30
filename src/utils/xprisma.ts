@@ -141,6 +141,56 @@ const xprisma = prisma.$extends({
           ...book,
           isOwner: book.ownerId === user.id
         }))
+      },
+      async findUnique(user: ByncUser, id: string): Promise<BookWithOwner | null> {
+        const book = await prisma.book.findUnique({
+          where: { id },
+          include: { owner: true, shares: true }
+        })
+
+        if (!book) {
+          return null
+        }
+
+        const isShare = book.shares.some(share => share.userId === user.id)
+        const isOwner = book.ownerId === user.id
+
+        if (!isShare && !isOwner) {
+          return null
+        }
+
+        return {
+          ...book,
+          isOwner
+        }
+      },
+      async update(user: ByncUser, id: string, data: Prisma.BookUpdateInput): Promise<BookWithOwner | null> {
+        const book = await prisma.book.findUnique({
+          where: { id },
+          include: { owner: true, shares: true }
+        })
+
+        if (!book) {
+          return null
+        }
+
+        const isShare = book.shares.some(share => share.userId === user.id)
+        const isOwner = book.ownerId === user.id
+
+        if (!isShare && !isOwner) {
+          return null
+        }
+
+        const updatedBook = await prisma.book.update({
+          where: { id },
+          data,
+          include: { owner: true }
+        })
+
+        return {
+          ...updatedBook,
+          isOwner
+        }
       }
     }
   }

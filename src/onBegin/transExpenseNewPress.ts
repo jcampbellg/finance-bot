@@ -1,5 +1,5 @@
 import { ConversationProps } from '@customTypes/messageTypes'
-import noBookSend from '@onSend/noBookSend'
+import noBookSelectedSend from '@onSend/noBookSelectedSend'
 import xprisma from '@utils/xprisma'
 
 export default async function transExpenseNewPress(params: ConversationProps) {
@@ -10,7 +10,7 @@ export default async function transExpenseNewPress(params: ConversationProps) {
   }
 
   if (!bookSelected) {
-    noBookSend(params)
+    noBookSelectedSend(params)
     return
   }
 
