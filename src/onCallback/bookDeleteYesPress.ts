@@ -1,6 +1,5 @@
 import menuBtn from '@buttons/menuBtn'
 import { ConversationProps } from '@customTypes/messageTypes'
-import bookUpdateSend from '@onSend/bookUpdateSend'
 import upsSend from '@onSend/upsSend'
 import xprisma from '@utils/xprisma'
 import TelegramBot from 'node-telegram-bot-api'

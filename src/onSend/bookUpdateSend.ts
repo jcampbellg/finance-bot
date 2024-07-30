@@ -12,7 +12,7 @@ export default async function bookUpdateSend(params: ConversationProps, bookId: 
   ]
 
   if (query) {
-    bot.editMessageText(text, {
+    await bot.editMessageText(text, {
       chat_id: chatId,
       message_id: query.message.message_id,
       reply_markup: {

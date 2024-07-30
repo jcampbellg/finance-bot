@@ -9,28 +9,28 @@ export default async function startPress(params: ConversationProps) {
     throw new Error('ctx is required')
   }
 
-  bot.setMyCommands([], {
+  await bot.setMyCommands([], {
     language_code: ctx.from?.language_code,
     scope: {
       type: 'all_group_chats'
     }
   })
 
-  bot.setMyCommands([], {
+  await bot.setMyCommands([], {
     language_code: ctx.from?.language_code,
     scope: {
       type: 'all_private_chats'
     }
   })
 
-  bot.setMyCommands([], {
+  await bot.setMyCommands([], {
     language_code: ctx.from?.language_code,
     scope: {
       type: 'all_chat_administrators'
     }
   })
 
-  bot.setMyCommands([], {
+  await bot.setMyCommands([], {
     language_code: ctx.from?.language_code,
     scope: {
       type: 'chat',
