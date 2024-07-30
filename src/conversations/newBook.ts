@@ -8,35 +8,26 @@ import TelegramBot from 'node-telegram-bot-api'
 import { MAX_OWN_BOOKS } from '@utils/constant'
 
 export async function onNewBookBegin(params: ConversationProps) {
-  const { userId, bot, firstName, conversation, query } = params
+  const { userId, bot, query, conversation } = params
 
-  await xprisma.conversation.update(params.conversation.id, {
+  if (!query) {
+    throw new Error('query must be provided')
+  }
+
+  await xprisma.conversation.update(conversation.id, {
     subject: 'new_book',
     subSubject: 'title',
     edit: {}
   })
 
-  if (conversation.messageId === query?.message.message_id) {
-    try {
-      await bot.editMessageText(`📚 Vamos a crear un nuevo libro contable. ¿Cómo te gustaría llamarlo?`, {
-        chat_id: userId,
-        message_id: conversation.messageId,
-        reply_markup: {
-          inline_keyboard: endButtons()
-        }
-      })
-      return
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
-  const botMsg = await bot.sendMessage(userId, `¡Hola ${firstName}!\n\n📚 Vamos a crear un nuevo libro contable. ¿Cómo te gustaría llamarlo?`, {
+  await bot.editMessageText(`📚 Vamos a crear un nuevo libro contable. ¿Cómo te gustaría llamarlo?`, {
+    chat_id: userId,
+    message_id: query.message.message_id,
     reply_markup: {
       inline_keyboard: endButtons()
     }
   })
-  await xprisma.conversation.update(conversation.id, { messageId: botMsg.message_id })
+
   return
 }
 
@@ -65,12 +56,14 @@ export async function onNewBookText(params: ConversationProps) {
 
     await xprisma.conversation.update(conversation.id, {
       subject: 'book',
-      subSubject: ''
+      subSubject: '',
+      edit: {
+        bookId: newBook.id
+      }
     })
 
     const msg = await bookFormat(user, newBook)
-    const botMsg = await bot.sendMessage(userId, `¡Perfecto! Tu libro contable "${newBook.title}" ha sido creado.\n\n${msg[0]}`, msg[1])
-    await xprisma.conversation.update(conversation.id, { messageId: botMsg.message_id })
+    await bot.sendMessage(userId, `¡Perfecto! Tu libro contable "${newBook.title}" ha sido creado.\n\n${msg[0]}`, msg[1])
   }
 }
 

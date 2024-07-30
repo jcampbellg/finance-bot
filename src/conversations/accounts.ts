@@ -23,21 +23,12 @@ export async function onAccountsBegin(params: ConversationProps) {
   })
   const [botText, botOptions] = await accountsFormat(params)
 
-  if (conversation.messageId === query.message.message_id) {
-    try {
-      await bot.editMessageText(botText, {
-        chat_id: userId,
-        message_id: conversation.messageId,
-        ...botOptions
-      })
-      return
-    } catch (error) {
-      console.error(error)
-    }
-  }
+  await bot.editMessageText(botText, {
+    chat_id: userId,
+    message_id: query.message.message_id,
+    ...botOptions
+  })
 
-  const botMsg = await bot.sendMessage(userId, botText, botOptions)
-  await xprisma.conversation.update(conversation.id, { messageId: botMsg.message_id })
   return
 }
 

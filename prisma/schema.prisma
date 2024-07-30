@@ -37,7 +37,7 @@ model Book {
 }
 
 model Account {
-  type        AccountType   @default(TRACK_SPEND)
+  track       AccountType   @default(TRACK_SPEND)
   currency    Currency[]    @relation(name: "CurrencyInAccount")
   id          String        @id @default(cuid())
   createdAt   DateTime      @default(now())
@@ -82,6 +82,7 @@ model Transaction {
   updatedAt          DateTime            @updatedAt
   description        String
   amount             Int
+  currency           String
   type               TransactionType     @default(EXPENSE)
   account            Account             @relation(name: "TransactionWithAccount", fields: [accountId], references: [id])
   accountId          String
@@ -151,7 +152,6 @@ model Conversation {
   user       User?    @relation(name: "UserConversation")
   subject    String
   subSubject String
-  messageId  Int?
   edit       Json?
 }
 

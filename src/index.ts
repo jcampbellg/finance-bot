@@ -13,7 +13,7 @@ import { onRolesBegin } from '@conversations/roles'
 import { onGiveUpBegin, onGiveUpYes } from '@conversations/giveUp'
 import { onBudgetBegin } from '@conversations/budget'
 import { onAccountsBegin } from '@conversations/accounts'
-import { onNewTransactionAccountCallback, onNewTransactionBegin, onNewTransactionNewAccountCallback, onNewTransactionText } from '@conversations/newTransaction'
+import { onNewTransactionBegin, onNewTransactionCallback, onNewTransactionText } from '@conversations/newTransaction'
 
 dotenv.config()
 
@@ -105,13 +105,8 @@ bot.on('callback_query', async (query) => {
     return
   }
 
-  if (query.data.startsWith('new_transaction_account')) {
-    await onNewTransactionAccountCallback(msg)
-    return
-  }
-
-  if (query.data === 'new_transaction_new_account') {
-    await onNewTransactionNewAccountCallback(msg)
+  if (conversation.subject === 'new_transaction') {
+    onNewTransactionCallback(msg)
     return
   }
 

@@ -8,14 +8,14 @@ export async function onMenuBegin(params: ConversationProps) {
 
   const noBook = !bookSelected ? '\n\n<i>Necesitas seleccionar un libro.</i>' : ''
 
-  const botMsg = await bot.sendMessage(userId, `¡Hola ${firstName}!\n¿En qué puedo ayudarte?${noBook}`, {
+  await xprisma.conversation.waiting(conversation.id)
+
+  await bot.sendMessage(userId, `¡Hola ${firstName}!\n¿En qué puedo ayudarte?${noBook}`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: await menuButtons(params)
     }
   })
-
-  await xprisma.conversation.waiting(conversation.id, botMsg.message_id)
   return
 }
 
@@ -23,7 +23,11 @@ export async function onConversationEnd(params: ConversationProps) {
   const { bot, userId, conversation } = params
 
   await xprisma.conversation.waiting(conversation.id)
-  await bot.sendMessage(userId, '¡Hasta luego! 👋')
+  await bot.sendMessage(userId, '¡Hasta luego! 👋', {
+    reply_markup: {
+      inline_keyboard: menuButton()
+    }
+  })
   return
 }
 
@@ -58,6 +62,12 @@ export function endButtons(canGoBack?: boolean | 'menu', callback_data: string =
       ...(!!canGoBack ? [{ text: textInBack, callback_data }] : []),
       { text: '👋 Terminar Conversación', callback_data: 'end_conversation' }
     ]
+  ]
+}
+
+export function menuButton(): TelegramBot.InlineKeyboardButton[][] {
+  return [
+    [{ text: `☰ Menú`, callback_data: 'menu' }],
   ]
 }
 

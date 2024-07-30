@@ -4,7 +4,7 @@ import xprisma from '@utils/xprisma'
 import { onBooksBegin } from './books'
 
 export async function onGiveUpBegin(params: ConversationProps) {
-  const { query, user, bot, userId, conversation } = params
+  const { query, user, bot, userId } = params
 
   if (!query) {
     throw new Error('query must be provided')
@@ -20,20 +20,11 @@ export async function onGiveUpBegin(params: ConversationProps) {
   }
 
   const [botText, botOptions] = yesAndNoButtons(`el acceso de ${book.title}`, `giveup_yes_${book.id}`, `book_${book.id}`)
-  if (conversation.messageId === query.message.message_id) {
-    try {
-      await bot.editMessageText(botText, {
-        chat_id: userId,
-        message_id: conversation.messageId,
-        ...botOptions
-      })
-      return
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
-  await bot.sendMessage(userId, botText, botOptions)
+  await bot.editMessageText(botText, {
+    chat_id: userId,
+    message_id: query.message.message_id,
+    ...botOptions
+  })
   return
 }
 
@@ -66,7 +57,6 @@ export async function onGiveUpYes(params: ConversationProps) {
   await xprisma.conversation.update(conversation.id, {
     subject: 'books',
     subSubject: '',
-    messageId: null
   })
   await onBooksBegin(params)
   return

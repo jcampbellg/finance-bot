@@ -46,19 +46,10 @@ export async function onRolesBegin(params: ConversationProps) {
     }
   }
 
-  if (conversation.messageId === query.message.message_id) {
-    try {
-      await bot.editMessageText(`${botText}\n\nPermisos:\n${rolesText}`, {
-        chat_id: userId,
-        message_id: conversation.messageId,
-        ...botOptions
-      })
-      return
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
-  await bot.sendMessage(userId, `${botText}\n\nPermisos:\n${rolesText}`, botOptions)
+  await bot.editMessageText(`${botText}\n\nPermisos:\n${rolesText}`, {
+    chat_id: userId,
+    message_id: query.message.message_id,
+    ...botOptions
+  })
   return
 }

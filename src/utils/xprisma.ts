@@ -1,4 +1,4 @@
-import { AccountWithBookAndCurrency, BookWithRolesAndOwner, ByncUser, ConversationUpdateInput, RoleCreate, RoleWithUser } from '@customTypes/prismaTypes'
+import { AccountWithBookAndCurrency, BookWithRolesAndOwner, ByncUser, ConversationUpdateInput, RoleCreate, RoleWithUser, TransactionCreateInput } from '@customTypes/prismaTypes'
 import { Prisma, PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -98,19 +98,6 @@ const xprisma = prisma.$extends({
       }
     },
     conversation: {
-      async removeLastMessage(userId: number) {
-        await prisma.conversation.updateMany({
-          where: {
-            user: {
-              telegramId: userId
-            }
-          },
-          data: {
-            messageId: null
-          }
-        })
-
-      },
       async update(id: string, data: ConversationUpdateInput) {
         return await prisma.conversation.update({
           where: {
@@ -119,7 +106,7 @@ const xprisma = prisma.$extends({
           data: data
         })
       },
-      async waiting(id: string, messageId?: number | null) {
+      async waiting(id: string) {
         return await prisma.conversation.update({
           where: {
             id: id
@@ -127,7 +114,6 @@ const xprisma = prisma.$extends({
           data: {
             subject: 'waiting',
             subSubject: '',
-            messageId: messageId || null,
             edit: {}
           }
         })
@@ -421,6 +407,65 @@ const xprisma = prisma.$extends({
         return await prisma.account.findMany({
           where: { bookId: bookId },
           include: { _count: true }
+        })
+      }
+    },
+    currency: {
+      async create(user: ByncUser, data: { accountId: string, symbol: string }): Promise<boolean> {
+        if (!user.bookSelected) {
+          return false
+        }
+
+        const exists = await prisma.currency.findFirst({
+          where: {
+            AND: [
+              { symbol: data.symbol },
+              { accountId: data.accountId }
+            ]
+          }
+        })
+
+        if (exists) {
+          return true
+        }
+
+        await prisma.currency.create({
+          data: {
+            symbol: data.symbol,
+            accountId: data.accountId
+          }
+        })
+
+        return true
+      }
+    },
+    transaction: {
+      async create(user: ByncUser, data: TransactionCreateInput) {
+        if (!user.bookSelected) {
+          return null
+        }
+
+        const acc = await prisma.account.findUnique({
+          where: { id: data.accountId }, include: { book: true }
+        })
+
+        if (!acc) {
+          return null
+        }
+
+        const haveAccessToThisBook = user.books.some(b => b.id === acc.book.id)
+
+        if (!haveAccessToThisBook) {
+          return null
+        }
+
+        return await prisma.transaction.create({
+          data: {
+            amount: data.amount,
+            currency: data.currency,
+            description: data.description,
+            accountId: acc.id,
+          }
         })
       }
     }

@@ -46,7 +46,6 @@ export async function onRoleAddText(params: ConversationProps) {
         subject: 'book',
         subSubject: '',
         edit: {},
-        messageId: null
       })
 
       await bot.sendMessage(userId, `¡Rol añadido! 🎉`, {

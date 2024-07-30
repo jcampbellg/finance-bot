@@ -29,22 +29,12 @@ export async function onBookBegin(params: ConversationProps) {
   })
   const [botText, botOptions] = await bookFormat(user, book)
 
-  if (conversation.messageId === query.message.message_id) {
-    try {
-      await bot.editMessageText(botText, {
-        chat_id: userId,
-        message_id: conversation.messageId,
-        ...botOptions
-      })
-      return
-    } catch (error) {
-      console.error(error)
-    }
-  }
+  await bot.editMessageText(botText, {
+    chat_id: userId,
+    message_id: query.message.message_id,
+    ...botOptions
+  })
 
-  const botMsg = await bot.sendMessage(userId, botText, botOptions)
-  await xprisma.conversation.update(conversation.id, { messageId: botMsg.message_id })
-  return
 }
 
 export async function onBookText(params: ConversationProps) {
@@ -76,8 +66,7 @@ export async function onBookText(params: ConversationProps) {
     })
 
     const msg = await bookFormat(user, updateBook)
-    const botMsg = await bot.sendMessage(userId, `${msg[0]}`, msg[1])
-    await xprisma.conversation.update(conversation.id, { messageId: botMsg.message_id })
+    await bot.sendMessage(userId, `${msg[0]}`, msg[1])
   }
 }
 
@@ -121,7 +110,6 @@ export async function onBookCallback(params: ConversationProps) {
       await xprisma.conversation.update(conversation.id, {
         subject: 'book',
         subSubject: 'rename',
-        messageId: null,
         edit: { bookId: book.id }
       })
       await bot.sendMessage(userId, '📚 Vamos a renombrar tu libro contable.\n\nPor favor, dime el nuevo nombre que te gustaría darle.')
@@ -131,20 +119,11 @@ export async function onBookCallback(params: ConversationProps) {
     if (action === 'delete') {
       const [botText, botOptions] = yesAndNoButtons(book.title, `bookedit_${book.id}_delete_confirm`, `book_${book.id}`)
 
-      if (conversation.messageId === query.message.message_id) {
-        try {
-          await bot.editMessageText(botText, {
-            chat_id: userId,
-            message_id: conversation.messageId,
-            ...botOptions
-          })
-          return
-        } catch (error) {
-          console.error(error)
-        }
-      }
-
-      await bot.sendMessage(userId, botText, botOptions)
+      await bot.editMessageText(botText, {
+        chat_id: userId,
+        message_id: query.message.message_id,
+        ...botOptions
+      })
       return
     }
 
@@ -162,7 +141,6 @@ export async function onBookCallback(params: ConversationProps) {
       await xprisma.conversation.update(conversation.id, {
         subject: 'books',
         subSubject: '',
-        messageId: null
       })
       await onBooksBegin(params)
       return
@@ -170,20 +148,11 @@ export async function onBookCallback(params: ConversationProps) {
 
     const [botText, botOptions] = await bookFormat(updateUser, book)
 
-    if (conversation.messageId === query.message.message_id) {
-      try {
-        await bot.editMessageText(botText, {
-          chat_id: userId,
-          message_id: conversation.messageId,
-          ...botOptions
-        })
-        return
-      } catch (error) {
-        console.error(error)
-      }
-    }
-
-    await bot.sendMessage(userId, botText, botOptions)
+    await bot.editMessageText(botText, {
+      chat_id: userId,
+      message_id: query.message.message_id,
+      ...botOptions
+    })
     return
   }
 }

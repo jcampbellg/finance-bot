@@ -23,10 +23,13 @@ export type ConversationUpdateInput = Omit<Prisma.ConversationUpdateInput, 'id' 
   edit?: Edit | {}
 }
 
+export type TransactionCreateInput = Pick<Prisma.TransactionCreateArgs['data'], 'description' | 'amount' | 'currency' | 'accountId'>
+
 export type Edit = {
   bookId?: string
   description?: string
   amount?: number
+  currency?: string
   accountId?: string
   categoryId?: string
 }

@@ -31,7 +31,7 @@ export const mathEval = (text: string): ReturnType<number | string> => {
   if (!isValid.success) {
     return {
       isError: true,
-      error: 'Solo se permiten números y operaciones matemáticas simples en una linea.',
+      error: 'Para continuar, asegúrate de usar solo números y operaciones matemáticas simples (-, +, /, *) en una linea.',
       isOk: false,
       value: text
     }
@@ -42,7 +42,7 @@ export const mathEval = (text: string): ReturnType<number | string> => {
     if (Number.isNaN(amount)) {
       return {
         isError: true,
-        error: 'La respuesta debe ser un número.',
+        error: 'Para continuar, asegúrate que la respuesta debe sea un número.',
         isOk: false,
         value: text
       }
@@ -56,7 +56,7 @@ export const mathEval = (text: string): ReturnType<number | string> => {
   } catch (err) {
     return {
       isError: true,
-      error: 'La respuesta debe ser un número.',
+      error: 'Para continuar, asegúrate que la respuesta debe sea un número.',
       isOk: false,
       value: text
     }
@@ -68,7 +68,7 @@ export const currencyEval = (text: string): ReturnType<string> => {
   if (!isValid.success) {
     return {
       isError: true,
-      error: 'La respuesta debe ser de 3 letras.',
+      error: 'Para continuar, asegúrate de que la respuesta tenga exactamente 3 letras.',
       isOk: false,
       value: text
     }
