@@ -7,6 +7,8 @@ import { bookCreatePress } from '@onCallback/bookCreatePress'
 import { bookDeleteYesPress } from '@onCallback/bookDeleteYesPress'
 import { bookRenamePress } from '@onCallback/bookRenamePress'
 import { bookSelectPress } from '@onCallback/bookSelectPress'
+import { bookShareAddPress } from '@onCallback/bookShareAddPress'
+import { bookSharePress } from '@onCallback/bookSharePress'
 import { bookViewPress } from '@onCallback/bookViewPress'
 import countryChangePress from '@onCallback/countryChangePress'
 import countryPress from '@onCallback/countryPress'
@@ -14,10 +16,12 @@ import timezonePress from '@onCallback/timezonePress'
 import accountsSend from '@onSend/accountsSend'
 import bookCreateSend from '@onSend/bookCreateSend'
 import bookRenameSend from '@onSend/bookRenameSend'
+import bookShareSend from '@onSend/bookShareSend'
 import booleanSend from '@onSend/booleanSend'
 import menuSend from '@onSend/menuSend'
 import countrySearchReply from '@onText/countrySearchReply'
 import stringReply from '@onText/stringReply'
+import userIdReply from '@onText/userIdReply'
 import auth from '@utils/auth'
 import xprisma from '@utils/xprisma'
 import dotenv from 'dotenv'
@@ -33,6 +37,7 @@ if (!process.env.TELEGRAM_BOT_TOKEN) {
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true })
 
 bot.on('message', async (ctx) => {
+  //#region Auth
   if (ctx.chat.type === 'group') {
     // TODO: Handle group messages
     return
@@ -44,22 +49,47 @@ bot.on('message', async (ctx) => {
   const { text, chatId, conversation } = params
 
   await bot.sendChatAction(chatId, 'typing')
+  //#endregion
 
+  //#region Start
   if (text === '/start') {
-    startPress(params)
+    await startPress(params)
     return
   }
 
   if (conversation.subject === 'start') {
     if (conversation.subSubject === 'countrySearch') {
-      countrySearchReply(params)
+      await countrySearchReply(params)
+    }
+    return
+  }
+  //#endregion
+
+  //#region Book
+  if (conversation.subject === 'bookCreate') {
+    if (conversation.subSubject === 'title') {
+      await stringReply(params, bookCreateSend)
     }
     return
   }
 
+  if (conversation.subject === 'bookRename') {
+    if (conversation.subSubject === 'title') {
+      await stringReply(params, bookRenameSend)
+    }
+    return
+  }
+
+  if (conversation.subject === 'bookShareAdd' || conversation.subject === 'bookShareOwner') {
+    await userIdReply(params, bookShareSend)
+    return
+  }
+  //#endregion
+
+  //#region TransExpense
   if (conversation.subject === 'transExpenseNew') {
     if (conversation.subSubject === 'description') {
-      stringReply(params, async (params) => {
+      await stringReply(params, async (params) => {
         await xprisma.conversation.update(conversation.id, {
           subSubject: 'accounts'
         })
@@ -69,23 +99,11 @@ bot.on('message', async (ctx) => {
     }
     return
   }
-
-  if (conversation.subject === 'bookCreate') {
-    if (conversation.subSubject === 'title') {
-      stringReply(params, bookCreateSend)
-    }
-    return
-  }
-
-  if (conversation.subject === 'bookRename') {
-    if (conversation.subSubject === 'title') {
-      stringReply(params, bookRenameSend)
-    }
-    return
-  }
+  //#endregion
 })
 
 bot.on('callback_query', async (query) => {
+  //#region Auth
   if (!query.message || !query.data) return
 
   const msg = await auth({ bot, query } as QueryProps)
@@ -94,7 +112,9 @@ bot.on('callback_query', async (query) => {
   const btnPress = query.data
 
   await bot.sendChatAction(chatId, 'typing')
+  //#endregion
 
+  //#region Start
   if (conversation.subject === 'start') {
     if (btnPress === 'country_change') {
       await countryChangePress(msg)
@@ -118,7 +138,9 @@ bot.on('callback_query', async (query) => {
     await menuSend(msg)
     return
   }
+  //#endregion
 
+  //#region Books
   if (btnPress === 'books') {
     await booksPress(msg)
   }
@@ -146,6 +168,19 @@ bot.on('callback_query', async (query) => {
     return
   }
 
+  if (btnPress.startsWith('book_share_')) {
+    if (btnPress.startsWith('book_share_add_')) {
+      await bookShareAddPress(msg, false)
+      return
+    }
+    if (btnPress.startsWith('book_share_owner_')) {
+      await bookShareAddPress(msg, true)
+      return
+    }
+    await bookSharePress(msg)
+    return
+  }
+
   if (btnPress.startsWith('book_delete_')) {
     if (btnPress.startsWith('book_delete_yes_')) {
       await bookDeleteYesPress(msg)
@@ -155,8 +190,11 @@ bot.on('callback_query', async (query) => {
     await booleanSend(msg, { action: 'eliminar este libro', callbackYes: `book_delete_yes_${bookId}`, callbackNo: `book_view_${bookId}` })
     return
   }
+  //#endregion
 
+  //#region TransExpense
   if (btnPress === 'trans_expense_new') {
     transExpenseNewPress(msg)
   }
+  //#endregion
 })

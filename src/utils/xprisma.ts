@@ -1,4 +1,4 @@
-import { BookWithOwner, ByncUser, ConversationUpdateInput, Edit, UserUpdate } from '@customTypes/prismaTypes'
+import { BookUpdate, BookWithOwner, ByncUser, ConversationUpdateInput, Edit, UserUpdate } from '@customTypes/prismaTypes'
 import { Prisma, PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -75,6 +75,13 @@ const xprisma = prisma.$extends({
             edit: user.conversation.edit as Edit
           }
         }
+      },
+      async findUnique(id: string) {
+        const user = await prisma.user.findUnique({
+          where: { id }
+        })
+
+        return user
       }
     },
     conversation: {
@@ -164,7 +171,7 @@ const xprisma = prisma.$extends({
           isOwner
         }
       },
-      async update(user: ByncUser, id: string, data: Prisma.BookUpdateInput): Promise<BookWithOwner | null> {
+      async update(user: ByncUser, id: string, data: BookUpdate): Promise<BookWithOwner | null> {
         const book = await prisma.book.findUnique({
           where: { id },
           include: { owner: true, shares: true }
@@ -245,6 +252,38 @@ const xprisma = prisma.$extends({
             where: { id: user.id },
             data: { bookSelectedId: null }
           })
+        }
+
+        return true
+      }
+    },
+    share: {
+      async create(bookId: string, userId: string) {
+        const share = await prisma.share.findFirst({
+          where: { AND: [{ bookId }, { userId }] }
+        })
+
+        if (!share) {
+          return await prisma.share.create({
+            data: {
+              bookId,
+              userId
+            }
+          })
+        }
+
+        return share
+      },
+      async delete(bookId: string, userId: string) {
+        const share = await prisma.share.findFirst({
+          where: { AND: [{ bookId }, { userId }] }
+        })
+
+        if (!!share) {
+          await prisma.share.delete({
+            where: { id: share.id }
+          })
+          return true
         }
 
         return true

@@ -39,5 +39,8 @@ export type BookWithOwner = Prisma.BookGetPayload<{
 
 type UserUpdateInput = Omit<Prisma.UserUpdateInput, 'id' | 'telegramId'>
 type UserUncheckedUpdateInput = Omit<Prisma.UserUncheckedUpdateInput, 'id' | 'telegramId'>
-
 export type UserUpdate = Prisma.XOR<UserUpdateInput, UserUncheckedUpdateInput>
+
+type BookUpdateInput = Omit<Prisma.BookUpdateInput, 'id'>
+type BookUncheckedUpdateInput = Omit<Prisma.BookUncheckedUpdateInput, 'id'>
+export type BookUpdate = Prisma.XOR<BookUpdateInput, BookUncheckedUpdateInput>
