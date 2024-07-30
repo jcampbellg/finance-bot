@@ -1,29 +1,4 @@
-import { $Enums, Book, Conversation, Prisma, Role, User } from '@prisma/client'
-
-export type RoleWithUser = Prisma.RoleGetPayload<{
-  include: {
-    user: true
-  }
-}>
-
-export type BookWithRole = Book & {
-  role: Role
-}
-
-export type BookWithRolesAndOwner = Book & {
-  role: Role
-  roles: RoleWithUser[]
-  owner: User
-  isSelected: boolean
-}
-
-export type ConversationWithEdit = Conversation & { edit: Edit }
-
-export type ConversationUpdateInput = Omit<Prisma.ConversationUpdateInput, 'id' | 'edit'> & {
-  edit?: Edit | {}
-}
-
-export type TransactionCreateInput = Pick<Prisma.TransactionCreateArgs['data'], 'description' | 'amount' | 'currency' | 'accountId'>
+import { Conversation, Prisma } from '@prisma/client'
 
 export type Edit = {
   bookId?: string
@@ -34,24 +9,30 @@ export type Edit = {
   categoryId?: string
 }
 
-export type ByncUser = User & {
-  conversation: ConversationWithEdit
-  bookSelected: BookWithRole | null
-  books: BookWithRole[]
-  canPrepareBudget: boolean
+export type ConversationWithEdit = Omit<Conversation, 'edit'> & { edit: Edit }
+
+export type ConversationUpdateInput = Omit<Prisma.ConversationUpdateInput, 'id' | 'edit'> & {
+  edit?: Edit | {}
 }
 
-export type RoleCreate = {
-  bookId: string
-  toUserId: string
-  role: $Enums.Permission
-}
-
-export type AccountWithBookAndCurrency = Prisma.AccountGetPayload<{
+export type ByncUser = Prisma.UserGetPayload<{
   include: {
-    book: true,
-    currency: {
-      include: { balance: true }
+    booksOwn: true,
+    booksAccess: {
+      include: {
+        book: true
+      }
     }
   }
-}>
+}> & {
+  bookSelected: BookWithOwner | null
+  conversation: ConversationWithEdit
+}
+
+export type BookWithOwner = Prisma.BookGetPayload<{
+  include: {
+    owner: true
+  }
+}> & {
+  isOwner: boolean
+}

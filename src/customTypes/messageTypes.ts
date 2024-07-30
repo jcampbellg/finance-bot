@@ -1,5 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api'
-import { BookWithRole, ByncUser, ConversationWithEdit } from './prismaTypes'
+import { ByncUser } from '@customTypes/prismaTypes'
 
 export type MessageFromPrivate =
   Omit<TelegramBot.Message, 'chat'> &
@@ -41,10 +41,10 @@ export type QueryProps = {
 }
 
 export type ConversationProps = {
-  userId: number
+  chatId: number
   user: ByncUser
-  bookSelected: BookWithRole | null
-  conversation: ConversationWithEdit
+  bookSelected: ByncUser['bookSelected']
+  conversation: ByncUser['conversation']
   firstName: string
   text: string
   bot: TelegramBot
@@ -53,4 +53,10 @@ export type ConversationProps = {
     | { ctx: MessageFromPrivate; query?: QueryFromPrivate }
   )
 
-export type TelegramOptions = Omit<TelegramBot.EditMessageTextOptions, 'chat_id' | 'message_id'>
+export type NextFunction<T> = (params: ConversationProps, value: T) => void
+
+export type SendProps = {
+  text: string
+  keyboardTop?: TelegramBot.InlineKeyboardButton[][]
+  keyboardDown?: TelegramBot.InlineKeyboardButton[][]
+}

@@ -34,6 +34,7 @@
     "countries-and-timezones": "^3.6.0",
     "dayjs": "^1.11.11",
     "dotenv": "^16.4.5",
+    "emoji-datasource": "^15.1.2",
     "emoji-regex": "^10.3.0",
     "localized-countries": "^2.0.0",
     "mathjs": "^13.0.0",

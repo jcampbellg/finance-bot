@@ -6,13 +6,13 @@ export default async function auth({ bot, ctx, query }: MsgOrQueryProps): Promis
     throw new Error('Either ctx or query must be provided')
   }
 
-  const userId = ctx?.chat.id || query?.message.chat.id as number
+  const chatId = ctx?.chat.id || query?.message.chat.id as number
   const text = ctx?.text?.trim() || ''
 
-  const user = await xprisma.user.auth(userId)
+  const user = await xprisma.user.auth(chatId)
 
   return {
-    userId,
+    chatId,
     user,
     bookSelected: user.bookSelected,
     conversation: user.conversation,

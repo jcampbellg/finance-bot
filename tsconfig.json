@@ -46,9 +46,21 @@
       "@assets/*": [
         "src/assets/*"
       ],
-      "@conversations/*": [
-        "src/conversations/*"
-      ]
+      "@onText/*": [
+        "src/onText/*"
+      ],
+      "@onCallback/*": [
+        "src/onCallback/*"
+      ],
+      "@onBegin/*": [
+        "src/onBegin/*"
+      ],
+      "@onSend/*": [
+        "src/onSend/*"
+      ],
+      "@buttons/*": [
+        "src/buttons/*"
+      ],
     }
   },
   "exclude": [

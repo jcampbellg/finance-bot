@@ -1,19 +1,21 @@
-import { onBookBegin, onBookCallback, onBookText } from '@conversations/book'
-import { onBooksBegin } from '@conversations/books'
-import { onNewBookBegin, onNewBookText } from '@conversations/newBook'
-import { onConversationEnd, onMenuBegin } from '@conversations/mainMenu'
-import { onStartBegin, onStartCallback, onStartText } from '@conversations/start'
 import { MsgProps, QueryProps } from '@customTypes/messageTypes'
+import { booksPress } from '@onBegin/booksPress'
+import startPress from '@onBegin/startPress'
+import transExpenseNewPress from '@onBegin/transExpenseNewPress'
+import { bookAddPress } from '@onCallback/bookAddPress'
+import { bookCreatePress } from '@onCallback/bookCreatePress'
+import countryChangePress from '@onCallback/countryChangePress'
+import countryPress from '@onCallback/countryPress'
+import timezonePress from '@onCallback/timezonePress'
+import accountsSend from '@onSend/accountsSend'
+import bookCreateSend from '@onSend/bookCreateSend'
+import menuSend from '@onSend/menuSend'
+import countrySearchReply from '@onText/countrySearchReply'
+import stringReply from '@onText/stringReply'
 import auth from '@utils/auth'
+import xprisma from '@utils/xprisma'
 import dotenv from 'dotenv'
 import TelegramBot from 'node-telegram-bot-api'
-import { onAddBookBegin } from '@conversations/addBook'
-import { onRoleAddBegin, onRoleAddText } from '@conversations/roleAdd'
-import { onRolesBegin } from '@conversations/roles'
-import { onGiveUpBegin, onGiveUpYes } from '@conversations/giveUp'
-import { onBudgetBegin } from '@conversations/budget'
-import { onAccountsBegin } from '@conversations/accounts'
-import { onNewTransactionBegin, onNewTransactionCallback, onNewTransactionText } from '@conversations/newTransaction'
 
 dotenv.config()
 
@@ -32,43 +34,40 @@ bot.on('message', async (ctx) => {
 
   if (ctx.chat.type !== 'private') return
 
-  const msg = await auth({ bot, ctx } as MsgProps)
-  const { text, userId, conversation } = msg
+  const params = await auth({ bot, ctx } as MsgProps)
+  const { text, chatId, conversation } = params
 
-  await bot.sendChatAction(userId, 'typing')
+  await bot.sendChatAction(chatId, 'typing')
 
-  if (conversation.subject === 'waiting') {
-    await onMenuBegin(msg)
-    return
-  }
-
-  if (text.startsWith('/start')) {
-    await onStartBegin(msg)
+  if (text === '/start') {
+    startPress(params)
     return
   }
 
   if (conversation.subject === 'start') {
-    await onStartText(msg)
+    if (conversation.subSubject === 'countrySearch') {
+      countrySearchReply(params)
+    }
     return
   }
 
-  if (conversation.subject === 'new_book') {
-    await onNewBookText(msg)
+  if (conversation.subject === 'transExpenseNew') {
+    if (conversation.subSubject === 'description') {
+      stringReply(params, async (params) => {
+        await xprisma.conversation.update(conversation.id, {
+          subSubject: 'accounts'
+        })
+
+        accountsSend(params, { text: `¡Gracias!\nAhora, ¿puedes decirme la cuenta a la que se aplica esta transacción?` })
+      })
+    }
     return
   }
 
-  if (conversation.subject === 'book' && !!conversation.edit.bookId) {
-    await onBookText(msg)
-    return
-  }
-
-  if (conversation.subject === 'role_add' && !!conversation.edit.bookId) {
-    await onRoleAddText(msg)
-    return
-  }
-
-  if (conversation.subject === 'new_transaction') {
-    await onNewTransactionText(msg)
+  if (conversation.subject === 'bookCreate') {
+    if (conversation.subSubject === 'title') {
+      stringReply(params, bookCreateSend)
+    }
     return
   }
 })
@@ -77,91 +76,49 @@ bot.on('callback_query', async (query) => {
   if (!query.message || !query.data) return
 
   const msg = await auth({ bot, query } as QueryProps)
-  const { userId, conversation, user } = msg
+  const { chatId, conversation, user } = msg
 
-  await bot.sendChatAction(userId, 'typing')
+  const btnPress = query.data
 
-  if (query.data === 'menu' && !!user.timezone) {
-    await onMenuBegin(msg)
-    return
-  }
-
-  if (query.data === 'end_conversation' && !!user.timezone) {
-    await onConversationEnd(msg)
-    return
-  }
+  await bot.sendChatAction(chatId, 'typing')
 
   if (conversation.subject === 'start') {
-    await onStartCallback(msg)
+    if (btnPress === 'country_change') {
+      await countryChangePress(msg)
+      return
+    }
+
+    if (btnPress.startsWith('country_')) {
+      await countryPress(msg)
+    }
+
+    if (btnPress.includes('timezone_')) {
+      await timezonePress(msg)
+    }
+
+    if (!user.timezone) {
+      return
+    }
+  }
+
+  if (btnPress === 'menu') {
+    await menuSend(msg)
     return
   }
 
-  if (user.timezone === null) {
-    return
+  if (btnPress === 'books') {
+    await booksPress(msg)
   }
 
-  if (query.data === 'new_transaction') {
-    onNewTransactionBegin(msg)
-    return
+  if (btnPress === 'book_add') {
+    await bookAddPress(msg)
   }
 
-  if (conversation.subject === 'new_transaction') {
-    onNewTransactionCallback(msg)
-    return
+  if (btnPress === 'book_create') {
+    await bookCreatePress(msg)
   }
 
-  if (query.data === 'budget') {
-    await onBudgetBegin(msg)
-    return
-  }
-
-  if (query.data === 'accounts') {
-    await onAccountsBegin(msg)
-    return
-  }
-
-  if (query.data === 'add_book') {
-    await onAddBookBegin(msg)
-    return
-  }
-
-  if (query.data === 'new_book') {
-    await onNewBookBegin(msg)
-    return
-  }
-
-  if (query.data === 'books') {
-    await onBooksBegin(msg)
-    return
-  }
-
-  if (query.data.startsWith('bookedit')) {
-    await onBookCallback(msg)
-    return
-  }
-
-  if (query.data.startsWith('roles_')) {
-    await onRolesBegin(msg)
-    return
-  }
-
-  if (query.data.startsWith('role_add')) {
-    await onRoleAddBegin(msg)
-    return
-  }
-
-  if (query.data.startsWith('book_')) {
-    await onBookBegin(msg)
-    return
-  }
-
-  if (query.data.startsWith('giveup_yes')) {
-    await onGiveUpYes(msg)
-    return
-  }
-
-  if (query.data.startsWith('giveup_')) {
-    await onGiveUpBegin(msg)
-    return
+  if (btnPress === 'trans_expense_new') {
+    transExpenseNewPress(msg)
   }
 })

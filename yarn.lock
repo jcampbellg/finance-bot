@@ -899,6 +899,11 @@ emitter-component@^1.1.1:
   resolved "https://registry.yarnpkg.com/emitter-component/-/emitter-component-1.1.2.tgz#d65af5833dc7c682fd0ade35f902d16bc4bad772"
   integrity sha512-QdXO3nXOzZB4pAjM0n6ZE+R9/+kPpECA/XSELIcc54NeYVnBqIk+4DFiBgK+8QbV3mdvTG6nedl7dTYgO+5wDw==
 
+emoji-datasource@^15.1.2:
+  version "15.1.2"
+  resolved "https://registry.yarnpkg.com/emoji-datasource/-/emoji-datasource-15.1.2.tgz#afec422adadeafbf59c4e346fe24a891900e257c"
+  integrity sha512-tXAqGsrDVhgCRpFePtaD9P4Z8Ro2SUQSL/4MIJBG0SxqQJaMslEbin8J53OaFwEBu6e7JxFaIF6s4mw9+8acAQ==
+
 emoji-regex@^10.3.0:
   version "10.3.0"
   resolved "https://registry.yarnpkg.com/emoji-regex/-/emoji-regex-10.3.0.tgz#76998b9268409eb3dae3de989254d456e70cfe23"
