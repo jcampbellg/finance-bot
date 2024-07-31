@@ -342,10 +342,36 @@ const xprisma = prisma.$extends({
       create: async (user: ByncUser, data: TransactionCreate): Promise<TransactionWithAll | null> => {
         if (!user.bookSelected) return null
 
+        const account = await prisma.account.findFirst({
+          where: { AND: [{ id: data.accountId }, { bookId: user.bookSelected.id }] },
+        })
+
+        if (!account) return null
+
         return prisma.transaction.create({
           data: data,
           include: transactionInclude
         })
+      }
+    },
+    currency: {
+      async create(user: ByncUser, accountId: string, symbol: string): Promise<boolean> {
+        if (!user.bookSelected) return false
+
+        const exists = await prisma.currency.findFirst({
+          where: { accountId, symbol },
+          include: { account: true }
+        })
+
+        if (exists) {
+          if (exists.account.bookId !== user.bookSelected.id) return false
+        } else {
+          await prisma.currency.create({
+            data: { symbol, accountId }
+          })
+        }
+
+        return true
       }
     }
   }

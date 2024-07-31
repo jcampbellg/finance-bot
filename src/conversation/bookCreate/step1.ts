@@ -11,7 +11,7 @@ export default async function step1(params: ConversationProps) {
     subSubject: 'description'
   })
 
-  const botText = `📚 Vamos a crear un nuevo libro contable. ¿Cómo te gustaría llamarlo?`
+  const botText = `📚 Vamos a crear un nuevo libro contable.\n¿Cómo te gustaría llamarlo?`
   const botButtons: TelegramBot.InlineKeyboardButton[][] = [endBtn]
 
   if (!!query) {

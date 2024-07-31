@@ -15,5 +15,8 @@ export default async function BookSelectedWrapper(params: ConversationProps, nex
     return
   }
 
-  await next(params)
+  await next({
+    ...params,
+    bookSelected
+  })
 }

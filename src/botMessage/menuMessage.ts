@@ -16,9 +16,9 @@ export default async function menuMessage(params: ConversationProps, isEnd = fal
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        [{ text: '🧾 Nuevo Gasto', callback_data: 'trans_expense_new' }, { text: '🏦 Nuevo Deposito', callback_data: 'trans_deposit_new' }],
-        [{ text: '🤑 Nuevo Ingreso', callback_data: 'trans_income_new' }, { text: '💵 Nuevo Pago Fijo', callback_data: 'trans_payment_new' }],
-        [{ text: '🔄 Nueva Transferencia', callback_data: 'trans_transfer_new' }],
+        [{ text: '🧾 Nuevo Gasto', callback_data: 'transaction_create_expense' }, { text: '🏦 Nuevo Deposito', callback_data: 'transaction_create_deposit' }],
+        [{ text: '🤑 Nuevo Ingreso', callback_data: 'income_create' }, { text: '💵 Nuevo Pago Fijo', callback_data: 'payment_create' }],
+        [{ text: '🔄 Nueva Transferencia', callback_data: 'transfer_create' }],
         [{ text: '📚 Ver y Seleccionar Libro', callback_data: 'books_menu' }],
         [{ text: '📝 Preparar Presupuesto', callback_data: 'budget' }],
         [{ text: '📑 Resumen', callback_data: 'summary' }]

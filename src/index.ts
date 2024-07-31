@@ -1,10 +1,15 @@
 import bookAddMessage from '@botMessage/book/bookAddMessage'
+import bookSelectMessage from '@botMessage/book/bookSelectMessage'
 import booksMenuMessage from '@botMessage/book/booksMenuMessage'
+import bookViewMenuMessage from '@botMessage/book/bookViewMenuMessage'
 import menuMessage from '@botMessage/menuMessage'
 import bookCreateButton from '@conversation/bookCreate/bookCreateButton'
 import bookCreateText from '@conversation/bookCreate/bookCreateText'
 import startButton from '@conversation/start/startButton'
 import startText from '@conversation/start/startText'
+import transactionCreateButton from '@conversation/transactionCreate/transactionCreateButton'
+import transactionCreateText from '@conversation/transactionCreate/transactionCreateText'
+import BookSelectedWrapper from '@conversation/utils/BookSelectedWrapper'
 import { MsgProps, QueryProps } from '@customTypes/messageTypes'
 import auth from '@utils/auth'
 import dotenv from 'dotenv'
@@ -44,6 +49,13 @@ bot.on('message', async (ctx) => {
   //#region Book Create
   if (conversation.subject === 'book_create') {
     await bookCreateText(params)
+    return
+  }
+  //#endregion
+
+  //#region Transactions
+  if (conversation.subject === 'transaction_create') {
+    await BookSelectedWrapper(params, transactionCreateText)
     return
   }
   //#endregion
@@ -87,6 +99,23 @@ bot.on('callback_query', async (query) => {
 
   if (btnPress === 'book_create' || conversation.subject === 'book_create') {
     await bookCreateButton(msg)
+    return
+  }
+
+  if (btnPress.startsWith('book_view')) {
+    await bookViewMenuMessage(msg)
+    return
+  }
+
+  if (btnPress.startsWith('book_select')) {
+    await bookSelectMessage(msg)
+    return
+  }
+  //#endregion
+
+  //#region Transactions
+  if (['transaction_create_expense', 'transaction_create_deposit'].indexOf(btnPress) !== -1 || conversation.subject === 'transaction_create') {
+    await BookSelectedWrapper(msg, transactionCreateButton)
     return
   }
   //#endregion

@@ -1,6 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api'
-import { ByncUser } from '@customTypes/prismaTypes'
-import { SetRequired } from 'type-fest'
+import { BookWithOwner, ByncUser } from '@customTypes/prismaTypes'
 
 export type MessageFromPrivate =
   Omit<TelegramBot.Message, 'chat'> &
@@ -21,10 +20,9 @@ export type QueryFromPrivate =
 
 export type MsgOrQueryProps = {
   bot: TelegramBot
-} & (
-    | { ctx?: MessageFromPrivate; query: QueryFromPrivate }
-    | { ctx: MessageFromPrivate; query?: QueryFromPrivate }
-  )
+  ctx?: MessageFromPrivate
+  query?: QueryFromPrivate
+}
 
 export type MsgProps = {
   bot: TelegramBot
@@ -49,12 +47,13 @@ export type ConversationProps = {
   firstName: string
   text: string
   bot: TelegramBot
-} & (
-    | { ctx?: MessageFromPrivate; query: QueryFromPrivate }
-    | { ctx: MessageFromPrivate; query?: QueryFromPrivate }
-  )
+  ctx?: MessageFromPrivate
+  query?: QueryFromPrivate
+}
 
-export type ConversationPropsWithBookSelected = SetRequired<ConversationProps, 'bookSelected'>
+export type ConversationPropsWithBookSelected = Omit<ConversationProps, 'bookSelected'> & {
+  bookSelected: BookWithOwner
+}
 
 export type NextFunction<T> = (value: T) => void
 

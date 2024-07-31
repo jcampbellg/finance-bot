@@ -1,9 +1,8 @@
 import { ConversationProps, NextFunction } from '@customTypes/messageTypes'
 import { mathEval } from '@utils/isValid'
-import xprisma from '@utils/xprisma'
 
 export default async function amountReply(params: ConversationProps, next: NextFunction<number>) {
-  const { bot, ctx, chatId, text, conversation } = params
+  const { bot, ctx, chatId, text } = params
 
   if (!ctx) {
     throw new Error('ctx is required')
@@ -14,13 +13,6 @@ export default async function amountReply(params: ConversationProps, next: NextF
     await bot.sendMessage(chatId, amount.error)
     return
   }
-
-  await xprisma.conversation.update(conversation.id, {
-    edit: {
-      ...conversation.edit,
-      amount: amount.value as number
-    }
-  })
 
   next(amount.value as number)
 }
