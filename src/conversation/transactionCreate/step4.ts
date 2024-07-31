@@ -4,7 +4,7 @@ import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 
 export default async function step4(params: ConversationPropsWithBookSelected) {
-  const { conversation, bot, chatId } = params
+  const { conversation, bot, chatId, query } = params
 
   await currencyReply(params, async (currency) => {
     await xprisma.conversation.update(conversation.id, {
@@ -15,7 +15,20 @@ export default async function step4(params: ConversationPropsWithBookSelected) {
       }
     })
 
-    bot.sendMessage(chatId, `Perfecto. Finalmente, ¿cuál es el monto de la transacción?`, {
+    const botText = `Perfecto. Finalmente, ¿cuál es el monto de la transacción?`
+
+    if (query) {
+      await bot.editMessageText(botText, {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        reply_markup: {
+          inline_keyboard: [endBtn]
+        }
+      })
+      return
+    }
+
+    bot.sendMessage(chatId, botText, {
       reply_markup: {
         inline_keyboard: [endBtn]
       }
