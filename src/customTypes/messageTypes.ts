@@ -1,5 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api'
 import { ByncUser } from '@customTypes/prismaTypes'
+import { SetRequired } from 'type-fest'
 
 export type MessageFromPrivate =
   Omit<TelegramBot.Message, 'chat'> &
@@ -53,7 +54,9 @@ export type ConversationProps = {
     | { ctx: MessageFromPrivate; query?: QueryFromPrivate }
   )
 
-export type NextFunction<T> = (params: ConversationProps, value: T) => void
+export type ConversationPropsWithBookSelected = SetRequired<ConversationProps, 'bookSelected'>
+
+export type NextFunction<T> = (value: T) => void
 
 export type SendProps = {
   text: string

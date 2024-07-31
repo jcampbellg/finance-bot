@@ -1,0 +1,1 @@
+export default [{ text: `👋 Terminar Conversación`, callback_data: 'end' }]

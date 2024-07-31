@@ -46,17 +46,14 @@
       "@assets/*": [
         "src/assets/*"
       ],
-      "@onText/*": [
-        "src/onText/*"
+      "@conversation/*": [
+        "src/conversation/*"
       ],
-      "@onCallback/*": [
-        "src/onCallback/*"
+      "@conversationUtils/*": [
+        "src/conversation/utils/*"
       ],
-      "@onBegin/*": [
-        "src/onBegin/*"
-      ],
-      "@onSend/*": [
-        "src/onSend/*"
+      "@botMessage/*": [
+        "src/botMessage/*"
       ],
       "@buttons/*": [
         "src/buttons/*"
