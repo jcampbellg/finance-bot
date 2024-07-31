@@ -58,13 +58,14 @@ model Category {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   description String
-  type        CategoryType  @default(EXPENSE)
+  type        CategoryType  @default(TRANSACTION)
   notes       String?
   transaction Transaction[] @relation(name: "TransactionWithCategory")
   bookId      String
   book        Book          @relation(name: "CategoryInBook", fields: [bookId], references: [id])
   files       File[]        @relation(name: "CategoryWithFile")
   payment     Payment[]     @relation(name: "CategoryToPayment")
+  split       Split?        @relation(name: "CategoryToSplit")
 }
 
 model ExchangeRate {
@@ -80,11 +81,12 @@ model ExchangeRate {
 }
 
 model Transaction {
+  splits             Split[]             @relation(name: "splitToTransaction")
   id                 String              @id @default(cuid())
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   description        String
-  amount             Int
+  amount             Float
   currency           String
   type               TransactionType     @default(EXPENSE)
   account            Account             @relation(name: "TransactionWithAccount", fields: [accountId], references: [id])
@@ -95,6 +97,10 @@ model Transaction {
   items              Item[]              @relation(name: "TransactionWithTag")
   files              File[]              @relation(name: "TransactionWithFile")
   paidAt             DateTime?
+  tags               String[]
+  transferA          Transaction?        @relation(name: "TransactionToTransaction")
+  transferB          Transaction?        @relation(name: "TransactionToTransaction", fields: [transferId], references: [id])
+  transferId         String?             @unique
 }
 
 model GroupNotification {
@@ -156,6 +162,7 @@ model Conversation {
   user       User?    @relation(name: "UserConversation")
   subject    String
   subSubject String
+  messageId  Int?
   edit       Json?
 }
 
@@ -180,16 +187,15 @@ model Currency {
 }
 
 model BudgetRule {
-  book              Book            @relation(name: "BookToBudget", fields: [bookId], references: [id])
-  bookId            String
-  id                String          @id @default(cuid())
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  description       String
-  limit             Limit[]         @relation(name: "BudgetTagToLimit")
-  hasLimit          Boolean         @default(false)
-  trackingDirection TransactionType @default(EXPENSE)
-  rules             Json[]
+  book        Book     @relation(name: "BookToBudget", fields: [bookId], references: [id])
+  bookId      String
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  description String
+  limit       Limit[]  @relation(name: "BudgetTagToLimit")
+  hasLimit    Boolean  @default(false)
+  rules       Json[]
 }
 
 model Limit {
@@ -214,9 +220,21 @@ model Payment {
   validFrom  Int
 }
 
+model Split {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  subAmount     Float
+  description   String
+  transactionId String
+  transaction   Transaction @relation(name: "splitToTransaction", fields: [transactionId], references: [id])
+  category      Category    @relation(name: "CategoryToSplit", fields: [categoryId], references: [id])
+  categoryId    String      @unique
+}
+
 enum CategoryType {
   PAYMENT
-  EXPENSE
+  TRANSACTION
   INCOME
 }
 

@@ -1,7 +1,9 @@
+import menuBtn from '@buttons/menuBtn'
 import { MsgProps, QueryProps } from '@customTypes/messageTypes'
 import { booksPress } from '@onBegin/booksPress'
 import startPress from '@onBegin/startPress'
-import transExpenseNewPress from '@onBegin/transExpenseNewPress'
+import transNewPress from '@onBegin/transNewPress'
+import { accountCreatePress } from '@onCallback/accountCreatePress'
 import { bookAddPress } from '@onCallback/bookAddPress'
 import { bookCreatePress } from '@onCallback/bookCreatePress'
 import { bookDeleteYesPress } from '@onCallback/bookDeleteYesPress'
@@ -13,13 +15,18 @@ import { bookViewPress } from '@onCallback/bookViewPress'
 import countryChangePress from '@onCallback/countryChangePress'
 import countryPress from '@onCallback/countryPress'
 import timezonePress from '@onCallback/timezonePress'
+import { transAccountSelectPress } from '@onCallback/transAccountSelectPress'
+import accountCreateSend from '@onSend/accountCreateSend'
 import accountsSend from '@onSend/accountsSend'
 import bookCreateSend from '@onSend/bookCreateSend'
 import bookRenameSend from '@onSend/bookRenameSend'
 import bookShareSend from '@onSend/bookShareSend'
 import booleanSend from '@onSend/booleanSend'
 import menuSend from '@onSend/menuSend'
+import transCreateSend from '@onSend/transCreateSend'
+import amountReply from '@onText/amountReply'
 import countrySearchReply from '@onText/countrySearchReply'
+import currencyReply from '@onText/currencyReply'
 import stringReply from '@onText/stringReply'
 import userIdReply from '@onText/userIdReply'
 import auth from '@utils/auth'
@@ -86,16 +93,44 @@ bot.on('message', async (ctx) => {
   }
   //#endregion
 
-  //#region TransExpense
-  if (conversation.subject === 'transExpenseNew') {
+  //#region Transactions New
+  if (conversation.subject === 'transNew') {
+    const prefix = 'trans_new'
     if (conversation.subSubject === 'description') {
-      await stringReply(params, async (params) => {
+      await stringReply(params, async (params, description) => {
         await xprisma.conversation.update(conversation.id, {
-          subSubject: 'accounts'
+          subSubject: 'accounts',
+          edit: {
+            description
+          }
         })
 
-        accountsSend(params, { text: `¡Gracias!\nAhora, ¿puedes decirme la cuenta a la que se aplica esta transacción?` })
+        accountsSend(params, { text: `¡Gracias!\nAhora, ¿puedes decirme la cuenta a la que se aplica esta transacción?` }, { callbackCreate: `${prefix}_account_create`, callbackAccountPrefix: `${prefix}_account_select` })
       })
+    }
+
+    if (conversation.subSubject === 'accountCreate') {
+      await stringReply(params, accountCreateSend)
+    }
+
+    if (conversation.subSubject === 'currency') {
+      await currencyReply(params, async () => {
+        await xprisma.conversation.update(conversation.id, {
+          subSubject: 'amount'
+        })
+
+        bot.sendMessage(chatId, `Perfecto. Finalmente, ¿cuál es el monto de la transacción?`, {
+          reply_markup: {
+            inline_keyboard: [
+              menuBtn
+            ]
+          }
+        })
+      })
+    }
+
+    if (conversation.subSubject === 'amount') {
+      await amountReply(params, transCreateSend)
     }
     return
   }
@@ -192,9 +227,22 @@ bot.on('callback_query', async (query) => {
   }
   //#endregion
 
-  //#region TransExpense
-  if (btnPress === 'trans_expense_new') {
-    transExpenseNewPress(msg)
+  //#region Transactions New
+  if (['trans_deposit_new', 'trans_expense_new', 'trans_income_new', 'trans_payment_new'].includes(query.data)) {
+    transNewPress(msg)
+    return
+  }
+
+  if (conversation.subject.startsWith('transNew')) {
+    const action = btnPress.replace('trans_new_', '')
+    if (action === 'account_create') {
+      accountCreatePress(msg)
+    }
+
+    if (action.startsWith('account_select')) {
+      const accountId = btnPress.replace('account_select_', '')
+      transAccountSelectPress(msg, accountId)
+    }
   }
   //#endregion
 })

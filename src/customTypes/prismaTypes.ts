@@ -7,6 +7,7 @@ export type Edit = {
   currency?: string
   accountId?: string
   categoryId?: string
+  type?: 'expense' | 'deposit' | 'income' | 'payment' | 'transfer'
 }
 
 export type ConversationWithEdit = Omit<Conversation, 'edit'> & { edit: Edit }
@@ -55,3 +56,24 @@ export type UserUpdate = Prisma.XOR<UserUpdateInput, UserUncheckedUpdateInput>
 type BookUpdateInput = Omit<Prisma.BookUpdateInput, 'id'>
 type BookUncheckedUpdateInput = Omit<Prisma.BookUncheckedUpdateInput, 'id'>
 export type BookUpdate = Prisma.XOR<BookUpdateInput, BookUncheckedUpdateInput>
+
+export type AccountWithBalanceAndFiles = Prisma.AccountGetPayload<{
+  include: { currency: { include: { balance: true } }, files: true }
+}>
+
+export type TransactionWithAll = Prisma.TransactionGetPayload<{
+  include: {
+    account: true,
+    category: true,
+    files: true,
+    groupNotifications: true,
+    items: true,
+    splits: true,
+    transferA: true,
+    transferB: true
+  }
+}>
+
+type TransactionCreateInput = Omit<Prisma.TransactionCreateInput, 'id'>
+type TransactionUncheckedCreateInput = Omit<Prisma.TransactionUncheckedCreateInput, 'id'>
+export type TransactionCreate = Prisma.XOR<TransactionCreateInput, TransactionUncheckedCreateInput>

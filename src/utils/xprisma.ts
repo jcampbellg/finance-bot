@@ -1,14 +1,27 @@
-import { BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, Edit, UserUpdate } from '@customTypes/prismaTypes'
+import { AccountWithBalanceAndFiles, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, Edit, TransactionCreate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-const userInclude = () => ({
+const userInclude = {
   bookSelected: { include: { owner: true, shares: true } },
   booksOwn: true,
   booksAccess: { include: { book: true } },
   conversation: true
-})
+}
+
+const accountInclude = { currency: { include: { balance: true } }, files: true }
+
+const transactionInclude = {
+  account: true,
+  category: true,
+  files: true,
+  groupNotifications: true,
+  items: true,
+  splits: true,
+  transferA: true,
+  transferB: true
+}
 
 const xprisma = prisma.$extends({
   model: {
@@ -29,7 +42,7 @@ const xprisma = prisma.$extends({
             }
           },
           update: {},
-          include: userInclude()
+          include: userInclude
         })
 
         const isOwner = user.booksOwn.length > 0
@@ -62,7 +75,7 @@ const xprisma = prisma.$extends({
             telegramId: chatId
           },
           data: data,
-          include: userInclude()
+          include: userInclude
         })
 
         const isOwner = !!user.booksOwn.find(book => book.id === user.bookSelected?.id)
@@ -287,6 +300,52 @@ const xprisma = prisma.$extends({
         }
 
         return true
+      }
+    },
+    account: {
+      async create(user: ByncUser, description: string): Promise<AccountWithBalanceAndFiles | null> {
+        if (!user.bookSelected) return null
+
+        const account = await prisma.account.create({
+          data: { description, bookId: user.bookSelected.id },
+          include: accountInclude
+        })
+
+        return account
+      },
+      async findUnique(user: ByncUser, id: string): Promise<AccountWithBalanceAndFiles | null> {
+        if (!user.bookSelected) return null
+
+        const account = await prisma.account.findUnique({
+          where: { id },
+          include: accountInclude
+        })
+
+        if (!account) return null
+
+        if (account.bookId !== user.bookSelected.id) return null
+
+        return account
+      },
+      async findMany(user: ByncUser): Promise<AccountWithBalanceAndFiles[]> {
+        if (!user.bookSelected) return []
+
+        const accounts = await prisma.account.findMany({
+          where: { bookId: user.bookSelected.id },
+          include: accountInclude
+        })
+
+        return accounts
+      }
+    },
+    transaction: {
+      create: async (user: ByncUser, data: TransactionCreate): Promise<TransactionWithAll | null> => {
+        if (!user.bookSelected) return null
+
+        return prisma.transaction.create({
+          data: data,
+          include: transactionInclude
+        })
       }
     }
   }

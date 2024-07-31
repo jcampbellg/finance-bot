@@ -16,7 +16,7 @@ export default async function bookCreateSend(params: ConversationProps, title: s
   await bot.sendMessage(chatId, `¡Perfecto!\nTu libro contable "${title}" ha sido creado.`, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: `📚 Ver libro`, callback_data: `book_view_${newBook.id}` }, { text: '🔎 Ver Libros', callback_data: 'books' }],
+        [{ text: `📚 Ver Libro`, callback_data: `book_view_${newBook.id}` }, { text: '🔎 Ver Libros', callback_data: 'books' }],
         menuBtn
       ]
     }
