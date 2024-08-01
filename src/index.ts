@@ -5,6 +5,9 @@ import bookViewMenuMessage from '@botMessage/book/bookViewMenuMessage'
 import menuMessage from '@botMessage/menuMessage'
 import bookCreateButton from '@conversation/bookCreate/bookCreateButton'
 import bookCreateText from '@conversation/bookCreate/bookCreateText'
+import bookDeleteButton from '@conversation/bookDelete/bookDeleteButton'
+import bookRenameButton from '@conversation/bookRename/bookRenameButton'
+import bookRenameText from '@conversation/bookRename/bookRenameText'
 import startButton from '@conversation/start/startButton'
 import startText from '@conversation/start/startText'
 import transactionCreateButton from '@conversation/transactionCreate/transactionCreateButton'
@@ -46,9 +49,14 @@ bot.on('message', async (ctx) => {
   }
   //#endregion
 
-  //#region Book Create
+  //#region Books
   if (conversation.subject === 'book_create') {
     await bookCreateText(params)
+    return
+  }
+
+  if (conversation.subject === 'book_rename') {
+    await bookRenameText(params)
     return
   }
   //#endregion
@@ -107,8 +115,18 @@ bot.on('callback_query', async (query) => {
     return
   }
 
-  if (btnPress.startsWith('book_select')) {
+  if (btnPress.startsWith('book_select_')) {
     await bookSelectMessage(msg)
+    return
+  }
+
+  if (btnPress.startsWith('book_rename_')) {
+    await bookRenameButton(msg)
+    return
+  }
+
+  if (btnPress.startsWith('book_delete_') || conversation.subject === 'book_delete') {
+    await bookDeleteButton(msg)
     return
   }
   //#endregion

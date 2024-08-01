@@ -226,6 +226,7 @@ const xprisma = prisma.$extends({
         const isOwner = book.ownerId === user.id
 
         if (!isShare && !isOwner) {
+          // User is not owner nor have access to book
           return false
         }
 
@@ -234,23 +235,31 @@ const xprisma = prisma.$extends({
           await prisma.item.deleteMany({ where: { transaction: { account: { bookId: id } } } })
           await prisma.groupNotification.deleteMany({ where: { transaction: { account: { bookId: id } } } })
           await prisma.transaction.deleteMany({ where: { account: { bookId: id } } })
+          console.log('Transactions deleted')
           await prisma.balance.deleteMany({ where: { currency: { account: { bookId: id } } } })
           await prisma.currency.deleteMany({ where: { account: { bookId: id } } })
           await prisma.account.deleteMany({ where: { bookId: id } })
           await prisma.category.deleteMany({ where: { bookId: id } })
           await prisma.exchangeRate.deleteMany({ where: { bookId: id } })
+          console.log('Accounts deleted')
           await prisma.share.deleteMany({ where: { bookId: id } })
+          console.log('Shares deleted')
           await prisma.limit.deleteMany({ where: { budget: { bookId: id } } })
           await prisma.budgetRule.deleteMany({ where: { bookId: id } })
+          console.log('Budgets deleted')
 
           await prisma.book.update({
             where: { id: book.id },
             data: { groupChats: { set: [] }, selectedByUser: { set: [] } }
           })
 
+          console.log('Group chats and selected by user deleted')
+
           await prisma.book.delete({
             where: { id: id }
           })
+
+          console.log('Book deleted')
 
           return true
         }
