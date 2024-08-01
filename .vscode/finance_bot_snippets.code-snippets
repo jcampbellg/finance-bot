@@ -6,11 +6,12 @@
 			"import { ConversationProps } from '@customTypes/messageTypes'",
 			"",
 			"export default async function $TM_FILENAME_BASE(params: ConversationProps) {",
-			"  const { $0 } = params",
-			"  $1",
+			"  const { $1 } = params",
+			"  ",
+			"  $0",
 			"}",
 		],
-		"description": "export default async function"
+		"description": "export default async function with ConversationProps"
 	},
 	"ConversationPropsWithBook Default": {
 		"scope": "javascript,typescript",
@@ -19,11 +20,12 @@
 			"import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'",
 			"",
 			"export default async function $TM_FILENAME_BASE(params: ConversationPropsWithBookSelected) {",
-			"  const { $0 } = params",
-			"  $1",
+			"  const { $1 } = params",
+			"  ",
+			"  $0",
 			"}",
 		],
-		"description": "export default async function"
+		"description": "export default async function with ConversationPropsWithBookSelected"
 	},
 	"ctx": {
 		"scope": "javascript,typescript",
@@ -46,5 +48,13 @@
 			"$0",
 		],
 		"description": "query"
+	},
+	"filename": {
+		"scope": "javascript,typescript",
+		"prefix": "filename",
+		"body": [
+			"$TM_FILENAME_BASE"
+		],
+		"description": "returns the filename"
 	},
 }

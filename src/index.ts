@@ -2,7 +2,9 @@ import bookAddMessage from '@botMessage/book/bookAddMessage'
 import bookSelectMessage from '@botMessage/book/bookSelectMessage'
 import booksMenuMessage from '@botMessage/book/booksMenuMessage'
 import bookViewMenuMessage from '@botMessage/book/bookViewMenuMessage'
+import budgetMenuMessage from '@botMessage/budget/budgetMenuMessage'
 import menuMessage from '@botMessage/menuMessage'
+import summaryMenuMessage from '@botMessage/summary/summaryMenuMessage'
 import bookCreateButton from '@conversation/bookCreate/bookCreateButton'
 import bookCreateText from '@conversation/bookCreate/bookCreateText'
 import bookDeleteButton from '@conversation/bookDelete/bookDeleteButton'
@@ -87,9 +89,21 @@ bot.on('callback_query', async (query) => {
       return
     }
   }
+  //#endregion
 
+  //#region Menus
   if (query.data === 'menu' || query.data === 'end') {
     await menuMessage(msg, query.data === 'end')
+    return
+  }
+
+  if (query.data === 'budget_menu') {
+    await BookSelectedWrapper(msg, budgetMenuMessage)
+    return
+  }
+
+  if (query.data === 'summary_menu') {
+    await BookSelectedWrapper(msg, summaryMenuMessage)
     return
   }
   //#endregion
