@@ -10,6 +10,8 @@ import bookCreateText from '@conversation/bookCreate/bookCreateText'
 import bookDeleteButton from '@conversation/bookDelete/bookDeleteButton'
 import bookRenameButton from '@conversation/bookRename/bookRenameButton'
 import bookRenameText from '@conversation/bookRename/bookRenameText'
+import paymentTransactionCreateButton from '@conversation/paymentTransactionCreate/paymentTransactionCreateButton'
+import paymentTransactionCreateText from '@conversation/paymentTransactionCreate/paymentTransactionCreateText'
 import startButton from '@conversation/start/startButton'
 import startText from '@conversation/start/startText'
 import transactionCreateButton from '@conversation/transactionCreate/transactionCreateButton'
@@ -69,6 +71,12 @@ bot.on('message', async (ctx) => {
     return
   }
   //#endregion
+
+  //#region Payments
+  if (conversation.subject === 'payment_transaction_create') {
+    await BookSelectedWrapper(params, paymentTransactionCreateText)
+    return
+  }
 })
 
 bot.on('callback_query', async (query) => {
@@ -148,6 +156,13 @@ bot.on('callback_query', async (query) => {
   //#region Transactions
   if (['transaction_create_expense', 'transaction_create_deposit'].indexOf(btnPress) !== -1 || conversation.subject === 'transaction_create') {
     await BookSelectedWrapper(msg, transactionCreateButton)
+    return
+  }
+  //#endregion
+
+  //#region Payments
+  if (btnPress === 'payment_transaction_create' || conversation.subject === 'payment_transaction_create') {
+    await BookSelectedWrapper(msg, paymentTransactionCreateButton)
     return
   }
   //#endregion

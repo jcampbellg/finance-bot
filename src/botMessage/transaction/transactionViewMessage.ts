@@ -1,0 +1,10 @@
+import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
+
+export default async function transactionViewMessage(params: ConversationPropsWithBookSelected) {
+  const { query } = params
+
+  if (!query) {
+    throw new Error('query is required')
+  }
+
+}

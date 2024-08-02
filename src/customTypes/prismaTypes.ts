@@ -1,5 +1,7 @@
 import { Conversation, Prisma } from '@prisma/client'
 
+export type transactionType = 'expense' | 'deposit' | 'income' | 'payment' | 'transfer'
+
 export type Edit = {
   bookId?: string
   description?: string
@@ -7,7 +9,7 @@ export type Edit = {
   currency?: string
   accountId?: string
   categoryId?: string
-  type?: 'expense' | 'deposit' | 'income' | 'payment' | 'transfer'
+  type?: transactionType
 }
 
 export type ConversationWithEdit = Omit<Conversation, 'edit'> & { edit: Edit }
@@ -77,3 +79,9 @@ export type TransactionWithAll = Prisma.TransactionGetPayload<{
 type TransactionCreateInput = Omit<Prisma.TransactionCreateInput, 'id'>
 type TransactionUncheckedCreateInput = Omit<Prisma.TransactionUncheckedCreateInput, 'id'>
 export type TransactionCreate = Prisma.XOR<TransactionCreateInput, TransactionUncheckedCreateInput>
+
+export type Payment = Prisma.CategoryGetPayload<{
+  include: {
+    amountToPaid: true,
+  }
+}>

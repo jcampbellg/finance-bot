@@ -8,6 +8,18 @@ generator client {
   binaryTargets = ["rhel-openssl-1.0.x"]
 }
 
+model Payment {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Income {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model User {
   conversation   Conversation @relation(name: "UserConversation", fields: [conversationId], references: [id])
   id             String       @id @default(cuid())
@@ -53,18 +65,18 @@ model Account {
 }
 
 model Category {
-  id          String        @id @default(cuid())
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  description String
-  type        CategoryType  @default(TRANSACTION)
-  notes       String?
-  transaction Transaction[] @relation(name: "TransactionWithCategory")
-  bookId      String
-  book        Book          @relation(name: "CategoryInBook", fields: [bookId], references: [id])
-  files       File[]        @relation(name: "CategoryWithFile")
-  payment     Payment[]     @relation(name: "CategoryToPayment")
-  split       Split?        @relation(name: "CategoryToSplit")
+  id           String         @id @default(cuid())
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  description  String
+  type         CategoryType   @default(TRANSACTION)
+  notes        String?
+  transaction  Transaction[]  @relation(name: "TransactionWithCategory")
+  bookId       String
+  book         Book           @relation(name: "CategoryInBook", fields: [bookId], references: [id])
+  files        File[]         @relation(name: "CategoryWithFile")
+  amountToPaid AmountToPaid[] @relation(name: "CategoryToPayment")
+  split        Split?         @relation(name: "CategoryToSplit")
 }
 
 model ExchangeRate {
@@ -100,7 +112,6 @@ model Transaction {
   transferA          Transaction?        @relation(name: "TransactionToTransaction")
   transferB          Transaction?        @relation(name: "TransactionToTransaction", fields: [transferId], references: [id])
   transferId         String?             @unique
-  paidDue            DateTime?
 }
 
 model GroupNotification {
@@ -210,7 +221,7 @@ model Limit {
   validFrom Int
 }
 
-model Payment {
+model AmountToPaid {
   id         String   @id @default(cuid())
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -219,7 +230,7 @@ model Payment {
   category   Category @relation(name: "CategoryToPayment", fields: [categoryId], references: [id])
   categoryId String
   validFrom  Int
-  dueDate    Int?
+  paidDue    Int?
 }
 
 model Split {

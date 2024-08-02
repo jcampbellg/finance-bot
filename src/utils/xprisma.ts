@@ -1,4 +1,4 @@
-import { AccountWithBalanceAndFiles, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, Edit, TransactionCreate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
+import { AccountWithBalanceAndFiles, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, Edit, Payment, TransactionCreate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -381,6 +381,43 @@ const xprisma = prisma.$extends({
         }
 
         return true
+      }
+    },
+    payment: {
+      async create(user: ByncUser, description: string): Promise<Payment | null> {
+        if (!user.bookSelected) return null
+
+        const payment = await prisma.category.create({
+          data: { description, bookId: user.bookSelected.id, type: 'PAYMENT' },
+          include: { amountToPaid: true }
+        })
+
+        return payment
+      },
+      async findUnique(user: ByncUser, id: string): Promise<Payment | null> {
+        if (!user.bookSelected) return null
+
+        const payment = await prisma.category.findUnique({
+          where: { id },
+          include: { amountToPaid: true }
+        })
+
+        if (!payment) return null
+        if (payment.type !== 'PAYMENT') return null
+
+        if (payment.bookId !== user.bookSelected.id) return null
+
+        return payment
+      },
+      async findMany(user: ByncUser): Promise<Payment[]> {
+        if (!user.bookSelected) return []
+
+        const payments = await prisma.category.findMany({
+          where: { AND: [{ bookId: user.bookSelected.id }, { type: 'PAYMENT' }] },
+          include: { amountToPaid: true }
+        })
+
+        return payments
       }
     }
   }

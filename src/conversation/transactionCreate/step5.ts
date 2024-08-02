@@ -17,12 +17,14 @@ export default async function step5(params: ConversationPropsWithBookSelected) {
       return
     }
 
+    const editType = conversation.edit.type
+
     const newTransaction = await xprisma.transaction.create(user, {
       accountId: conversation.edit.accountId,
       currency: conversation.edit.currency,
       amount: amount,
       description: conversation.edit.description,
-      type: conversation.edit.type === 'expense' ? 'EXPENSE' : 'INCOME'
+      type: (editType === 'expense' || editType === 'payment') ? 'EXPENSE' : 'INCOME'
     })
 
     if (!newTransaction) {
@@ -36,6 +38,7 @@ export default async function step5(params: ConversationPropsWithBookSelected) {
       reply_markup: {
         inline_keyboard: [
           [{ text: `🧾 Ver Transacción`, callback_data: `transaction_view_${newTransaction.id}` }],
+          ...(editType === 'payment' ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_view_${newTransaction.id}_paid_now` }]] : []),
           menuBtn
         ]
       }
