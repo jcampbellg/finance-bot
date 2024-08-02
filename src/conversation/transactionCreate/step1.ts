@@ -1,6 +1,6 @@
 import endBtn from '@buttons/endBtn'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
-import { Edit, transactionType } from '@customTypes/prismaTypes'
+import { Edit } from '@customTypes/prismaTypes'
 import xprisma from '@utils/xprisma'
 
 export default async function step1(params: ConversationPropsWithBookSelected, edit?: Edit) {

@@ -22,6 +22,8 @@ export default async function transactionViewMenuMessage(params: ConversationPro
     throw new Error('query is required')
   }
 
+  await xprisma.conversation.waiting(params.conversation.id)
+
   const transactionId = query.data.replace('transaction_view_', '').replace('_paid_now', '').replace('_paid_not', '')
 
   if (!transactionId) {
