@@ -1,23 +1,17 @@
 import endBtn from '@buttons/endBtn'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
-import { transactionType } from '@customTypes/prismaTypes'
+import { Edit, transactionType } from '@customTypes/prismaTypes'
 import xprisma from '@utils/xprisma'
 
-export default async function step1(params: ConversationPropsWithBookSelected) {
+export default async function step1(params: ConversationPropsWithBookSelected, edit?: Edit) {
   const { conversation, chatId, bot, query } = params
-
-  let type: transactionType = 'expense'
-
-  if (conversation.edit?.type) type = conversation.edit.type
-
-  if (query?.data === 'transaction_create_expense') type = 'expense'
-  if (query?.data === 'transaction_create_deposit') type = 'income'
 
   await xprisma.conversation.update(conversation.id, {
     subject: 'transaction_create',
     subSubject: 'description',
     edit: {
-      type: type
+      type: query?.data === 'transaction_create_expense' ? 'expense' : 'income',
+      ...edit,
     }
   })
 

@@ -1,4 +1,4 @@
-import { AccountWithBalanceAndFiles, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, Edit, Payment, TransactionCreate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
+import { AccountWithBalanceAndFiles, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, Edit, Payment, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -348,7 +348,7 @@ const xprisma = prisma.$extends({
       }
     },
     transaction: {
-      create: async (user: ByncUser, data: TransactionCreate): Promise<TransactionWithAll | null> => {
+      async create(user: ByncUser, data: TransactionCreate): Promise<TransactionWithAll | null> {
         if (!user.bookSelected) return null
 
         const account = await prisma.account.findFirst({
@@ -357,11 +357,45 @@ const xprisma = prisma.$extends({
 
         if (!account) return null
 
-        return prisma.transaction.create({
+        const newTransaction = await prisma.transaction.create({
           data: data,
           include: transactionInclude
         })
-      }
+
+        return { isPayment: false, ...newTransaction }
+      },
+      async findUnique(user: ByncUser, id: string): Promise<TransactionWithAll | null> {
+        if (!user.bookSelected) return null
+
+        const transaction = await prisma.transaction.findUnique({
+          where: { id },
+          include: transactionInclude
+        })
+
+        if (!transaction) return null
+        if (transaction.account.bookId !== user.bookSelected.id) return null
+
+        return { ...transaction, isPayment: transaction.category?.type === 'PAYMENT' }
+      },
+      async update(user: ByncUser, id: string, data: TransactionUpdate): Promise<TransactionWithAll | null> {
+        if (!user.bookSelected) return null
+
+        const transaction = await prisma.transaction.findUnique({
+          where: { id },
+          include: transactionInclude
+        })
+
+        if (!transaction) return null
+        if (transaction.account.bookId !== user.bookSelected.id) return null
+
+        const updatedTransaction = await prisma.transaction.update({
+          where: { id },
+          data: data,
+          include: transactionInclude
+        })
+
+        return { ...updatedTransaction, isPayment: updatedTransaction.category?.type === 'PAYMENT' }
+      },
     },
     currency: {
       async create(user: ByncUser, accountId: string, symbol: string): Promise<boolean> {
@@ -409,13 +443,17 @@ const xprisma = prisma.$extends({
 
         return payment
       },
-      async findMany(user: ByncUser): Promise<Payment[]> {
+      async findMany(user: ByncUser, filterNotPaid: boolean = false): Promise<Payment[]> {
         if (!user.bookSelected) return []
 
         const payments = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: 'PAYMENT' }] },
-          include: { amountToPaid: true }
+          include: { amountToPaid: true, transactions: { select: { paidAt: true } } }
         })
+
+        if (filterNotPaid) {
+          return payments.filter(payment => !payment.transactions.length)
+        }
 
         return payments
       }

@@ -4,6 +4,7 @@ import endBtn from '@buttons/endBtn'
 import step1 from '@conversation/transactionCreate/step1'
 import stringReply from '@conversation/utils/stringReply'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
+import { Edit } from '@customTypes/prismaTypes'
 import xprisma from '@utils/xprisma'
 
 export default async function step2(params: ConversationPropsWithBookSelected) {
@@ -18,6 +19,13 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
         upsError(params)
         return
       }
+
+      await xprisma.conversation.update(conversation.id, {
+        edit: {
+          ...conversation.edit,
+          categoryId: newPayment.id
+        }
+      })
 
       // Go to normal transaction flow
       await step1(params)
@@ -55,8 +63,13 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
       return
     }
 
+    const newEdit: Edit = {
+      categoryId: payment.id,
+      type: 'payment'
+    }
+
     // Go to normal transaction flow
-    await step1(params)
+    await step1(params, newEdit)
     return
   }
 }

@@ -72,13 +72,17 @@ export type TransactionWithAll = Prisma.TransactionGetPayload<{
     items: true,
     splits: true,
     transferA: true,
-    transferB: true
+    transferB: true,
   }
-}>
+}> & { isPayment: boolean }
 
 type TransactionCreateInput = Omit<Prisma.TransactionCreateInput, 'id'>
 type TransactionUncheckedCreateInput = Omit<Prisma.TransactionUncheckedCreateInput, 'id'>
 export type TransactionCreate = Prisma.XOR<TransactionCreateInput, TransactionUncheckedCreateInput>
+
+type TransactionUpdateInput = Omit<Prisma.TransactionUpdateInput, 'id'>
+type TransactionUncheckedUpdateInput = Omit<Prisma.TransactionUncheckedUpdateInput, 'id'>
+export type TransactionUpdate = Prisma.XOR<TransactionUpdateInput, TransactionUncheckedUpdateInput>
 
 export type Payment = Prisma.CategoryGetPayload<{
   include: {

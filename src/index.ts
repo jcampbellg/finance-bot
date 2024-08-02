@@ -5,6 +5,7 @@ import bookViewMenuMessage from '@botMessage/book/bookViewMenuMessage'
 import budgetMenuMessage from '@botMessage/budget/budgetMenuMessage'
 import menuMessage from '@botMessage/menuMessage'
 import summaryMenuMessage from '@botMessage/summary/summaryMenuMessage'
+import transactionViewMenuMessage from '@botMessage/transaction/transactionViewMenuMessage'
 import bookCreateButton from '@conversation/bookCreate/bookCreateButton'
 import bookCreateText from '@conversation/bookCreate/bookCreateText'
 import bookDeleteButton from '@conversation/bookDelete/bookDeleteButton'
@@ -154,6 +155,11 @@ bot.on('callback_query', async (query) => {
   //#endregion
 
   //#region Transactions
+  if (btnPress.startsWith('transaction_view_')) {
+    await BookSelectedWrapper(msg, transactionViewMenuMessage)
+    return
+  }
+
   if (['transaction_create_expense', 'transaction_create_deposit'].indexOf(btnPress) !== -1 || conversation.subject === 'transaction_create') {
     await BookSelectedWrapper(msg, transactionCreateButton)
     return

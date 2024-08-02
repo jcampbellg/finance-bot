@@ -24,6 +24,7 @@ export default async function step5(params: ConversationPropsWithBookSelected) {
       currency: conversation.edit.currency,
       amount: amount,
       description: conversation.edit.description,
+      categoryId: conversation.edit.categoryId || null,
       type: (editType === 'expense' || editType === 'payment') ? 'EXPENSE' : 'INCOME'
     })
 
@@ -38,7 +39,7 @@ export default async function step5(params: ConversationPropsWithBookSelected) {
       reply_markup: {
         inline_keyboard: [
           [{ text: `🧾 Ver Transacción`, callback_data: `transaction_view_${newTransaction.id}` }],
-          ...(editType === 'payment' ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_view_${newTransaction.id}_paid_now` }]] : []),
+          ...(newTransaction.isPayment ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_view_${newTransaction.id}_paid_now` }]] : []),
           menuBtn
         ]
       }

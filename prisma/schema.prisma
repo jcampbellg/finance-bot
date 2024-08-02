@@ -71,7 +71,7 @@ model Category {
   description  String
   type         CategoryType   @default(TRANSACTION)
   notes        String?
-  transaction  Transaction[]  @relation(name: "TransactionWithCategory")
+  transactions Transaction[]  @relation(name: "TransactionWithCategory")
   bookId       String
   book         Book           @relation(name: "CategoryInBook", fields: [bookId], references: [id])
   files        File[]         @relation(name: "CategoryWithFile")
