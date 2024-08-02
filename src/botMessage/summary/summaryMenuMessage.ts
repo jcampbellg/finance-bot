@@ -1,3 +1,4 @@
+import menuBtn from '@buttons/menuBtn'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 
 export default async function summaryMenuMessage(params: ConversationPropsWithBookSelected) {
@@ -16,6 +17,7 @@ export default async function summaryMenuMessage(params: ConversationPropsWithBo
         [{ text: '🧾 Transacciones por Categorias', callback_data: 'pdf_transactions' }],
         [{ text: '🏦 Transacciones por Cuenta', callback_data: 'pdf_accounts' }],
         [{ text: '💵 Pagos Fijos', callback_data: 'pdf_payments' }],
+        menuBtn
       ]
     }
   })

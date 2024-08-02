@@ -40,7 +40,6 @@ model Book {
 }
 
 model Account {
-  track       AccountType   @default(TRACK_SPEND)
   currency    Currency[]    @relation(name: "CurrencyInAccount")
   id          String        @id @default(cuid())
   createdAt   DateTime      @default(now())
@@ -101,6 +100,7 @@ model Transaction {
   transferA          Transaction?        @relation(name: "TransactionToTransaction")
   transferB          Transaction?        @relation(name: "TransactionToTransaction", fields: [transferId], references: [id])
   transferId         String?             @unique
+  paidDue            DateTime?
 }
 
 model GroupNotification {
@@ -114,13 +114,14 @@ model GroupNotification {
 }
 
 model Balance {
-  currency   Currency        @relation(name: "AccountWithBalance", fields: [currencyId], references: [id])
-  currencyId String
-  id         String          @id @default(cuid())
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-  amount     Float
-  type       TransactionType
+  currency    Currency        @relation(name: "AccountWithBalance", fields: [currencyId], references: [id])
+  currencyId  String
+  id          String          @id @default(cuid())
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  amount      Float
+  type        TransactionType
+  isUserInput Boolean         @default(false)
 }
 
 model GroupChat {
@@ -218,6 +219,7 @@ model Payment {
   category   Category @relation(name: "CategoryToPayment", fields: [categoryId], references: [id])
   categoryId String
   validFrom  Int
+  dueDate    Int?
 }
 
 model Split {
@@ -246,10 +248,4 @@ enum TransactionType {
 enum FileType {
   PHOTO
   DOCUMENT
-}
-
-enum AccountType {
-  NO_TRACK
-  TRACK_SPEND
-  TRACK_BALANCE
 }

@@ -48,13 +48,5 @@
 			"$0",
 		],
 		"description": "query"
-	},
-	"filename": {
-		"scope": "javascript,typescript",
-		"prefix": "filename",
-		"body": [
-			"$TM_FILENAME_BASE"
-		],
-		"description": "returns the filename"
-	},
+	}
 }
