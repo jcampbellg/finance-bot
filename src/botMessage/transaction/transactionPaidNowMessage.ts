@@ -31,9 +31,15 @@ export default async function transactionPaidNowMessage(params: ConversationProp
     paidAt: newDate.format()
   })
 
-  if (!transaction) {
+  if (!transaction || transaction.type === 'DEPOSIT' || transaction.type === 'EXPENSE') {
     await noTransactionError(params)
     return
+  }
+
+  // Update the balance
+  const currency = await xprisma.currency.findOrCreate(user, transaction.accountId, transaction.currency)
+  if (currency) {
+    await xprisma.balance.sum(user, currency.id, transaction.id)
   }
 
   await botTransaction(params, transaction)

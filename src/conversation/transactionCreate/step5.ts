@@ -35,9 +35,11 @@ export default async function step5(params: ConversationPropsWithBookSelected) {
     }
 
     // Update the balance
-    const currency = await xprisma.currency.findOrCreate(user, conversation.edit.accountId, conversation.edit.currency)
-    if (currency) {
-      await xprisma.balance.sum(user, currency.id, newTransaction.id)
+    if (newTransaction.type === 'EXPENSE' || newTransaction.type === 'DEPOSIT') {
+      const currency = await xprisma.currency.findOrCreate(user, conversation.edit.accountId, conversation.edit.currency)
+      if (currency) {
+        await xprisma.balance.sum(user, currency.id, newTransaction.id)
+      }
     }
 
     await transactionViewMenuMessage(params, newTransaction.id)

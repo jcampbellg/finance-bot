@@ -18,6 +18,6 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
     callbackCreate: `income_create`,
     callbackAccountPrefix: `income_select_`,
     btn: 'end',
-    filterNotPaid: true
+    filterNotPaid: false
   })
 }
