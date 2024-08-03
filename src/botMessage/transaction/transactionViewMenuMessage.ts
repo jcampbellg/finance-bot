@@ -64,6 +64,7 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
         [{ text: '📅 Cambiar Fecha', callback_data: `transaction_date_${t.id}` }],
         ...((isPayment || isIncome) ? (!t.paidAt ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_paid_now_${t.id}` }]] : [[{ text: `❌ Marcar como No Pagado`, callback_data: `transaction_paid_cancel_${t.id}` }]]) : []),
         ...(((isPayment || isIncome) && t.paidAt) ? [[{ text: '📅 Cambiar Fecha de Pago', callback_data: `transaction_paid_date_${t.id}` }]] : []),
+        [{ text: '📎 Adjuntar', callback_data: `transaction_file_${t.id}` }],
         menuBtn
       ]
     }
