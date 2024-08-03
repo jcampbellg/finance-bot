@@ -1,0 +1,40 @@
+import noBookError from '@botMessage/errors/noBookError'
+import transactionViewMenuMessage from '@botMessage/transaction/transactionViewMenuMessage'
+import dateReply from '@conversation/utils/dateReply'
+import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
+import xprisma from '@utils/xprisma'
+import dayjs from 'dayjs'
+import 'dayjs/locale/es'
+import timezone from 'dayjs/plugin/timezone'
+import utc from 'dayjs/plugin/utc'
+import LocalizedFormat from 'dayjs/plugin/localizedFormat'
+
+dayjs.locale('es')
+dayjs.extend(utc)
+dayjs.extend(timezone)
+dayjs.extend(LocalizedFormat)
+
+export default async function step2(params: ConversationPropsWithBookSelected) {
+  const { ctx, conversation, user } = params
+
+  if (!ctx) {
+    throw new Error('ctx is required')
+  }
+
+  await dateReply(params, async (newDateInput) => {
+    const transactionId = conversation.edit.transactionId
+
+    if (!transactionId) {
+      await noBookError(params)
+      return
+    }
+
+    const newDate = dayjs.tz(newDateInput, user.timezone)
+
+    await xprisma.transaction.update(user, transactionId, {
+      [conversation.subject === 'transaction_date' ? 'createdAt' : 'paidAt']: newDate.format()
+    })
+
+    await transactionViewMenuMessage(params, transactionId)
+  })
+}

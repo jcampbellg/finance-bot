@@ -35,23 +35,22 @@ model User {
 }
 
 model Book {
-  owner          User           @relation(name: "UserToBook", fields: [ownerId], references: [id])
+  owner          User        @relation(name: "UserToBook", fields: [ownerId], references: [id])
   ownerId        String
-  id             String         @id @default(cuid())
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @default(now()) @updatedAt
+  id             String      @id @default(cuid())
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @default(now()) @updatedAt
   title          String
   lockKey        String?
-  selectedByUser User[]         @relation(name: "BookSelectedByUser")
-  account        Account[]      @relation(name: "AccountInBook")
-  categories     Category[]     @relation(name: "CategoryInBook")
-  exchangeRate   ExchangeRate[] @relation(name: "ExchangeRateInBook")
-  shares         Share[]        @relation(name: "BookToRole")
-  groupChats     GroupChat[]    @relation(name: "BooksGroupChatGetNotified")
-  budgetRules    BudgetRule[]   @relation(name: "BookToBudget")
+  selectedByUser User[]      @relation(name: "BookSelectedByUser")
+  account        Account[]   @relation(name: "AccountInBook")
+  categories     Category[]  @relation(name: "CategoryInBook")
+  shares         Share[]     @relation(name: "BookToRole")
+  groupChats     GroupChat[] @relation(name: "BooksGroupChatGetNotified")
 }
 
 model Account {
+  transferTo  Transfer?     @relation(name: "AccountToTransferTo")
   currency    Currency[]    @relation(name: "CurrencyInAccount")
   id          String        @id @default(cuid())
   createdAt   DateTime      @default(now())
@@ -65,53 +64,41 @@ model Account {
 }
 
 model Category {
-  id           String         @id @default(cuid())
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  split        Split?        @relation(name: "CategoryToSplit")
+  id           String        @id @default(cuid())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   description  String
-  type         CategoryType   @default(TRANSACTION)
   notes        String?
-  transactions Transaction[]  @relation(name: "TransactionWithCategory")
+  transactions Transaction[] @relation(name: "TransactionWithCategory")
   bookId       String
-  book         Book           @relation(name: "CategoryInBook", fields: [bookId], references: [id])
-  files        File[]         @relation(name: "CategoryWithFile")
-  amountToPaid AmountToPaid[] @relation(name: "CategoryToPayment")
-  split        Split?         @relation(name: "CategoryToSplit")
-}
-
-model ExchangeRate {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  from      String
-  to        String
-  amount    Float
-  validFrom Int
-  book      Book     @relation(name: "ExchangeRateInBook", fields: [bookId], references: [id])
-  bookId    String
+  book         Book          @relation(name: "CategoryInBook", fields: [bookId], references: [id])
+  files        File[]        @relation(name: "CategoryWithFile")
+  type         CategoryType  @default(TRANSACTION)
+  limits       Limit[]       @relation(name: "CategoryToPayment")
 }
 
 model Transaction {
-  splits             Split[]             @relation(name: "splitToTransaction")
+  transfer           Transfer?           @relation(name: "TransferToTransaction", fields: [transferId], references: [id])
+  transferId         String?             @unique
+  balance            Balance?            @relation(name: "TransactionToBalance")
+  type               TransactionType     @default(EXPENSE)
   id                 String              @id @default(cuid())
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   description        String
   amount             Float
   currency           String
-  type               TransactionType     @default(EXPENSE)
   account            Account             @relation(name: "TransactionWithAccount", fields: [accountId], references: [id])
   accountId          String
-  category           Category?           @relation(name: "TransactionWithCategory", fields: [categoryId], references: [id])
-  categoryId         String?
   groupNotifications GroupNotification[] @relation(name: "TransactionsWithGroupNotification")
   items              Item[]              @relation(name: "TransactionWithTag")
-  files              File[]              @relation(name: "TransactionWithFile")
   paidAt             DateTime?
   tags               String[]
-  transferA          Transaction?        @relation(name: "TransactionToTransaction")
-  transferB          Transaction?        @relation(name: "TransactionToTransaction", fields: [transferId], references: [id])
-  transferId         String?             @unique
+  splits             Split[]             @relation(name: "splitToTransaction")
+  category           Category?           @relation(name: "TransactionWithCategory", fields: [categoryId], references: [id])
+  categoryId         String?
+  files              File[]              @relation(name: "TransactionWithFile")
 }
 
 model GroupNotification {
@@ -125,14 +112,16 @@ model GroupNotification {
 }
 
 model Balance {
-  currency    Currency        @relation(name: "AccountWithBalance", fields: [currencyId], references: [id])
-  currencyId  String
-  id          String          @id @default(cuid())
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  amount      Float
-  type        TransactionType
-  isUserInput Boolean         @default(false)
+  currency             Currency     @relation(name: "AccountWithBalance", fields: [currencyId], references: [id])
+  currencyId           String
+  id                   String       @id @default(cuid())
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  amount               Float
+  transaction          Transaction? @relation(name: "TransactionToBalance", fields: [transactionId], references: [id])
+  transactionId        String?      @unique
+  isUserInput          Boolean?     @default(false)
+  isFromUpdateOrDelete Boolean?     @default(false)
 }
 
 model GroupChat {
@@ -148,13 +137,13 @@ model File {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   fileId        String       @unique
-  fileType      FileType
   transaction   Transaction? @relation(name: "TransactionWithFile", fields: [transactionId], references: [id])
   accountId     String?
   account       Account?     @relation(name: "AccountWithFile", fields: [accountId], references: [id])
   categoryId    String?
   category      Category?    @relation(name: "CategoryWithFile", fields: [categoryId], references: [id])
   transactionId String?
+  fileType      FileType
 }
 
 model Item {
@@ -198,30 +187,7 @@ model Currency {
   symbol    String
 }
 
-model BudgetRule {
-  book        Book     @relation(name: "BookToBudget", fields: [bookId], references: [id])
-  bookId      String
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  description String
-  limit       Limit[]  @relation(name: "BudgetTagToLimit")
-  hasLimit    Boolean  @default(false)
-  rules       Json[]
-}
-
 model Limit {
-  budget    BudgetRule @relation(name: "BudgetTagToLimit", fields: [budgetId], references: [id])
-  budgetId  String
-  id        String     @id @default(cuid())
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  amount    Float
-  currency  String
-  validFrom Int
-}
-
-model AmountToPaid {
   id         String   @id @default(cuid())
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -235,14 +201,25 @@ model AmountToPaid {
 
 model Split {
   id            String      @id @default(cuid())
+  transactionId String
+  transaction   Transaction @relation(name: "splitToTransaction", fields: [transactionId], references: [id])
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   subAmount     Float
   description   String
-  transactionId String
-  transaction   Transaction @relation(name: "splitToTransaction", fields: [transactionId], references: [id])
   category      Category    @relation(name: "CategoryToSplit", fields: [categoryId], references: [id])
   categoryId    String      @unique
+}
+
+model Transfer {
+  id          String       @id @default(cuid())
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  accountTo   Account      @relation(name: "AccountToTransferTo", fields: [accountToId], references: [id])
+  accountToId String       @unique
+  transaction Transaction? @relation(name: "TransferToTransaction")
+  amountTo    Float
+  currencyTo  String
 }
 
 enum CategoryType {
@@ -253,7 +230,9 @@ enum CategoryType {
 
 enum TransactionType {
   EXPENSE
+  DEPOSIT
   INCOME
+  PAYMENT
 }
 
 enum FileType {

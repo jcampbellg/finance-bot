@@ -6,17 +6,17 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
   const { conversation } = params
 
   await xprisma.conversation.update(conversation.id, {
-    subject: 'payment_transaction_create',
-    subSubject: 'payment',
+    subject: 'income_transaction_create',
+    subSubject: 'income',
     edit: {
-      type: 'PAYMENT'
+      type: 'INCOME'
     }
   })
 
   await paymentsListMessage(params, {
     text: `Por favor, selecciona un pago fijo de tu presupuesto.`,
-    callbackCreate: `payment_create`,
-    callbackAccountPrefix: `payment_select_`,
+    callbackCreate: `income_create`,
+    callbackAccountPrefix: `income_select_`,
     btn: 'end',
     filterNotPaid: true
   })

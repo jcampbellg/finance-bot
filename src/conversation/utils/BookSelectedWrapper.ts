@@ -2,7 +2,7 @@ import menuBtn from '@buttons/menuBtn'
 import { ConversationProps, ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 
-export default async function BookSelectedWrapper(params: ConversationProps, next: (params: ConversationPropsWithBookSelected) => Promise<void>) {
+export default async function BookSelectedWrapper(params: ConversationProps, next: (params: ConversationPropsWithBookSelected) => Promise<any>) {
   const { bot, conversation, chatId, bookSelected } = params
 
   if (!bookSelected) {
@@ -15,7 +15,7 @@ export default async function BookSelectedWrapper(params: ConversationProps, nex
     return
   }
 
-  await next({
+  return await next({
     ...params,
     bookSelected
   })

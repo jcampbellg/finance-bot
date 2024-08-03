@@ -5,17 +5,17 @@ import bookViewMenuMessage from '@botMessage/book/bookViewMenuMessage'
 import budgetMenuMessage from '@botMessage/budget/budgetMenuMessage'
 import menuMessage from '@botMessage/menuMessage'
 import summaryMenuMessage from '@botMessage/summary/summaryMenuMessage'
-import transactionViewMenuMessage from '@botMessage/transaction/transactionViewMenuMessage'
+import transactionHandleMessageButton from '@botMessage/transaction/transactionHandleMessageButton'
+import transactionHandleMessageText from '@botMessage/transaction/transactionHandleMessageText'
 import bookCreateButton from '@conversation/bookCreate/bookCreateButton'
 import bookCreateText from '@conversation/bookCreate/bookCreateText'
 import bookDeleteButton from '@conversation/bookDelete/bookDeleteButton'
 import bookRenameButton from '@conversation/bookRename/bookRenameButton'
 import bookRenameText from '@conversation/bookRename/bookRenameText'
-import paymentTransactionCreateButton from '@conversation/paymentTransactionCreate/paymentTransactionCreateButton'
+import incomeTransactionCreateText from '@conversation/incomeTransactionCreate/incomeTransactionCreateText'
 import paymentTransactionCreateText from '@conversation/paymentTransactionCreate/paymentTransactionCreateText'
 import startButton from '@conversation/start/startButton'
 import startText from '@conversation/start/startText'
-import transactionCreateButton from '@conversation/transactionCreate/transactionCreateButton'
 import transactionCreateText from '@conversation/transactionCreate/transactionCreateText'
 import BookSelectedWrapper from '@conversation/utils/BookSelectedWrapper'
 import { MsgProps, QueryProps } from '@customTypes/messageTypes'
@@ -67,17 +67,12 @@ bot.on('message', async (ctx) => {
   //#endregion
 
   //#region Transactions
-  if (conversation.subject === 'transaction_create') {
-    await BookSelectedWrapper(params, transactionCreateText)
-    return
-  }
-  //#endregion
+  const notContinueTransaction: boolean = await BookSelectedWrapper(params, async (msg) => {
+    return await transactionHandleMessageText(msg)
+  })
 
-  //#region Payments
-  if (conversation.subject === 'payment_transaction_create') {
-    await BookSelectedWrapper(params, paymentTransactionCreateText)
-    return
-  }
+  if (notContinueTransaction) return
+  //#endregion
 })
 
 bot.on('callback_query', async (query) => {
@@ -155,21 +150,10 @@ bot.on('callback_query', async (query) => {
   //#endregion
 
   //#region Transactions
-  if (btnPress.startsWith('transaction_view_')) {
-    await BookSelectedWrapper(msg, transactionViewMenuMessage)
-    return
-  }
+  const notContinueTransaction: boolean = await BookSelectedWrapper(msg, async (msg) => {
+    return await transactionHandleMessageButton(msg)
+  })
 
-  if (['transaction_create_expense', 'transaction_create_deposit'].indexOf(btnPress) !== -1 || conversation.subject === 'transaction_create') {
-    await BookSelectedWrapper(msg, transactionCreateButton)
-    return
-  }
-  //#endregion
-
-  //#region Payments
-  if (btnPress === 'payment_transaction_create' || conversation.subject === 'payment_transaction_create') {
-    await BookSelectedWrapper(msg, paymentTransactionCreateButton)
-    return
-  }
+  if (notContinueTransaction) return
   //#endregion
 })

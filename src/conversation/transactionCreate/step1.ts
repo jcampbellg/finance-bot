@@ -10,7 +10,7 @@ export default async function step1(params: ConversationPropsWithBookSelected, e
     subject: 'transaction_create',
     subSubject: 'description',
     edit: {
-      type: query?.data === 'transaction_create_expense' ? 'expense' : 'income',
+      type: query?.data === 'transaction_create_expense' ? 'EXPENSE' : 'DEPOSIT',
       ...edit,
     }
   })

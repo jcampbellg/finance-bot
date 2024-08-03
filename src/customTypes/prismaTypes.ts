@@ -1,6 +1,4 @@
-import { Conversation, Prisma } from '@prisma/client'
-
-export type transactionType = 'expense' | 'deposit' | 'income' | 'payment' | 'transfer'
+import { Conversation, Prisma, $Enums } from '@prisma/client'
 
 export type Edit = {
   bookId?: string
@@ -9,7 +7,8 @@ export type Edit = {
   currency?: string
   accountId?: string
   categoryId?: string
-  type?: transactionType
+  transactionId?: string
+  type?: $Enums.TransactionType
 }
 
 export type ConversationWithEdit = Omit<Conversation, 'edit'> & { edit: Edit }
@@ -65,16 +64,15 @@ export type AccountWithBalanceAndFiles = Prisma.AccountGetPayload<{
 
 export type TransactionWithAll = Prisma.TransactionGetPayload<{
   include: {
-    account: true,
+    account: { include: { currency: true } },
     category: true,
     files: true,
     groupNotifications: true,
     items: true,
     splits: true,
-    transferA: true,
-    transferB: true,
+    transfer: { include: { accountTo: true } }
   }
-}> & { isPayment: boolean }
+}>
 
 type TransactionCreateInput = Omit<Prisma.TransactionCreateInput, 'id'>
 type TransactionUncheckedCreateInput = Omit<Prisma.TransactionUncheckedCreateInput, 'id'>
@@ -86,6 +84,13 @@ export type TransactionUpdate = Prisma.XOR<TransactionUpdateInput, TransactionUn
 
 export type Payment = Prisma.CategoryGetPayload<{
   include: {
-    amountToPaid: true,
+    limits: true,
+  }
+}>
+
+export type CurrencyWithBalance = Prisma.CurrencyGetPayload<{
+  include: {
+    balance: true,
+    account: true
   }
 }>

@@ -1,5 +1,15 @@
-import { AccountWithBalanceAndFiles, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, Edit, Payment, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
+import { AccountWithBalanceAndFiles, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, CurrencyWithBalance, Edit, Payment, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
 import { PrismaClient } from '@prisma/client'
+import dayjs from 'dayjs'
+import 'dayjs/locale/es'
+import timezone from 'dayjs/plugin/timezone'
+import utc from 'dayjs/plugin/utc'
+import LocalizedFormat from 'dayjs/plugin/localizedFormat'
+
+dayjs.locale('es')
+dayjs.extend(utc)
+dayjs.extend(timezone)
+dayjs.extend(LocalizedFormat)
 
 const prisma = new PrismaClient()
 
@@ -13,15 +23,16 @@ const userInclude = {
 const accountInclude = { currency: { include: { balance: true } }, files: true }
 
 const transactionInclude = {
-  account: true,
+  account: { include: { currency: true } },
   category: true,
   files: true,
   groupNotifications: true,
   items: true,
   splits: true,
-  transferA: true,
-  transferB: true
+  transfer: { include: { accountTo: true } }
 }
+
+const categoryInclude = { limits: true }
 
 const xprisma = prisma.$extends({
   model: {
@@ -235,31 +246,21 @@ const xprisma = prisma.$extends({
           await prisma.item.deleteMany({ where: { transaction: { account: { bookId: id } } } })
           await prisma.groupNotification.deleteMany({ where: { transaction: { account: { bookId: id } } } })
           await prisma.transaction.deleteMany({ where: { account: { bookId: id } } })
-          console.log('Transactions deleted')
           await prisma.balance.deleteMany({ where: { currency: { account: { bookId: id } } } })
           await prisma.currency.deleteMany({ where: { account: { bookId: id } } })
           await prisma.account.deleteMany({ where: { bookId: id } })
+          await prisma.limit.deleteMany({ where: { category: { bookId: id } } })
           await prisma.category.deleteMany({ where: { bookId: id } })
-          await prisma.exchangeRate.deleteMany({ where: { bookId: id } })
-          console.log('Accounts deleted')
           await prisma.share.deleteMany({ where: { bookId: id } })
-          console.log('Shares deleted')
-          await prisma.limit.deleteMany({ where: { budget: { bookId: id } } })
-          await prisma.budgetRule.deleteMany({ where: { bookId: id } })
-          console.log('Budgets deleted')
 
           await prisma.book.update({
             where: { id: book.id },
             data: { groupChats: { set: [] }, selectedByUser: { set: [] } }
           })
 
-          console.log('Group chats and selected by user deleted')
-
           await prisma.book.delete({
             where: { id: id }
           })
-
-          console.log('Book deleted')
 
           return true
         }
@@ -347,6 +348,82 @@ const xprisma = prisma.$extends({
         return accounts
       }
     },
+    currency: {
+      async findOrCreate(user: ByncUser, accountId: string, symbol: string): Promise<CurrencyWithBalance | null> {
+        if (!user.bookSelected) return null
+
+        const exists = await prisma.currency.findFirst({
+          where: { AND: [{ accountId }, { symbol }, { account: { bookId: user.bookSelected.id } }] },
+          include: { account: true, balance: true }
+        })
+
+        if (!!exists) {
+          return exists
+        } else {
+          const newCurrency = await prisma.currency.create({
+            data: { symbol, accountId },
+            include: { account: true, balance: true }
+          })
+
+          return newCurrency
+        }
+      }
+    },
+    balance: {
+      async sum(user: ByncUser, currencyId: string, transactionId: string): Promise<boolean> {
+        if (!user.bookSelected) return false
+
+        const lastBalance = await prisma.balance.findFirst({
+          where: { currencyId },
+          include: { currency: { include: { account: true } } },
+          orderBy: { createdAt: 'desc' }
+        })
+
+        if (lastBalance && lastBalance.currency.account.bookId !== user.bookSelected.id) return false
+
+        const transaction = await prisma.transaction.findFirst({
+          where: { AND: [{ id: transactionId }, { account: { currency: { some: { id: currencyId } } } }] }
+        })
+
+        if (!transaction) return false
+
+        const lastAmount = !!lastBalance ? lastBalance.amount : 0
+        const sum = (transaction.type === 'EXPENSE' || transaction.type === 'PAYMENT') ? -transaction.amount : transaction.amount
+
+        await prisma.balance.create({
+          data: {
+            amount: lastAmount + sum,
+            currencyId,
+            transactionId
+          }
+        })
+
+        return true
+      },
+      async fix(user: ByncUser, currencyId: string, amountToFix: number): Promise<boolean> {
+        if (!user.bookSelected) return false
+
+        const lastBalance = await prisma.balance.findFirst({
+          where: { currencyId },
+          include: { currency: { include: { account: true } } },
+          orderBy: { createdAt: 'desc' }
+        })
+
+        if (lastBalance && lastBalance.currency.account.bookId !== user.bookSelected.id) return false
+
+        const lastAmount = !!lastBalance ? lastBalance.amount : 0
+
+        await prisma.balance.create({
+          data: {
+            amount: lastAmount + amountToFix,
+            currencyId,
+            isFromUpdateOrDelete: true
+          }
+        })
+
+        return true
+      }
+    },
     transaction: {
       async create(user: ByncUser, data: TransactionCreate): Promise<TransactionWithAll | null> {
         if (!user.bookSelected) return null
@@ -362,31 +439,28 @@ const xprisma = prisma.$extends({
           include: transactionInclude
         })
 
-        return { isPayment: false, ...newTransaction }
+        return newTransaction
       },
       async findUnique(user: ByncUser, id: string): Promise<TransactionWithAll | null> {
         if (!user.bookSelected) return null
 
-        const transaction = await prisma.transaction.findUnique({
-          where: { id },
+        const transaction = await prisma.transaction.findFirst({
+          where: { AND: [{ id: id }, { account: { bookId: user.bookSelected.id } }] },
           include: transactionInclude
         })
 
         if (!transaction) return null
-        if (transaction.account.bookId !== user.bookSelected.id) return null
 
-        return { ...transaction, isPayment: transaction.category?.type === 'PAYMENT' }
+        return transaction
       },
       async update(user: ByncUser, id: string, data: TransactionUpdate): Promise<TransactionWithAll | null> {
         if (!user.bookSelected) return null
 
-        const transaction = await prisma.transaction.findUnique({
-          where: { id },
-          include: transactionInclude
+        const transaction = await prisma.transaction.findFirst({
+          where: { AND: [{ id: id }, { account: { bookId: user.bookSelected.id } }] },
         })
 
         if (!transaction) return null
-        if (transaction.account.bookId !== user.bookSelected.id) return null
 
         const updatedTransaction = await prisma.transaction.update({
           where: { id },
@@ -394,28 +468,23 @@ const xprisma = prisma.$extends({
           include: transactionInclude
         })
 
-        return { ...updatedTransaction, isPayment: updatedTransaction.category?.type === 'PAYMENT' }
+        return updatedTransaction
       },
-    },
-    currency: {
-      async create(user: ByncUser, accountId: string, symbol: string): Promise<boolean> {
+      async delete(user: ByncUser, id: string): Promise<boolean> {
         if (!user.bookSelected) return false
 
-        const exists = await prisma.currency.findFirst({
-          where: { accountId, symbol },
-          include: { account: true }
+        const transaction = await prisma.transaction.findFirst({
+          where: { AND: [{ id: id }, { account: { bookId: user.bookSelected.id } }] },
         })
 
-        if (exists) {
-          if (exists.account.bookId !== user.bookSelected.id) return false
-        } else {
-          await prisma.currency.create({
-            data: { symbol, accountId }
-          })
-        }
+        if (!transaction) return false
+
+        await prisma.transaction.delete({
+          where: { id }
+        })
 
         return true
-      }
+      },
     },
     payment: {
       async create(user: ByncUser, description: string): Promise<Payment | null> {
@@ -423,7 +492,7 @@ const xprisma = prisma.$extends({
 
         const payment = await prisma.category.create({
           data: { description, bookId: user.bookSelected.id, type: 'PAYMENT' },
-          include: { amountToPaid: true }
+          include: categoryInclude
         })
 
         return payment
@@ -433,7 +502,7 @@ const xprisma = prisma.$extends({
 
         const payment = await prisma.category.findUnique({
           where: { id },
-          include: { amountToPaid: true }
+          include: categoryInclude
         })
 
         if (!payment) return null
@@ -446,9 +515,11 @@ const xprisma = prisma.$extends({
       async findMany(user: ByncUser, filterNotPaid: boolean = false): Promise<Payment[]> {
         if (!user.bookSelected) return []
 
+        const monthTZStart = dayjs().tz(user.timezone).startOf('month')
+
         const payments = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: 'PAYMENT' }] },
-          include: { amountToPaid: true, transactions: { select: { paidAt: true } } }
+          include: { limits: true, transactions: { where: { createdAt: { gte: monthTZStart.format() } } } }
         })
 
         if (filterNotPaid) {
@@ -456,6 +527,49 @@ const xprisma = prisma.$extends({
         }
 
         return payments
+      }
+    },
+    income: {
+      async create(user: ByncUser, description: string): Promise<Payment | null> {
+        if (!user.bookSelected) return null
+
+        const income = await prisma.category.create({
+          data: { description, bookId: user.bookSelected.id, type: 'INCOME' },
+          include: categoryInclude
+        })
+
+        return income
+      },
+      async findUnique(user: ByncUser, id: string): Promise<Payment | null> {
+        if (!user.bookSelected) return null
+
+        const income = await prisma.category.findUnique({
+          where: { id },
+          include: categoryInclude
+        })
+
+        if (!income) return null
+        if (income.type !== 'INCOME') return null
+
+        if (income.bookId !== user.bookSelected.id) return null
+
+        return income
+      },
+      async findMany(user: ByncUser, filterNotPaid: boolean = false): Promise<Payment[]> {
+        if (!user.bookSelected) return []
+
+        const monthTZStart = dayjs().tz(user.timezone).startOf('month')
+
+        const incomes = await prisma.category.findMany({
+          where: { AND: [{ bookId: user.bookSelected.id }, { type: 'INCOME' }] },
+          include: { limits: true, transactions: { where: { createdAt: { gte: monthTZStart.format() } } } }
+        })
+
+        if (filterNotPaid) {
+          return incomes.filter(income => !income.transactions.length)
+        }
+
+        return incomes
       }
     }
   }

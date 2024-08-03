@@ -12,9 +12,9 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
   if (!!ctx) {
     // Account description
     await stringReply(params, async (description) => {
-      const newPayment = await xprisma.payment.create(user, description)
+      const newIncome = await xprisma.income.create(user, description)
 
-      if (!newPayment) {
+      if (!newIncome) {
         upsError(params)
         return
       }
@@ -22,17 +22,17 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
       await xprisma.conversation.update(conversation.id, {
         edit: {
           ...conversation.edit,
-          categoryId: newPayment.id
+          categoryId: newIncome.id
         }
       })
 
       const newEdit: Edit = {
-        categoryId: newPayment.id,
-        type: 'PAYMENT'
+        categoryId: newIncome.id,
+        type: 'INCOME'
       }
 
       // Go to normal transaction flow
-      await step1(params, newEdit)
+      await step1(params)
       return
     })
     return
@@ -42,9 +42,9 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
     throw new Error('query is required')
   }
 
-  if (query.data === 'payment_create') {
+  if (query.data === 'income_create') {
     await xprisma.conversation.update(conversation.id, {
-      subSubject: 'payment_create'
+      subSubject: 'income_create'
     })
     await bot.editMessageText(`💵 Vamos a registrar una nuevo pago fijo en tu presupuesto.\n¿Cómo te gustaría llamarlo?`, {
       chat_id: chatId,
@@ -57,19 +57,19 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
     return
   }
 
-  if (query.data.startsWith('payment_select_')) {
-    const paymentId = query.data.replace('payment_select_', '')
+  if (query.data.startsWith('income_select_')) {
+    const incomeId = query.data.replace('income_select_', '')
 
-    const payment = await xprisma.payment.findUnique(user, paymentId)
+    const income = await xprisma.income.findUnique(user, incomeId)
 
-    if (!payment) {
+    if (!income) {
       upsError(params)
       return
     }
 
     const newEdit: Edit = {
-      categoryId: payment.id,
-      type: 'PAYMENT'
+      categoryId: income.id,
+      type: 'INCOME'
     }
 
     // Go to normal transaction flow

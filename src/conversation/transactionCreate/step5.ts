@@ -1,4 +1,5 @@
 import upsError from '@botMessage/errors/upsError'
+import transactionViewMenuMessage from '@botMessage/transaction/transactionViewMenuMessage'
 import menuBtn from '@buttons/menuBtn'
 import amountReply from '@conversation/utils/amountReply'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
@@ -25,7 +26,7 @@ export default async function step5(params: ConversationPropsWithBookSelected) {
       amount: amount,
       description: conversation.edit.description,
       categoryId: conversation.edit.categoryId || null,
-      type: (editType === 'expense' || editType === 'payment') ? 'EXPENSE' : 'INCOME'
+      type: editType
     })
 
     if (!newTransaction) {
@@ -33,16 +34,12 @@ export default async function step5(params: ConversationPropsWithBookSelected) {
       return
     }
 
-    await xprisma.currency.create(user, conversation.edit.accountId, conversation.edit.currency)
+    // Update the balance
+    const currency = await xprisma.currency.findOrCreate(user, conversation.edit.accountId, conversation.edit.currency)
+    if (currency) {
+      await xprisma.balance.sum(user, currency.id, newTransaction.id)
+    }
 
-    await bot.sendMessage(chatId, `¡Perfecto!\nTu transacción ha sido creada.`, {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: `🧾 Ver Transacción`, callback_data: `transaction_view_${newTransaction.id}` }],
-          ...(newTransaction.isPayment ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_view_${newTransaction.id}_paid_now` }]] : []),
-          menuBtn
-        ]
-      }
-    })
+    await transactionViewMenuMessage(params, newTransaction.id)
   })
 }

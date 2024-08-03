@@ -98,3 +98,21 @@ export const titleEval = (text: string): ReturnType<string> => {
     value: text
   }
 }
+
+export const dateEval = (text: string): ReturnType<string> => {
+  const isValid = isDateValid(text)
+  if (!isValid.success) {
+    return {
+      isError: true,
+      error: 'Para continuar, asegúrate de que la respuesta tenga este formato en numeros: e.g. 2024-08-05T13:05',
+      isOk: false,
+      value: text
+    }
+  }
+
+  return {
+    isError: false,
+    isOk: true,
+    value: text
+  }
+}
