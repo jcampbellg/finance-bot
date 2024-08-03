@@ -14,15 +14,15 @@ type AccountProps = {
   filterNotPaid?: boolean
 }
 
-export default async function paymentsListMessage(params: ConversationPropsWithBookSelected, { filterNotPaid, callbackCreate, callbackAccountPrefix, text: botText, btn }: AccountProps) {
+export default async function incomesListMessage(params: ConversationPropsWithBookSelected, { filterNotPaid, callbackCreate, callbackAccountPrefix, text: botText, btn }: AccountProps) {
   const { bot, query, chatId, user } = params
 
-  const payments = await xprisma.payment.findMany(user, filterNotPaid)
-  const groupedPayments: Payment[][] = chunkIt(payments).size(2)
+  const incomes = await xprisma.income.findMany(user, filterNotPaid)
+  const groupedincomes: Payment[][] = chunkIt(incomes).size(2)
 
   const keyboard: TelegramBot.InlineKeyboardButton[][] = [
-    [{ text: '💵 Crear Pago Fijo', callback_data: callbackCreate }],
-    ...groupedPayments.map((group) => group.map((account) => ({
+    [{ text: '🤑 Crear Ingreso', callback_data: callbackCreate }],
+    ...groupedincomes.map((group) => group.map((account) => ({
       text: account.description,
       callback_data: `${callbackAccountPrefix}${account.id}`
     }))),

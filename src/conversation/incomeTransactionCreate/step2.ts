@@ -32,7 +32,7 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
       }
 
       // Go to normal transaction flow
-      await step1(params)
+      await step1(params, newEdit)
       return
     })
     return
@@ -46,7 +46,7 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
     await xprisma.conversation.update(conversation.id, {
       subSubject: 'income_create'
     })
-    await bot.editMessageText(`💵 Vamos a registrar una nuevo pago fijo en tu presupuesto.\n¿Cómo te gustaría llamarlo?`, {
+    await bot.editMessageText(`🤑 Vamos a registrar una nuevo ingreso en tu presupuesto.\n¿Cómo te gustaría llamarlo?`, {
       chat_id: chatId,
       message_id: query.message.message_id,
       parse_mode: 'HTML',

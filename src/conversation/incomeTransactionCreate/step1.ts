@@ -1,4 +1,4 @@
-import paymentsListMessage from '@botMessage/payment/paymentsListMessage'
+import incomesListMessage from '@botMessage/income/incomesListMessage'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 
@@ -13,8 +13,8 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
     }
   })
 
-  await paymentsListMessage(params, {
-    text: `Por favor, selecciona un pago fijo de tu presupuesto.`,
+  await incomesListMessage(params, {
+    text: `Por favor, selecciona un ingreso de tu presupuesto.`,
     callbackCreate: `income_create`,
     callbackAccountPrefix: `income_select_`,
     btn: 'end',
