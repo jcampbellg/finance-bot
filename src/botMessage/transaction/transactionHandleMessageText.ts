@@ -1,3 +1,4 @@
+import fileText from '@conversation/File/FileText'
 import incomeTransactionCreateText from '@conversation/incomeTransactionCreate/incomeTransactionCreateText'
 import paymentTransactionCreateText from '@conversation/paymentTransactionCreate/paymentTransactionCreateText'
 import transactionAmountText from '@conversation/transactionAmount/transactionAmountText'
@@ -40,6 +41,11 @@ export default async function transactionHandleMessageText(params: ConversationP
 
   if (conversation.subject === 'transaction_date' || conversation.subject === 'transaction_paid_date') {
     await transactionDateText(params)
+    return true
+  }
+
+  if (conversation.subSubject === 'file') {
+    await fileText(params)
     return true
   }
 

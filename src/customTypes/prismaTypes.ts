@@ -9,6 +9,7 @@ export type Edit = {
   categoryId?: string
   transactionId?: string
   type?: $Enums.TransactionType
+  objectId?: string
 }
 
 export type ConversationWithEdit = Omit<Conversation, 'edit'> & { edit: Edit }
@@ -70,7 +71,8 @@ export type TransactionWithAll = Prisma.TransactionGetPayload<{
     groupNotifications: true,
     items: true,
     splits: true,
-    transfer: { include: { accountTo: true } }
+    transferIn: true,
+    transferOut: true
   }
 }>
 
@@ -81,6 +83,10 @@ export type TransactionCreate = Prisma.XOR<TransactionCreateInput, TransactionUn
 type TransactionUpdateInput = Omit<Prisma.TransactionUpdateInput, 'id'>
 type TransactionUncheckedUpdateInput = Omit<Prisma.TransactionUncheckedUpdateInput, 'id'>
 export type TransactionUpdate = Prisma.XOR<TransactionUpdateInput, TransactionUncheckedUpdateInput>
+
+type FileCreateInput = Omit<Prisma.FileCreateInput, 'id'>
+type FileUncheckedCreateInput = Omit<Prisma.FileUncheckedCreateInput, 'id'>
+export type FileCreate = Prisma.XOR<FileCreateInput, FileUncheckedCreateInput>
 
 export type Payment = Prisma.CategoryGetPayload<{
   include: {

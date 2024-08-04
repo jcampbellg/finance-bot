@@ -50,7 +50,6 @@ model Book {
 }
 
 model Account {
-  transferTo  Transfer?     @relation(name: "AccountToTransferTo")
   currency    Currency[]    @relation(name: "CurrencyInAccount")
   id          String        @id @default(cuid())
   createdAt   DateTime      @default(now())
@@ -60,7 +59,6 @@ model Account {
   transaction Transaction[] @relation(name: "TransactionWithAccount")
   book        Book          @relation(name: "AccountInBook", fields: [bookId], references: [id])
   bookId      String
-  files       File[]        @relation(name: "AccountWithFile")
 }
 
 model Category {
@@ -73,14 +71,11 @@ model Category {
   transactions Transaction[] @relation(name: "TransactionWithCategory")
   bookId       String
   book         Book          @relation(name: "CategoryInBook", fields: [bookId], references: [id])
-  files        File[]        @relation(name: "CategoryWithFile")
   type         CategoryType  @default(TRANSACTION)
   limits       Limit[]       @relation(name: "CategoryToPayment")
 }
 
 model Transaction {
-  transfer           Transfer?           @relation(name: "TransferToTransaction", fields: [transferId], references: [id])
-  transferId         String?             @unique
   balance            Balance?            @relation(name: "TransactionToBalance")
   type               TransactionType     @default(EXPENSE)
   id                 String              @id @default(cuid())
@@ -92,13 +87,14 @@ model Transaction {
   account            Account             @relation(name: "TransactionWithAccount", fields: [accountId], references: [id])
   accountId          String
   groupNotifications GroupNotification[] @relation(name: "TransactionsWithGroupNotification")
-  items              Item[]              @relation(name: "TransactionWithTag")
   paidAt             DateTime?
   tags               String[]
   splits             Split[]             @relation(name: "splitToTransaction")
   category           Category?           @relation(name: "TransactionWithCategory", fields: [categoryId], references: [id])
   categoryId         String?
   files              File[]              @relation(name: "TransactionWithFile")
+  transferIn         Transfer?           @relation(name: "TransactionToTransfer")
+  transferOut        Transfer?           @relation(name: "TransactionToTransfer1")
 }
 
 model GroupNotification {
@@ -127,7 +123,6 @@ model Balance {
 model GroupChat {
   id         String   @id @default(cuid())
   createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
   telegramId Int      @unique
   books      Book[]   @relation(name: "BooksGroupChatGetNotified")
 }
@@ -138,22 +133,18 @@ model File {
   updatedAt     DateTime     @updatedAt
   fileId        String       @unique
   transaction   Transaction? @relation(name: "TransactionWithFile", fields: [transactionId], references: [id])
-  accountId     String?
-  account       Account?     @relation(name: "AccountWithFile", fields: [accountId], references: [id])
-  categoryId    String?
-  category      Category?    @relation(name: "CategoryWithFile", fields: [categoryId], references: [id])
   transactionId String?
   fileType      FileType
+  items         Item[]       @relation(name: "ItemToFile")
 }
 
 model Item {
-  id            String      @id @default(cuid())
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  description   String
-  transactionId String
-  transaction   Transaction @relation(name: "TransactionWithTag", fields: [transactionId], references: [id])
-  price         Float?
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  description String
+  fileId      String?
+  file        File?    @relation(name: "ItemToFile", fields: [fileId], references: [id])
 }
 
 model Conversation {
@@ -212,14 +203,13 @@ model Split {
 }
 
 model Transfer {
-  id          String       @id @default(cuid())
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  accountTo   Account      @relation(name: "AccountToTransferTo", fields: [accountToId], references: [id])
-  accountToId String       @unique
-  transaction Transaction? @relation(name: "TransferToTransaction")
-  amountTo    Float
-  currencyTo  String
+  id               String       @id @default(cuid())
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  transactionIn    Transaction? @relation(name: "TransactionToTransfer", fields: [transactionInId], references: [id])
+  transactionInId  String?      @unique
+  transactionOut   Transaction? @relation(name: "TransactionToTransfer1", fields: [transactionOutId], references: [id])
+  transactionOutId String?      @unique
 }
 
 enum CategoryType {

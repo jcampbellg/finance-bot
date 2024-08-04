@@ -57,8 +57,4 @@ export type ConversationPropsWithBookSelected = Omit<ConversationProps, 'bookSel
 
 export type NextFunction<T> = (value: T) => void
 
-export type SendProps = {
-  text: string
-  keyboardTop?: TelegramBot.InlineKeyboardButton[][]
-  keyboardDown?: TelegramBot.InlineKeyboardButton[][]
-}
+export type FileSubject = 'transaction' | 'category' | 'account' | 'payment' | 'income'

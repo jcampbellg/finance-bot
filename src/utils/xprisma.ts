@@ -1,4 +1,4 @@
-import { AccountWithBalanceAndFiles, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, CurrencyWithBalance, Edit, Payment, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
+import { AccountWithBalanceAndFiles, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, Payment, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
 import { PrismaClient } from '@prisma/client'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
@@ -29,7 +29,8 @@ const transactionInclude = {
   groupNotifications: true,
   items: true,
   splits: true,
-  transfer: { include: { accountTo: true } }
+  transferIn: true,
+  transferOut: true
 }
 
 const categoryInclude = { limits: true }
@@ -242,8 +243,10 @@ const xprisma = prisma.$extends({
         }
 
         if (isOwner) {
-          await prisma.file.deleteMany({ where: { OR: [{ transaction: { account: { bookId: id } } }, { account: { bookId: id } }, { category: { bookId: id } }] } })
-          await prisma.item.deleteMany({ where: { transaction: { account: { bookId: id } } } })
+          await prisma.split.deleteMany({ where: { transaction: { account: { bookId: id } } } })
+          await prisma.file.deleteMany({ where: { transaction: { account: { bookId: id } } } })
+          await prisma.transfer.deleteMany({ where: { OR: [{ transactionOut: { account: { bookId: id } } }, { transactionIn: { account: { bookId: id } } }] } })
+          await prisma.item.deleteMany({ where: { file: { transaction: { account: { bookId: id } } } } })
           await prisma.groupNotification.deleteMany({ where: { transaction: { account: { bookId: id } } } })
           await prisma.transaction.deleteMany({ where: { account: { bookId: id } } })
           await prisma.balance.deleteMany({ where: { currency: { account: { bookId: id } } } })
@@ -570,6 +573,20 @@ const xprisma = prisma.$extends({
         }
 
         return incomes
+      }
+    },
+    file: {
+      async create(user: ByncUser, data: FileCreate): Promise<boolean> {
+        if (!user.bookSelected) return false
+
+        try {
+          await prisma.file.create({
+            data: data
+          })
+          return true
+        } catch (error) {
+          return false
+        }
       }
     }
   }
