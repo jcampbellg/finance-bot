@@ -1,3 +1,4 @@
+import noAttachmentError from '@botMessage/errors/noAttachmentError'
 import noBookError from '@botMessage/errors/noBookError'
 import upsError from '@botMessage/errors/upsError'
 import transactionViewMenuMessage from '@botMessage/transaction/transactionViewMenuMessage'
@@ -10,6 +11,11 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
 
   if (!ctx) {
     throw new Error('ctx is required')
+  }
+
+  if (!ctx.photo && !ctx.document) {
+    await noAttachmentError(params)
+    return
   }
 
   const fileType: $Enums.FileType = !!ctx.photo ? 'PHOTO' : 'DOCUMENT'

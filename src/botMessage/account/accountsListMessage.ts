@@ -2,7 +2,7 @@ import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 import TelegramBot from 'node-telegram-bot-api'
 import { chunkIt } from '@array-utils/chunk-it'
-import { AccountWithBalanceAndFiles } from '@customTypes/prismaTypes'
+import { AccountWithBalance } from '@customTypes/prismaTypes'
 import endBtn from '@buttons/endBtn'
 import menuBtn from '@buttons/menuBtn'
 
@@ -17,7 +17,7 @@ export default async function accountsListMessage(params: ConversationPropsWithB
   const { bot, query, chatId, user } = params
 
   const accounts = await xprisma.account.findMany(user)
-  const groupedAccounts: AccountWithBalanceAndFiles[][] = chunkIt(accounts).size(3)
+  const groupedAccounts: AccountWithBalance[][] = chunkIt(accounts).size(3)
 
   const keyboard: TelegramBot.InlineKeyboardButton[][] = [
     [{ text: '🏦 Crear Cuenta', callback_data: callbackCreate }],

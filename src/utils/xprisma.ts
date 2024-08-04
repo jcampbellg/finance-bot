@@ -1,4 +1,4 @@
-import { AccountWithBalanceAndFiles, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, Payment, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
+import { AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, Payment, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
 import { PrismaClient } from '@prisma/client'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
@@ -20,14 +20,13 @@ const userInclude = {
   conversation: true
 }
 
-const accountInclude = { currency: { include: { balance: true } }, files: true }
+const accountInclude = { currency: { include: { balance: true } } }
 
 const transactionInclude = {
   account: { include: { currency: true } },
   category: true,
   files: true,
   groupNotifications: true,
-  items: true,
   splits: true,
   transferIn: true,
   transferOut: true
@@ -316,7 +315,7 @@ const xprisma = prisma.$extends({
       }
     },
     account: {
-      async create(user: ByncUser, description: string): Promise<AccountWithBalanceAndFiles | null> {
+      async create(user: ByncUser, description: string): Promise<AccountWithBalance | null> {
         if (!user.bookSelected) return null
 
         const account = await prisma.account.create({
@@ -326,7 +325,7 @@ const xprisma = prisma.$extends({
 
         return account
       },
-      async findUnique(user: ByncUser, id: string): Promise<AccountWithBalanceAndFiles | null> {
+      async findUnique(user: ByncUser, id: string): Promise<AccountWithBalance | null> {
         if (!user.bookSelected) return null
 
         const account = await prisma.account.findUnique({
@@ -340,7 +339,7 @@ const xprisma = prisma.$extends({
 
         return account
       },
-      async findMany(user: ByncUser): Promise<AccountWithBalanceAndFiles[]> {
+      async findMany(user: ByncUser): Promise<AccountWithBalance[]> {
         if (!user.bookSelected) return []
 
         const accounts = await prisma.account.findMany({
@@ -586,6 +585,13 @@ const xprisma = prisma.$extends({
           return true
         } catch (error) {
           return false
+        }
+      },
+      delete: async (id: string) => {
+        try {
+          await prisma.file.delete({ where: { id } })
+        } catch (error) {
+          console.error(error)
         }
       }
     }

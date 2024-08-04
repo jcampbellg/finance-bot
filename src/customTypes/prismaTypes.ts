@@ -59,8 +59,8 @@ type BookUpdateInput = Omit<Prisma.BookUpdateInput, 'id'>
 type BookUncheckedUpdateInput = Omit<Prisma.BookUncheckedUpdateInput, 'id'>
 export type BookUpdate = Prisma.XOR<BookUpdateInput, BookUncheckedUpdateInput>
 
-export type AccountWithBalanceAndFiles = Prisma.AccountGetPayload<{
-  include: { currency: { include: { balance: true } }, files: true }
+export type AccountWithBalance = Prisma.AccountGetPayload<{
+  include: { currency: { include: { balance: true } } }
 }>
 
 export type TransactionWithAll = Prisma.TransactionGetPayload<{
@@ -69,7 +69,6 @@ export type TransactionWithAll = Prisma.TransactionGetPayload<{
     category: true,
     files: true,
     groupNotifications: true,
-    items: true,
     splits: true,
     transferIn: true,
     transferOut: true
