@@ -22,25 +22,23 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
     return
   }
 
-  if (conversation.subject === 'transaction') {
-    const transactionId = conversation.edit.objectId
+  const transactionId = conversation.edit.transactionId
 
-    if (!transactionId) {
-      await noBookError(params)
-      return
-    }
-
-    const success = await xprisma.file.create(user, {
-      fileId: fileId,
-      fileType: fileType,
-      transactionId: transactionId
-    })
-
-    if (!success) {
-      await upsError(params)
-      return
-    }
-
-    await transactionViewMenuMessage(params, transactionId)
+  if (!transactionId) {
+    await noBookError(params)
+    return
   }
+
+  const success = await xprisma.file.create(user, {
+    fileId: fileId,
+    fileType: fileType,
+    transactionId: transactionId
+  })
+
+  if (!success) {
+    await upsError(params)
+    return
+  }
+
+  await transactionViewMenuMessage(params, transactionId)
 }

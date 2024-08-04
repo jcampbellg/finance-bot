@@ -9,7 +9,7 @@ import transactionRenameButton from '@conversation/transactionRename/transaction
 import transactionDeleteButton from '@conversation/transactionDelete/transactionDeleteButton'
 import transactionAmountButton from '@conversation/transactionAmount/transactionAmountButton'
 import transactionDateButton from '@conversation/transactionDate/transactionDateButton'
-import fileButton from '@conversation/File/fileButton'
+import transactionFileButton from '@conversation/transactionFile/transactionFileButton'
 
 export default async function transactionHandleMessageButton(params: ConversationPropsWithBookSelected): Promise<boolean> {
   const { query, conversation } = params
@@ -70,8 +70,8 @@ export default async function transactionHandleMessageButton(params: Conversatio
     return true
   }
 
-  if (btnPress.startsWith('file_transaction')) {
-    await fileButton(params, 'transaction')
+  if (btnPress.startsWith('transaction_file')) {
+    await transactionFileButton(params)
     return true
   }
 

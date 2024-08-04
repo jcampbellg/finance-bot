@@ -1,8 +1,8 @@
-import { ConversationPropsWithBookSelected, FileSubject } from '@customTypes/messageTypes'
+import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import step1 from './step1'
 import xprisma from '@utils/xprisma'
 
-export default async function fileButton(params: ConversationPropsWithBookSelected, subject: FileSubject) {
+export default async function transactionFileButton(params: ConversationPropsWithBookSelected) {
   const { query, conversation } = params
 
   if (!query) {
@@ -11,13 +11,13 @@ export default async function fileButton(params: ConversationPropsWithBookSelect
 
   const btnPress = query.data
 
-  const objectId = btnPress.replace(`file_${subject}_`, '')
+  const transactionId = btnPress.replace(`transaction_file_`, '')
 
   await xprisma.conversation.update(conversation.id, {
-    subject: subject,
+    subject: 'transaction_file',
     subSubject: 'file',
     edit: {
-      objectId
+      transactionId: transactionId
     }
   })
 

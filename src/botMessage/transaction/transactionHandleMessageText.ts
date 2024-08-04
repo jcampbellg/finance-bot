@@ -1,4 +1,3 @@
-import fileText from '@conversation/File/fileText'
 import incomeTransactionCreateText from '@conversation/incomeTransactionCreate/incomeTransactionCreateText'
 import paymentTransactionCreateText from '@conversation/paymentTransactionCreate/paymentTransactionCreateText'
 import transactionAmountText from '@conversation/transactionAmount/transactionAmountText'
@@ -6,6 +5,7 @@ import transactionCreateText from '@conversation/transactionCreate/transactionCr
 import transactionDateText from '@conversation/transactionDate/transactionDateText'
 import transactionRenameText from '@conversation/transactionRename/transactionRenameText'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
+import transactionFileText from '@conversation/transactionFile/transactionFileText'
 
 export default async function transactionHandleMessageText(params: ConversationPropsWithBookSelected): Promise<boolean> {
   const { ctx, conversation } = params
@@ -44,8 +44,8 @@ export default async function transactionHandleMessageText(params: ConversationP
     return true
   }
 
-  if (conversation.subSubject === 'file') {
-    await fileText(params)
+  if (conversation.subject === 'transaction_file') {
+    await transactionFileText(params)
     return true
   }
 

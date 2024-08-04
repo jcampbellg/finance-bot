@@ -56,5 +56,3 @@ export type ConversationPropsWithBookSelected = Omit<ConversationProps, 'bookSel
 }
 
 export type NextFunction<T> = (value: T) => void
-
-export type FileSubject = 'transaction' | 'category' | 'account' | 'payment' | 'income'
