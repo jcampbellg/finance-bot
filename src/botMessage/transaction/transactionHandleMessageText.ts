@@ -1,4 +1,4 @@
-import fileText from '@conversation/File/FileText'
+import fileText from '@conversation/File/fileText'
 import incomeTransactionCreateText from '@conversation/incomeTransactionCreate/incomeTransactionCreateText'
 import paymentTransactionCreateText from '@conversation/paymentTransactionCreate/paymentTransactionCreateText'
 import transactionAmountText from '@conversation/transactionAmount/transactionAmountText'
