@@ -11,6 +11,7 @@ import transactionAmountButton from '@conversation/transactionAmount/transaction
 import transactionDateButton from '@conversation/transactionDate/transactionDateButton'
 import transactionFileButton from '@conversation/transactionFile/transactionFileButton'
 import fileDeleteMessage from '@botMessage/file/fileDeleteMessage'
+import transactionTagButton from '@conversation/transactionTag/transactionTagButton'
 
 export default async function transactionHandleMessageButton(params: ConversationPropsWithBookSelected): Promise<boolean> {
   const { query, conversation } = params
@@ -78,6 +79,11 @@ export default async function transactionHandleMessageButton(params: Conversatio
 
   if (btnPress.startsWith('file_delete_')) {
     await fileDeleteMessage(params)
+    return true
+  }
+
+  if (btnPress.startsWith('transaction_tag_')) {
+    await transactionTagButton(params)
     return true
   }
 

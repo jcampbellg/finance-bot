@@ -76,7 +76,7 @@ model Category {
 }
 
 model Transaction {
-  balance            Balance?            @relation(name: "TransactionToBalance")
+  balance            Balance[]           @relation(name: "TransactionToBalance")
   type               TransactionType     @default(EXPENSE)
   id                 String              @id @default(cuid())
   createdAt          DateTime            @default(now())
@@ -115,7 +115,7 @@ model Balance {
   updatedAt            DateTime     @updatedAt
   amount               Float
   transaction          Transaction? @relation(name: "TransactionToBalance", fields: [transactionId], references: [id])
-  transactionId        String?      @unique
+  transactionId        String?
   isUserInput          Boolean?     @default(false)
   isFromUpdateOrDelete Boolean?     @default(false)
 }

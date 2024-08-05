@@ -45,15 +45,17 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
   const isNormal = t.type === 'EXPENSE' || t.type === 'DEPOSIT'
   const isIncome = t.type === 'INCOME'
 
-  const spanishDate = dayjs(t.createdAt).tz(user.timezone).format('LL hh:mma')
+  const spanishDate = dayjs(t.createdAt).tz(user.timezone).format('dddd LL hh:mma')
   const categoryLabel = isPayment ? 'Pago Fijo:' : 'Categoría:'
   const category = t.category ? t.category.description : 'Sin Categoría'
 
-  const amount = numeral(t.amount).format('0,0.00') + ' ' + t.currency + `[${TRANSACTION_TYPE[t.type]}]`
+  const amount = numeral(t.amount).format('0,0.00') + ' ' + t.currency + ` [${TRANSACTION_TYPE[t.type]}]`
 
-  const paidAt = t.paidAt ? dayjs(t.paidAt).tz(user.timezone).format('LL hh:mma') : 'SIN PAGAR'
+  const paidAt = t.paidAt ? dayjs(t.paidAt).tz(user.timezone).format('dddd LL hh:mma') : 'SIN PAGAR'
 
   const isPaidLabel = (isPayment || isIncome) ? `\n<b>Fecha Pagada:</b> ${paidAt}` : ''
+
+  const tags = t.tags.length > 0 ? `\n<b>Etiquetas:</b> t.tags.map(t => t).join(', ')` : ''
 
   const files = t.files
 
@@ -83,12 +85,12 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
     }
   }
 
-  await bot.sendMessage(chatId, `Editando Transacción\n\n<b>Descripción:</b> ${t.description}\n<b>Monto:</b> ${amount}\n<b>Fecha:</b> ${spanishDate}\n<b>Cuenta:</b> ${t.account.description}\n<b>${categoryLabel}</b> ${category}${isPaidLabel}`, {
+  await bot.sendMessage(chatId, `Editando Transacción\n\n<b>Descripción:</b> ${t.description}\n<b>Monto:</b> ${amount}\n<b>Fecha:</b> ${spanishDate}\n<b>Cuenta:</b> ${t.account.description}\n<b>${categoryLabel}</b> ${category}${isPaidLabel}${tags}`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
         [{ text: '✏️ Renombrar', callback_data: `transaction_rename_${t.id}` }, { text: `❌ Eliminar`, callback_data: `transaction_delete_${t.id}` }],
-        [...(isNormal ? [{ text: `🏷️ Categoría`, callback_data: `transaction_category_${t.id}` }] : []), { text: '✂️ Dividir', callback_data: `transaction_split_${t.id}` }],
+        [...(isNormal ? [{ text: `🗂️ Categoría`, callback_data: `transaction_category_${t.id}` }, { text: '🏷️ Etiquetas', callback_data: `transaction_tag_${t.id}` }, { text: '✂️ Dividir', callback_data: `transaction_split_${t.id}` }] : [])],
         [{ text: '📅 Cambiar Fecha', callback_data: `transaction_date_${t.id}` }],
         ...((isPayment || isIncome) ? (!t.paidAt ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_paid_now_${t.id}` }]] : [[{ text: `❌ Marcar como No Pagado`, callback_data: `transaction_paid_cancel_${t.id}` }]]) : []),
         ...(((isPayment || isIncome) && t.paidAt) ? [[{ text: '📅 Cambiar Fecha de Pago', callback_data: `transaction_paid_date_${t.id}` }]] : []),

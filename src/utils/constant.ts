@@ -6,8 +6,8 @@ export const MAX_ACCOUNTS = 5
 export const MAX_FILES = 3
 
 export const TRANSACTION_TYPE: Record<$Enums.TransactionType, string> = {
-  'DEPOSIT': 'Depósito',
-  'EXPENSE': 'Gasto',
-  'INCOME': 'Ingreso',
-  'PAYMENT': 'Pago Fijo',
+  'DEPOSIT': '🟢 Depósito',
+  'EXPENSE': '🔴 Gasto',
+  'INCOME': '🤑 Ingreso',
+  'PAYMENT': '💵 Pago Fijo',
 }

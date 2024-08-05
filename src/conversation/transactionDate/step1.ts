@@ -24,7 +24,10 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
     message_id: query.message.message_id,
     parse_mode: 'HTML',
     reply_markup: {
-      inline_keyboard: [endBtn]
+      inline_keyboard: [
+        [{ text: `« Regresar`, callback_data: `transaction_view_${transactionId}` }],
+        endBtn
+      ]
     }
   })
 }
