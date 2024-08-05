@@ -55,7 +55,7 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
 
   const isPaidLabel = (isPayment || isIncome) ? `\n<b>Fecha Pagada:</b> ${paidAt}` : ''
 
-  const tags = t.tags.length > 0 ? `\n<b>Etiquetas:</b> t.tags.map(t => t).join(', ')` : ''
+  const tags = t.tags.length > 0 ? `\n<b>Etiquetas:</b> ${t.tags.map(t => t).join(', ')}` : ''
 
   const files = t.files
 
