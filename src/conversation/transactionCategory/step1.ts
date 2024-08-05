@@ -22,7 +22,7 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
   await categoriesListMessage(params, {
     text: `Por favor, selecciona una categoría de tu presupuesto.`,
     callbackCreate: `category_create`,
-    callbackAccountPrefix: `category_select_`,
+    callbackPrefix: `category_select_`,
     btn: 'end'
   })
 }

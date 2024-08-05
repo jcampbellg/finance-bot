@@ -76,6 +76,7 @@ model Category {
 }
 
 model Transaction {
+  balance            Balance?            @relation(name: "TransactionToBalance")
   type               TransactionType     @default(EXPENSE)
   id                 String              @id @default(cuid())
   createdAt          DateTime            @default(now())
@@ -94,7 +95,6 @@ model Transaction {
   files              File[]              @relation(name: "TransactionWithFile")
   transferIn         Transfer?           @relation(name: "TransactionToTransfer")
   transferOut        Transfer?           @relation(name: "TransactionToTransfer1")
-  balance            Balance?            @relation(name: "TransactionToBalance")
 }
 
 model GroupNotification {
@@ -196,9 +196,8 @@ model Split {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   subAmount     Float
-  description   String
-  category      Category    @relation(name: "CategoryToSplit", fields: [categoryId], references: [id])
-  categoryId    String      @unique
+  category      Category?   @relation(name: "CategoryToSplit", fields: [categoryId], references: [id])
+  categoryId    String?     @unique
 }
 
 model Transfer {

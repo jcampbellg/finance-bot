@@ -8,12 +8,12 @@ import menuBtn from '@buttons/menuBtn'
 
 type PaymentsListProps = {
   callbackCreate: string
-  callbackAccountPrefix: string
+  callbackPrefix: string
   text: string,
   btn: 'end' | 'menu'
 }
 
-export default async function paymentsListMessage(params: ConversationPropsWithBookSelected, { callbackCreate, callbackAccountPrefix, text: botText, btn }: PaymentsListProps) {
+export default async function paymentsListMessage(params: ConversationPropsWithBookSelected, { callbackCreate, callbackPrefix, text: botText, btn }: PaymentsListProps) {
   const { bot, query, chatId, user } = params
 
   const payments = await xprisma.payment.findMany(user)
@@ -23,7 +23,7 @@ export default async function paymentsListMessage(params: ConversationPropsWithB
     [{ text: '💵 Crear Pago Fijo', callback_data: callbackCreate }],
     ...groupedPayments.map((group) => group.map((p) => ({
       text: `${p.description}${!!p.transactions.length ? ` (${p.transactions.length} Pagos)` : ''}`,
-      callback_data: `${callbackAccountPrefix}${p.id}`
+      callback_data: `${callbackPrefix}${p.id}`
     }))),
     ...(btn === 'end' ? [endBtn] : [menuBtn])
   ]

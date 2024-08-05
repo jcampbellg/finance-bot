@@ -16,7 +16,7 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
   await paymentsListMessage(params, {
     text: `Por favor, selecciona un pago fijo de tu presupuesto.`,
     callbackCreate: `payment_create`,
-    callbackAccountPrefix: `payment_select_`,
+    callbackPrefix: `payment_select_`,
     btn: 'end'
   })
 }

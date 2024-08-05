@@ -16,7 +16,7 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
   await incomesListMessage(params, {
     text: `Por favor, selecciona un ingreso de tu presupuesto.`,
     callbackCreate: `income_create`,
-    callbackAccountPrefix: `income_select_`,
+    callbackPrefix: `income_select_`,
     btn: 'end'
   })
 }

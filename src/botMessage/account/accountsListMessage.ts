@@ -8,12 +8,12 @@ import menuBtn from '@buttons/menuBtn'
 
 type AccountsListProps = {
   callbackCreate: string
-  callbackAccountPrefix: string
+  callbackPrefix: string
   text: string,
   btn: 'end' | 'menu'
 }
 
-export default async function accountsListMessage(params: ConversationPropsWithBookSelected, { callbackCreate, callbackAccountPrefix, text: botText, btn }: AccountsListProps) {
+export default async function accountsListMessage(params: ConversationPropsWithBookSelected, { callbackCreate, callbackPrefix, text: botText, btn }: AccountsListProps) {
   const { bot, query, chatId, user } = params
 
   const accounts = await xprisma.account.findMany(user)
@@ -23,7 +23,7 @@ export default async function accountsListMessage(params: ConversationPropsWithB
     [{ text: '🏦 Crear Cuenta', callback_data: callbackCreate }],
     ...groupedAccounts.map((group) => group.map((account) => ({
       text: account.description,
-      callback_data: `${callbackAccountPrefix}${account.id}`
+      callback_data: `${callbackPrefix}${account.id}`
     }))),
     ...(btn === 'end' ? [endBtn] : [menuBtn])
   ]

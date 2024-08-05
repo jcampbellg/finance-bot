@@ -26,7 +26,7 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
     await accountsListMessage(params, {
       text: `¡Gracias!\nAhora, ¿puedes decirme la cuenta a la que se aplica esta transacción?`,
       callbackCreate: `account_create`,
-      callbackAccountPrefix: `account_select_`,
+      callbackPrefix: `account_select_`,
       btn: 'end'
     })
   })

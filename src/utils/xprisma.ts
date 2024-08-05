@@ -6,6 +6,7 @@ import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { MAX_ACCOUNTS, MAX_CATEGORIES, MAX_FILES, MAX_INCOMES, MAX_OWN_BOOKS, MAX_PAYMENTS } from './constant'
+import { create } from 'domain'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -480,6 +481,30 @@ const xprisma = prisma.$extends({
         })
 
         return accounts
+      }
+    },
+    split: {
+      create: async (user: ByncUser, transaction: TransactionWithAll, data: { amount: number, categoryId: string }): Promise<boolean> => {
+        if (!user.bookSelected) return false
+        if (transaction.account.bookId !== user.bookSelected.id) return false
+
+        await prisma.split.create({
+          data: {
+            subAmount: transaction.amount - data.amount,
+            categoryId: data.categoryId,
+            transactionId: transaction.id
+          }
+        })
+
+        await prisma.split.create({
+          data: {
+            subAmount: data.amount,
+            categoryId: data.categoryId,
+            transactionId: transaction.id
+          }
+        })
+
+        return true
       }
     },
     transaction: {
