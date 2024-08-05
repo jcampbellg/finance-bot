@@ -5,6 +5,7 @@ import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
+import { MAX_ACCOUNTS, MAX_CATEGORIES, MAX_FILES, MAX_INCOMES, MAX_OWN_BOOKS, MAX_PAYMENTS } from './constant'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -36,7 +37,7 @@ const paymentIncomeInclude = { limits: true, transactions: true }
 
 const categoryInclude = { limits: true, transactions: true, split: { include: { transaction: true } } }
 
-const subPrisma = prisma.$extends({
+const yprisma = prisma.$extends({
   model: {
     balance: {
       async create(user: ByncUser, transaction: TransactionWithAll): Promise<boolean> {
@@ -66,8 +67,86 @@ const subPrisma = prisma.$extends({
         })
 
         return true
+      },
+      async update(user: ByncUser, oldTransaction: TransactionWithAll, newTransaction: TransactionWithAll): Promise<boolean> {
+        if (!user.bookSelected) return false
+
+        const currency = await prisma.currency.findFirst({
+          where: { AND: [{ symbol: oldTransaction.currency }, { account: { id: oldTransaction.accountId } }] }
+        })
+
+        if (!currency) return false
+
+        const balance = await prisma.balance.findFirst({
+          where: { transactionId: oldTransaction.id }
+        })
+
+        if (!balance) return false
+
+        const oldValue = (oldTransaction.type === 'EXPENSE' || oldTransaction.type === 'PAYMENT') ? -oldTransaction.amount : oldTransaction.amount
+        const newValue = (newTransaction.type === 'EXPENSE' || newTransaction.type === 'PAYMENT') ? -newTransaction.amount : newTransaction.amount
+
+        const sum = newValue - oldValue
+
+        if (sum === 0) return true
+
+        await prisma.balance.updateMany({
+          where: { createdAt: { gte: balance.createdAt }, currencyId: currency.id },
+          data: { amount: { increment: sum } }
+        })
+
+        return true
+      },
+      async delete(user: ByncUser, oldTransaction: TransactionWithAll): Promise<boolean> {
+        if (!user.bookSelected) return false
+
+        const currency = await prisma.currency.findFirst({
+          where: { AND: [{ symbol: oldTransaction.currency }, { account: { id: oldTransaction.accountId } }] }
+        })
+
+        if (!currency) return false
+
+        const balance = await prisma.balance.findFirst({
+          where: { transactionId: oldTransaction.id }
+        })
+
+        if (!balance) return false
+
+        const increment = (oldTransaction.type === 'EXPENSE' || oldTransaction.type === 'PAYMENT') ? oldTransaction.amount : -oldTransaction.amount
+
+        await prisma.balance.updateMany({
+          where: { createdAt: { gte: balance.createdAt }, currencyId: currency.id },
+          data: { amount: { increment: increment } }
+        })
+
+        await prisma.balance.delete({
+          where: { id: balance.id }
+        })
+
+        return true
       }
     },
+    currency: {
+      async findOrCreate(user: ByncUser, accountId: string, symbol: string): Promise<CurrencyWithBalance | null> {
+        if (!user.bookSelected) return null
+
+        const exists = await prisma.currency.findFirst({
+          where: { AND: [{ accountId }, { symbol }, { account: { bookId: user.bookSelected.id } }] },
+          include: { account: true, balance: true }
+        })
+
+        if (!!exists) {
+          return exists
+        } else {
+          const newCurrency = await prisma.currency.create({
+            data: { symbol, accountId },
+            include: { account: true, balance: true }
+          })
+
+          return newCurrency
+        }
+      }
+    }
   }
 })
 
@@ -180,7 +259,15 @@ const xprisma = prisma.$extends({
       }
     },
     book: {
-      async create(user: ByncUser, title: string): Promise<BookWithOwner> {
+      async create(user: ByncUser, title: string): Promise<BookWithOwner | null> {
+        const count = await prisma.book.count({
+          where: { ownerId: user.id }
+        })
+
+        if (count + 1 > MAX_OWN_BOOKS) {
+          return null
+        }
+
         const book = await prisma.book.create({
           data: {
             title: title,
@@ -355,6 +442,12 @@ const xprisma = prisma.$extends({
       async create(user: ByncUser, description: string): Promise<AccountWithBalance | null> {
         if (!user.bookSelected) return null
 
+        const count = await prisma.account.count({ where: { bookId: user.bookSelected.id } })
+
+        if (count + 1 > MAX_ACCOUNTS) {
+          return null
+        }
+
         const account = await prisma.account.create({
           data: { description, bookId: user.bookSelected.id },
           include: accountInclude
@@ -387,27 +480,6 @@ const xprisma = prisma.$extends({
         return accounts
       }
     },
-    currency: {
-      async findOrCreate(user: ByncUser, accountId: string, symbol: string): Promise<CurrencyWithBalance | null> {
-        if (!user.bookSelected) return null
-
-        const exists = await prisma.currency.findFirst({
-          where: { AND: [{ accountId }, { symbol }, { account: { bookId: user.bookSelected.id } }] },
-          include: { account: true, balance: true }
-        })
-
-        if (!!exists) {
-          return exists
-        } else {
-          const newCurrency = await prisma.currency.create({
-            data: { symbol, accountId },
-            include: { account: true, balance: true }
-          })
-
-          return newCurrency
-        }
-      }
-    },
     transaction: {
       async create(user: ByncUser, data: TransactionCreate): Promise<TransactionWithAll | null> {
         if (!user.bookSelected) return null
@@ -423,7 +495,8 @@ const xprisma = prisma.$extends({
           include: transactionInclude
         })
 
-        await subPrisma.balance.create(user, newTransaction)
+        await yprisma.currency.findOrCreate(user, newTransaction.accountId, newTransaction.currency)
+        await yprisma.balance.create(user, newTransaction)
 
         return newTransaction
       },
@@ -444,6 +517,7 @@ const xprisma = prisma.$extends({
 
         const transaction = await prisma.transaction.findFirst({
           where: { AND: [{ id: id }, { account: { bookId: user.bookSelected.id } }] },
+          include: transactionInclude
         })
 
         if (!transaction) return null
@@ -454,6 +528,8 @@ const xprisma = prisma.$extends({
           include: transactionInclude
         })
 
+        await yprisma.balance.update(user, transaction, updatedTransaction)
+
         return updatedTransaction
       },
       async delete(user: ByncUser, id: string): Promise<boolean> {
@@ -461,9 +537,12 @@ const xprisma = prisma.$extends({
 
         const transaction = await prisma.transaction.findFirst({
           where: { AND: [{ id: id }, { account: { bookId: user.bookSelected.id } }] },
+          include: transactionInclude
         })
 
         if (!transaction) return false
+
+        await yprisma.balance.delete(user, transaction)
 
         await prisma.transaction.delete({
           where: { id }
@@ -475,6 +554,9 @@ const xprisma = prisma.$extends({
     category: {
       async create(user: ByncUser, description: string): Promise<Category | null> {
         if (!user.bookSelected) return null
+
+        const count = await prisma.category.count({ where: { AND: [{ bookId: user.bookSelected.id }, { type: 'CATEGORY' }] } })
+        if (count + 1 > MAX_CATEGORIES) return null
 
         const category = await prisma.category.create({
           data: { description, bookId: user.bookSelected.id, type: 'CATEGORY' },
@@ -515,6 +597,9 @@ const xprisma = prisma.$extends({
       async create(user: ByncUser, description: string): Promise<PaymentIncome | null> {
         if (!user.bookSelected) return null
 
+        const count = await prisma.category.count({ where: { AND: [{ bookId: user.bookSelected.id }, { type: 'PAYMENT' }] } })
+        if (count + 1 > MAX_PAYMENTS) return null
+
         const payment = await prisma.category.create({
           data: { description, bookId: user.bookSelected.id, type: 'PAYMENT' },
           include: paymentIncomeInclude
@@ -554,6 +639,9 @@ const xprisma = prisma.$extends({
       async create(user: ByncUser, description: string): Promise<PaymentIncome | null> {
         if (!user.bookSelected) return null
 
+        const count = await prisma.category.count({ where: { AND: [{ bookId: user.bookSelected.id }, { type: 'INCOME' }] } })
+        if (count + 1 > MAX_INCOMES) return null
+
         const income = await prisma.category.create({
           data: { description, bookId: user.bookSelected.id, type: 'INCOME' },
           include: paymentIncomeInclude
@@ -592,6 +680,10 @@ const xprisma = prisma.$extends({
     file: {
       async create(user: ByncUser, data: FileCreate): Promise<boolean> {
         if (!user.bookSelected) return false
+
+        const count = await prisma.file.count({ where: { transactionId: data.transactionId } })
+
+        if (count + 1 > MAX_FILES) return false
 
         try {
           await prisma.file.create({

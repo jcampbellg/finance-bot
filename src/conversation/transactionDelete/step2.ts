@@ -27,13 +27,6 @@ export default async function step2(params: ConversationProps) {
     return
   }
 
-  // Update the balance
-  const currency = await xprisma.currency.findOrCreate(user, transactionToDelete.accountId, transactionToDelete.currency)
-  if (currency) {
-    const sum = (transactionToDelete.type === 'EXPENSE' || transactionToDelete.type === 'PAYMENT') ? +transactionToDelete.amount : -transactionToDelete.amount
-    await xprisma.balance.fix(user, currency.id, sum)
-  }
-
   await bot.editMessageText('Tu transación ha sido eliminada', {
     chat_id: chatId,
     message_id: query.message.message_id,

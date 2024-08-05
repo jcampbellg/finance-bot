@@ -29,17 +29,6 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
       return
     }
 
-    const oldAmount = (transaction.type === 'EXPENSE' || transaction.type === 'PAYMENT') ? -transaction.amount : transaction.amount
-    const newAmount = (updateTransaction.type === 'EXPENSE' || updateTransaction.type === 'PAYMENT') ? -updateTransaction.amount : updateTransaction.amount
-
-    const diff = newAmount - oldAmount
-
-    // Update the balance
-    const currency = await xprisma.currency.findOrCreate(user, transaction.accountId, transaction.currency)
-    if (currency) {
-      await xprisma.balance.fix(user, currency.id, diff)
-    }
-
     await transactionViewMenuMessage(params, transaction.id)
   })
 

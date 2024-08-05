@@ -18,16 +18,16 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
         description
       }
     })
-  })
 
-  await xprisma.conversation.update(conversation.id, {
-    subSubject: 'accounts',
-  })
+    await xprisma.conversation.update(conversation.id, {
+      subSubject: 'accounts',
+    })
 
-  await accountsListMessage(params, {
-    text: `¡Gracias!\nAhora, ¿puedes decirme la cuenta a la que se aplica esta transacción?`,
-    callbackCreate: `account_create`,
-    callbackAccountPrefix: `account_select_`,
-    btn: 'end'
+    await accountsListMessage(params, {
+      text: `¡Gracias!\nAhora, ¿puedes decirme la cuenta a la que se aplica esta transacción?`,
+      callbackCreate: `account_create`,
+      callbackAccountPrefix: `account_select_`,
+      btn: 'end'
+    })
   })
 }

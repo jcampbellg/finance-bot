@@ -1,3 +1,4 @@
+import upsError from '@botMessage/errors/upsError'
 import endBtn from '@buttons/endBtn'
 import stringReply from '@conversationUtils/stringReply'
 import { ConversationProps } from '@customTypes/messageTypes'
@@ -12,6 +13,11 @@ export default async function step2(params: ConversationProps) {
 
   await stringReply(params, async (description) => {
     const newBook = await xprisma.book.create(user, description)
+
+    if (!newBook) {
+      upsError(params)
+      return
+    }
 
     xprisma.conversation.waiting(conversation.id)
 

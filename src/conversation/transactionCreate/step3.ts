@@ -75,7 +75,9 @@ export default async function step3(params: ConversationPropsWithBookSelected) {
     const currencies = account.currency.map((currency) => currency.symbol)
     const groupedcurrencies: string[][] = chunkIt(currencies).size(3)
 
-    await bot.sendMessage(chatId, `¿En qué moneda se realizará esta transacción?`, {
+    await bot.editMessageText(`¿En qué moneda se realizará esta transacción?`, {
+      chat_id: chatId,
+      message_id: query.message.message_id,
       reply_markup: {
         inline_keyboard: [
           ...groupedcurrencies.map((group) => group.map((currency) => ({
