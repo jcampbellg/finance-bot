@@ -45,7 +45,7 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
   const isNormal = t.type === 'EXPENSE' || t.type === 'DEPOSIT'
   const isIncome = t.type === 'INCOME'
 
-  const spanishDate = dayjs(t.createdAt).tz(user.timezone).format('dddd LL hh:mma')
+  const spanishDate = dayjs(isNormal ? t.paidAt : t.createdAt).tz(user.timezone).format('dddd LL hh:mma')
   const categoryLabel = isPayment ? 'Pago Fijo:' : 'Categoría:'
   const category = t.category ? t.category.description : 'Sin Categoría'
 

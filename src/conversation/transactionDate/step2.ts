@@ -32,7 +32,7 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
     const newDate = dayjs.tz(newDateInput, user.timezone)
 
     await xprisma.transaction.update(user, transactionId, {
-      [conversation.subject === 'transaction_date' ? 'createdAt' : 'paidAt']: newDate.format()
+      paidAt: newDate.format()
     })
 
     await transactionViewMenuMessage(params, transactionId)
