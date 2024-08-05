@@ -5,7 +5,7 @@ import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 
 export default async function step2(params: ConversationPropsWithBookSelected) {
-  const { ctx, conversation, user, bot } = params
+  const { ctx, conversation, user } = params
 
   if (!ctx) {
     throw new Error('ctx is required')

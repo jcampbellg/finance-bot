@@ -71,7 +71,7 @@ model Category {
   transactions Transaction[] @relation(name: "TransactionWithCategory")
   bookId       String
   book         Book          @relation(name: "CategoryInBook", fields: [bookId], references: [id])
-  type         CategoryType  @default(TRANSACTION)
+  type         CategoryType  @default(CATEGORY)
   limits       Limit[]       @relation(name: "CategoryToPayment")
 }
 
@@ -214,7 +214,7 @@ model Transfer {
 
 enum CategoryType {
   PAYMENT
-  TRANSACTION
+  CATEGORY
   INCOME
 }
 

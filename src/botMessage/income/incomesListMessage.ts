@@ -6,14 +6,14 @@ import { PaymentIncome } from '@customTypes/prismaTypes'
 import endBtn from '@buttons/endBtn'
 import menuBtn from '@buttons/menuBtn'
 
-type AccountProps = {
+type IncomesListProps = {
   callbackCreate: string
   callbackAccountPrefix: string
   text: string,
   btn: 'end' | 'menu'
 }
 
-export default async function incomesListMessage(params: ConversationPropsWithBookSelected, { callbackCreate, callbackAccountPrefix, text: botText, btn }: AccountProps) {
+export default async function incomesListMessage(params: ConversationPropsWithBookSelected, { callbackCreate, callbackAccountPrefix, text: botText, btn }: IncomesListProps) {
   const { bot, query, chatId, user } = params
 
   const incomes = await xprisma.income.findMany(user)

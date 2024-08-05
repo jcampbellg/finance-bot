@@ -94,6 +94,14 @@ export type PaymentIncome = Prisma.CategoryGetPayload<{
   }
 }>
 
+export type Category = Prisma.CategoryGetPayload<{
+  include: {
+    limits: true,
+    transactions: true,
+    split: { include: { transaction: true } }
+  }
+}>
+
 export type CurrencyWithBalance = Prisma.CurrencyGetPayload<{
   include: {
     balance: true,
