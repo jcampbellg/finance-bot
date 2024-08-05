@@ -7,6 +7,7 @@ import transactionRenameText from '@conversation/transactionRename/transactionRe
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import transactionFileText from '@conversation/transactionFile/transactionFileText'
 import transactionTagText from '@conversation/transactionTag/transactionTagText'
+import transactionCategoryText from '@conversation/transactionCategory/transactionCategoryText'
 
 export default async function transactionHandleMessageText(params: ConversationPropsWithBookSelected): Promise<boolean> {
   const { ctx, conversation } = params
@@ -52,6 +53,11 @@ export default async function transactionHandleMessageText(params: ConversationP
 
   if (conversation.subject === 'transaction_tag') {
     await transactionTagText(params)
+    return true
+  }
+
+  if (conversation.subject === 'transaction_category') {
+    await transactionCategoryText(params)
     return true
   }
 
