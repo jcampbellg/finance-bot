@@ -36,6 +36,41 @@ const paymentIncomeInclude = { limits: true, transactions: true }
 
 const categoryInclude = { limits: true, transactions: true, split: { include: { transaction: true } } }
 
+const subPrisma = prisma.$extends({
+  model: {
+    balance: {
+      async create(user: ByncUser, transaction: TransactionWithAll): Promise<boolean> {
+        if (!user.bookSelected) return false
+
+        const currency = await prisma.currency.findFirst({
+          where: { AND: [{ symbol: transaction.currency }, { account: { id: transaction.accountId } }] }
+        })
+
+        if (!currency) return false
+
+        const lastBalance = await prisma.balance.findFirst({
+          where: { currencyId: currency.id },
+          include: { currency: { include: { account: true } } },
+          orderBy: { createdAt: 'desc' }
+        })
+
+        const lastAmount = !!lastBalance ? lastBalance.amount : 0
+        const sum = (transaction.type === 'EXPENSE' || transaction.type === 'PAYMENT') ? -transaction.amount : transaction.amount
+
+        await prisma.balance.create({
+          data: {
+            amount: lastAmount + sum,
+            currencyId: currency.id,
+            transactionId: transaction.id
+          }
+        })
+
+        return true
+      }
+    },
+  }
+})
+
 const xprisma = prisma.$extends({
   model: {
     user: {
@@ -373,61 +408,6 @@ const xprisma = prisma.$extends({
         }
       }
     },
-    balance: {
-      async sum(user: ByncUser, currencyId: string, transactionId: string): Promise<boolean> {
-        if (!user.bookSelected) return false
-
-        const lastBalance = await prisma.balance.findFirst({
-          where: { currencyId },
-          include: { currency: { include: { account: true } } },
-          orderBy: { createdAt: 'desc' }
-        })
-
-        if (lastBalance && lastBalance.currency.account.bookId !== user.bookSelected.id) return false
-
-        const transaction = await prisma.transaction.findFirst({
-          where: { AND: [{ id: transactionId }, { account: { currency: { some: { id: currencyId } } } }] }
-        })
-
-        if (!transaction) return false
-
-        const lastAmount = !!lastBalance ? lastBalance.amount : 0
-        const sum = (transaction.type === 'EXPENSE' || transaction.type === 'PAYMENT') ? -transaction.amount : transaction.amount
-
-        await prisma.balance.create({
-          data: {
-            amount: lastAmount + sum,
-            currencyId,
-            transactionId
-          }
-        })
-
-        return true
-      },
-      async fix(user: ByncUser, currencyId: string, amountToFix: number): Promise<boolean> {
-        if (!user.bookSelected) return false
-
-        const lastBalance = await prisma.balance.findFirst({
-          where: { currencyId },
-          include: { currency: { include: { account: true } } },
-          orderBy: { createdAt: 'desc' }
-        })
-
-        if (lastBalance && lastBalance.currency.account.bookId !== user.bookSelected.id) return false
-
-        const lastAmount = !!lastBalance ? lastBalance.amount : 0
-
-        await prisma.balance.create({
-          data: {
-            amount: lastAmount + amountToFix,
-            currencyId,
-            isFromUpdateOrDelete: true
-          }
-        })
-
-        return true
-      }
-    },
     transaction: {
       async create(user: ByncUser, data: TransactionCreate): Promise<TransactionWithAll | null> {
         if (!user.bookSelected) return null
@@ -442,6 +422,8 @@ const xprisma = prisma.$extends({
           data: data,
           include: transactionInclude
         })
+
+        await subPrisma.balance.create(user, newTransaction)
 
         return newTransaction
       },
@@ -523,7 +505,7 @@ const xprisma = prisma.$extends({
 
         const category = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: 'CATEGORY' }] },
-          include: { ...categoryInclude, transactions: { where: { createdAt: { gte: monthTZStart.format() } } } }
+          include: { ...categoryInclude, transactions: { where: { paidAt: { gte: monthTZStart.format() } } } }
         })
 
         return category
@@ -562,7 +544,7 @@ const xprisma = prisma.$extends({
 
         const payments = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: 'PAYMENT' }] },
-          include: { ...paymentIncomeInclude, transactions: { where: { createdAt: { gte: monthTZStart.format() } } } }
+          include: { ...paymentIncomeInclude, transactions: { where: { paidAt: { gte: monthTZStart.format() } } } }
         })
 
         return payments
@@ -601,7 +583,7 @@ const xprisma = prisma.$extends({
 
         const incomes = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: 'INCOME' }] },
-          include: { ...paymentIncomeInclude, transactions: { where: { createdAt: { gte: monthTZStart.format() } } } }
+          include: { ...paymentIncomeInclude, transactions: { where: { paidAt: { gte: monthTZStart.format() } } } }
         })
 
         return incomes

@@ -26,20 +26,13 @@ export default async function step5(params: ConversationPropsWithBookSelected) {
       amount: amount,
       description: conversation.edit.description,
       categoryId: conversation.edit.categoryId || null,
-      type: editType
+      type: editType,
+      ...((editType === 'PAYMENT' || editType === 'INCOME') ? { paidAt: null } : {})
     })
 
     if (!newTransaction) {
       await upsError(params)
       return
-    }
-
-    // Update the balance
-    if (newTransaction.type === 'EXPENSE' || newTransaction.type === 'DEPOSIT') {
-      const currency = await xprisma.currency.findOrCreate(user, conversation.edit.accountId, conversation.edit.currency)
-      if (currency) {
-        await xprisma.balance.sum(user, currency.id, newTransaction.id)
-      }
     }
 
     await transactionViewMenuMessage(params, newTransaction.id)

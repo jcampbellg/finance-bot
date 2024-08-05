@@ -16,22 +16,12 @@ export default async function transactionPaidCancelMessage(params: ConversationP
   }
 
   const transaction = await xprisma.transaction.update(user, transactionId, {
-    paidAt: null,
-    balance: {
-      disconnect: true
-    }
+    paidAt: null
   })
 
   if (!transaction || transaction.type === 'DEPOSIT' || transaction.type === 'EXPENSE') {
     await noTransactionError(params)
     return
-  }
-
-  // Update the balance
-  const currency = await xprisma.currency.findOrCreate(user, transaction.accountId, transaction.currency)
-  if (currency) {
-    const sum = transaction.type === 'PAYMENT' ? +transaction.amount : -transaction.amount
-    await xprisma.balance.fix(user, currency.id, sum)
   }
 
   await botTransaction(params, transaction)

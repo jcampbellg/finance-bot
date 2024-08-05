@@ -87,7 +87,7 @@ model Transaction {
   account            Account             @relation(name: "TransactionWithAccount", fields: [accountId], references: [id])
   accountId          String
   groupNotifications GroupNotification[] @relation(name: "TransactionsWithGroupNotification")
-  paidAt             DateTime?
+  paidAt             DateTime?           @default(now())
   tags               String[]
   splits             Split[]             @relation(name: "splitToTransaction")
   category           Category?           @relation(name: "TransactionWithCategory", fields: [categoryId], references: [id])
