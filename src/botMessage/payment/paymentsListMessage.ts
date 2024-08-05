@@ -2,7 +2,7 @@ import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 import TelegramBot from 'node-telegram-bot-api'
 import { chunkIt } from '@array-utils/chunk-it'
-import { Payment } from '@customTypes/prismaTypes'
+import { PaymentIncome } from '@customTypes/prismaTypes'
 import endBtn from '@buttons/endBtn'
 import menuBtn from '@buttons/menuBtn'
 
@@ -11,20 +11,19 @@ type AccountProps = {
   callbackAccountPrefix: string
   text: string,
   btn: 'end' | 'menu'
-  filterNotPaid?: boolean
 }
 
-export default async function paymentsListMessage(params: ConversationPropsWithBookSelected, { filterNotPaid, callbackCreate, callbackAccountPrefix, text: botText, btn }: AccountProps) {
+export default async function paymentsListMessage(params: ConversationPropsWithBookSelected, { callbackCreate, callbackAccountPrefix, text: botText, btn }: AccountProps) {
   const { bot, query, chatId, user } = params
 
-  const payments = await xprisma.payment.findMany(user, filterNotPaid)
-  const groupedPayments: Payment[][] = chunkIt(payments).size(2)
+  const payments = await xprisma.payment.findMany(user)
+  const groupedPayments: PaymentIncome[][] = chunkIt(payments).size(2)
 
   const keyboard: TelegramBot.InlineKeyboardButton[][] = [
     [{ text: '💵 Crear Pago Fijo', callback_data: callbackCreate }],
-    ...groupedPayments.map((group) => group.map((account) => ({
-      text: account.description,
-      callback_data: `${callbackAccountPrefix}${account.id}`
+    ...groupedPayments.map((group) => group.map((p) => ({
+      text: `${p.description}${!!p.transactions.length ? ` (${p.transactions.length} Pagos)` : ''}`,
+      callback_data: `${callbackAccountPrefix}${p.id}`
     }))),
     ...(btn === 'end' ? [endBtn] : [menuBtn])
   ]

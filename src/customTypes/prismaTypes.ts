@@ -67,7 +67,7 @@ export type TransactionWithAll = Prisma.TransactionGetPayload<{
   include: {
     account: { include: { currency: true } },
     category: true,
-    files: true,
+    files: { include: { items: true } },
     groupNotifications: true,
     splits: true,
     transferIn: true,
@@ -87,9 +87,10 @@ type FileCreateInput = Omit<Prisma.FileCreateInput, 'id'>
 type FileUncheckedCreateInput = Omit<Prisma.FileUncheckedCreateInput, 'id'>
 export type FileCreate = Prisma.XOR<FileCreateInput, FileUncheckedCreateInput>
 
-export type Payment = Prisma.CategoryGetPayload<{
+export type PaymentIncome = Prisma.CategoryGetPayload<{
   include: {
     limits: true,
+    transactions: true
   }
 }>
 

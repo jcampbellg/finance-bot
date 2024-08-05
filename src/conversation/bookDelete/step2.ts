@@ -1,5 +1,5 @@
 import upsError from '@botMessage/errors/upsError'
-import menuBtn from '@buttons/menuBtn'
+import menuMessage from '@botMessage/menuMessage'
 import { ConversationProps } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 
@@ -19,11 +19,12 @@ export default async function step2(params: ConversationProps) {
     return
   }
 
-  await bot.editMessageText('Tu libro ha sido eliminado', {
-    chat_id: chatId,
-    message_id: query.message.message_id,
-    reply_markup: {
-      inline_keyboard: [menuBtn]
-    }
+  await bot.answerCallbackQuery(query.id, {
+    text: 'Libro eliminado',
+    show_alert: true
   })
+
+  await bot.deleteMessage(chatId, query.message.message_id)
+
+  await menuMessage(params, true)
 }

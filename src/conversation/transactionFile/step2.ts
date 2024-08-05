@@ -4,6 +4,7 @@ import upsError from '@botMessage/errors/upsError'
 import transactionViewMenuMessage from '@botMessage/transaction/transactionViewMenuMessage'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import { $Enums } from '@prisma/client'
+import openAi from '@utils/openAi'
 import xprisma from '@utils/xprisma'
 
 export default async function step2(params: ConversationPropsWithBookSelected) {
@@ -35,10 +36,19 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
     return
   }
 
+  const items = fileType === 'PHOTO' ? await aiItems(fileId, params) : []
+
   const success = await xprisma.file.create(user, {
     fileId: fileId,
     fileType: fileType,
-    transactionId: transactionId
+    transactionId: transactionId,
+    items: {
+      createMany: {
+        data: items.map(item => ({
+          description: item,
+        }))
+      }
+    }
   })
 
   if (!success) {
@@ -47,4 +57,54 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
   }
 
   await transactionViewMenuMessage(params, transactionId)
+}
+
+async function aiItems(fileId: string, { bot }: ConversationPropsWithBookSelected) {
+  let items: string[] = []
+
+  try {
+    const fileUrl = await bot.getFileLink(fileId)
+
+    const aiTag = await openAi.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{
+        role: 'system',
+        content: 'The photo will be either a receipt or some bought items in the photo.',
+      }, {
+        role: 'system',
+        content: `If it's a photo of items, reply with a brief description of EACH item. Like: <Brand Name> Milk,`
+      }, {
+        role: 'system',
+        content: 'If its a receipt your job is to get the items in the reciept, do not get the prices or the total amount, just the items with the name of the product.',
+      }, {
+        role: 'system',
+        content: 'You will reply in json format like this: `{"items": ["item1", "item2", "item3"]}`',
+      }, {
+        role: 'system',
+        content: 'If no items are found, reply with `{"items": []}`',
+      }, {
+        role: 'user',
+        content: [{
+          type: 'image_url',
+          image_url: {
+            url: fileUrl,
+            detail: "high"
+          }
+        }]
+      }],
+      response_format: { type: 'json_object' },
+    })
+
+    if (!!aiTag.choices[0].message?.content) {
+      const stringReply = aiTag.choices[0].message.content
+      const jsonReply = JSON.parse(stringReply)
+      if (jsonReply.items) {
+        items = jsonReply.items
+      }
+    }
+  } catch (e) {
+    console.error(e)
+  }
+
+  return items
 }

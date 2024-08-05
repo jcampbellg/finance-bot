@@ -61,10 +61,12 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
     const file = files[i]
 
     const keyboard = [[{ text: '❌ Borrar', callback_data: `file_delete_${file.id}` }]]
-    const caption = t.description
+    const items = file.items.map(i => i.description).join('\n')
+    const caption = `<b>${t.description}</b>\n${items}`
 
     if (file.fileType === 'PHOTO') {
       await bot.sendPhoto(chatId, file.fileId, {
+        parse_mode: 'HTML',
         caption,
         reply_markup: {
           inline_keyboard: keyboard
@@ -72,6 +74,7 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
       })
     } else {
       await bot.sendDocument(chatId, file.fileId, {
+        parse_mode: 'HTML',
         caption,
         reply_markup: {
           inline_keyboard: keyboard

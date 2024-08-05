@@ -12,5 +12,10 @@ export default async function fileDeleteMessage(params: ConversationPropsWithBoo
 
   await xprisma.file.delete(fileId)
 
-  await bot.sendMessage(chatId, `Archivo eliminado`)
+  await bot.answerCallbackQuery(query.id, {
+    text: 'Archivo eliminado',
+    show_alert: true
+  })
+
+  await bot.deleteMessage(chatId, query.message.message_id)
 }

@@ -17,7 +17,6 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
     text: `Por favor, selecciona un ingreso de tu presupuesto.`,
     callbackCreate: `income_create`,
     callbackAccountPrefix: `income_select_`,
-    btn: 'end',
-    filterNotPaid: false
+    btn: 'end'
   })
 }

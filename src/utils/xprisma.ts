@@ -1,4 +1,4 @@
-import { AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, Payment, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
+import { AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
 import { PrismaClient } from '@prisma/client'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
@@ -25,14 +25,14 @@ const accountInclude = { currency: { include: { balance: true } } }
 const transactionInclude = {
   account: { include: { currency: true } },
   category: true,
-  files: true,
+  files: { include: { items: true } },
   groupNotifications: true,
   splits: true,
   transferIn: true,
   transferOut: true
 }
 
-const categoryInclude = { limits: true }
+const categoryInclude = { limits: true, transactions: true }
 
 const xprisma = prisma.$extends({
   model: {
@@ -489,7 +489,7 @@ const xprisma = prisma.$extends({
       },
     },
     payment: {
-      async create(user: ByncUser, description: string): Promise<Payment | null> {
+      async create(user: ByncUser, description: string): Promise<PaymentIncome | null> {
         if (!user.bookSelected) return null
 
         const payment = await prisma.category.create({
@@ -499,7 +499,7 @@ const xprisma = prisma.$extends({
 
         return payment
       },
-      async findUnique(user: ByncUser, id: string): Promise<Payment | null> {
+      async findUnique(user: ByncUser, id: string): Promise<PaymentIncome | null> {
         if (!user.bookSelected) return null
 
         const payment = await prisma.category.findUnique({
@@ -514,7 +514,7 @@ const xprisma = prisma.$extends({
 
         return payment
       },
-      async findMany(user: ByncUser, filterNotPaid: boolean = false): Promise<Payment[]> {
+      async findMany(user: ByncUser): Promise<PaymentIncome[]> {
         if (!user.bookSelected) return []
 
         const monthTZStart = dayjs().tz(user.timezone).startOf('month')
@@ -524,15 +524,11 @@ const xprisma = prisma.$extends({
           include: { limits: true, transactions: { where: { createdAt: { gte: monthTZStart.format() } } } }
         })
 
-        if (filterNotPaid) {
-          return payments.filter(payment => !payment.transactions.length)
-        }
-
         return payments
       }
     },
     income: {
-      async create(user: ByncUser, description: string): Promise<Payment | null> {
+      async create(user: ByncUser, description: string): Promise<PaymentIncome | null> {
         if (!user.bookSelected) return null
 
         const income = await prisma.category.create({
@@ -542,7 +538,7 @@ const xprisma = prisma.$extends({
 
         return income
       },
-      async findUnique(user: ByncUser, id: string): Promise<Payment | null> {
+      async findUnique(user: ByncUser, id: string): Promise<PaymentIncome | null> {
         if (!user.bookSelected) return null
 
         const income = await prisma.category.findUnique({
@@ -557,7 +553,7 @@ const xprisma = prisma.$extends({
 
         return income
       },
-      async findMany(user: ByncUser, filterNotPaid: boolean = false): Promise<Payment[]> {
+      async findMany(user: ByncUser): Promise<PaymentIncome[]> {
         if (!user.bookSelected) return []
 
         const monthTZStart = dayjs().tz(user.timezone).startOf('month')
@@ -566,10 +562,6 @@ const xprisma = prisma.$extends({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: 'INCOME' }] },
           include: { limits: true, transactions: { where: { createdAt: { gte: monthTZStart.format() } } } }
         })
-
-        if (filterNotPaid) {
-          return incomes.filter(income => !income.transactions.length)
-        }
 
         return incomes
       }
