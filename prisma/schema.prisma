@@ -76,7 +76,6 @@ model Category {
 }
 
 model Transaction {
-  balance            Balance[]           @relation(name: "TransactionToBalance")
   type               TransactionType     @default(EXPENSE)
   id                 String              @id @default(cuid())
   createdAt          DateTime            @default(now())
@@ -95,6 +94,7 @@ model Transaction {
   files              File[]              @relation(name: "TransactionWithFile")
   transferIn         Transfer?           @relation(name: "TransactionToTransfer")
   transferOut        Transfer?           @relation(name: "TransactionToTransfer1")
+  balance            Balance?            @relation(name: "TransactionToBalance")
 }
 
 model GroupNotification {
@@ -108,16 +108,15 @@ model GroupNotification {
 }
 
 model Balance {
-  currency             Currency     @relation(name: "AccountWithBalance", fields: [currencyId], references: [id])
-  currencyId           String
-  id                   String       @id @default(cuid())
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
-  amount               Float
-  transaction          Transaction? @relation(name: "TransactionToBalance", fields: [transactionId], references: [id])
-  transactionId        String?
-  isUserInput          Boolean?     @default(false)
-  isFromUpdateOrDelete Boolean?     @default(false)
+  currency      Currency     @relation(name: "AccountWithBalance", fields: [currencyId], references: [id])
+  currencyId    String
+  id            String       @id @default(cuid())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  amount        Float
+  isUserInput   Boolean?     @default(false)
+  transaction   Transaction? @relation(name: "TransactionToBalance", fields: [transactionId], references: [id])
+  transactionId String?      @unique
 }
 
 model GroupChat {

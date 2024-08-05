@@ -4,6 +4,7 @@ import menuBtn from '@buttons/menuBtn'
 import amountReply from '@conversation/utils/amountReply'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
+import dayjs from 'dayjs'
 
 export default async function step5(params: ConversationPropsWithBookSelected) {
   const { conversation, bot, chatId, user } = params
@@ -20,6 +21,8 @@ export default async function step5(params: ConversationPropsWithBookSelected) {
 
     const editType = conversation.edit.type
 
+    const newDate = dayjs().tz(user.timezone)
+
     const newTransaction = await xprisma.transaction.create(user, {
       accountId: conversation.edit.accountId,
       currency: conversation.edit.currency,
@@ -27,7 +30,7 @@ export default async function step5(params: ConversationPropsWithBookSelected) {
       description: conversation.edit.description,
       categoryId: conversation.edit.categoryId || null,
       type: editType,
-      ...((editType === 'PAYMENT' || editType === 'INCOME') ? { paidAt: null } : {})
+      paidAt: (editType === 'PAYMENT' || editType === 'INCOME') ? null : newDate.format()
     })
 
     if (!newTransaction) {

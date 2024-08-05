@@ -1,7 +1,7 @@
 import { $Enums } from '@prisma/client'
 
 export const MAX_OWN_BOOKS = 5
-export const MAX_ACCOUNTS = 5
+export const MAX_ACCOUNTS = 6
 export const MAX_FILES = 3
 export const MAX_INCOMES = 5
 export const MAX_PAYMENTS = 50

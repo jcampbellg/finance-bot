@@ -43,6 +43,8 @@ const yprisma = prisma.$extends({
       async create(user: ByncUser, transaction: TransactionWithAll): Promise<boolean> {
         if (!user.bookSelected) return false
 
+        if (transaction.paidAt === null) return false
+
         const currency = await prisma.currency.findFirst({
           where: { AND: [{ symbol: transaction.currency }, { account: { id: transaction.accountId } }] }
         })
@@ -527,6 +529,16 @@ const xprisma = prisma.$extends({
           data: data,
           include: transactionInclude
         })
+
+        if (transaction.paidAt === null && updatedTransaction.paidAt !== null) {
+          // Create balance
+          await yprisma.balance.create(user, transaction)
+        }
+
+        if (updatedTransaction.paidAt === null && transaction.paidAt !== null) {
+          // Delete balance
+          await yprisma.balance.delete(user, updatedTransaction)
+        }
 
         await yprisma.balance.update(user, transaction, updatedTransaction)
 
