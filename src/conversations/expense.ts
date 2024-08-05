@@ -402,6 +402,7 @@ export async function expenseOnText({ bot, msg }: MsgProps) {
                 type: 'image_url',
                 image_url: {
                   url: fileUrl,
+                  detail: 'high'
                 }
               }]
             }],
