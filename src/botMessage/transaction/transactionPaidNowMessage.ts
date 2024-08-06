@@ -31,7 +31,7 @@ export default async function transactionPaidNowMessage(params: ConversationProp
     paidAt: newDate.format()
   })
 
-  if (!transaction || transaction.type === 'DEPOSIT' || transaction.type === 'EXPENSE') {
+  if (!transaction || (transaction.type !== 'PAYMENT' && transaction.type !== 'INCOME')) {
     await noTransactionError(params)
     return
   }

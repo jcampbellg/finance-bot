@@ -19,7 +19,7 @@ export default async function transactionPaidCancelMessage(params: ConversationP
     paidAt: null
   })
 
-  if (!transaction || transaction.type === 'DEPOSIT' || transaction.type === 'EXPENSE') {
+  if (!transaction || (transaction.type !== 'PAYMENT' && transaction.type !== 'INCOME')) {
     await noTransactionError(params)
     return
   }

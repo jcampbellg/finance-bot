@@ -12,4 +12,6 @@ export const TRANSACTION_TYPE: Record<$Enums.TransactionType, string> = {
   'EXPENSE': '🔴 Gasto',
   'INCOME': '🤑 Ingreso',
   'PAYMENT': '💵 Pago Fijo',
+  'TRANSFER_IN': '🟢 Transferencia',
+  'TRANSFER_OUT': '🔴 Transferencia'
 }

@@ -91,8 +91,8 @@ model Transaction {
   category           Category?           @relation(name: "TransactionWithCategory", fields: [categoryId], references: [id])
   categoryId         String?
   files              File[]              @relation(name: "TransactionWithFile")
-  transferIn         Transfer?           @relation(name: "TransactionToTransfer")
-  transferOut        Transfer?           @relation(name: "TransactionToTransfer1")
+  transferIn         Transfer?           @relation(name: "TransferOut")
+  transferOut        Transfer?           @relation(name: "TransferIn")
   splits             Split?              @relation(name: "SplitParents")
   splitId            String?
   parentSplit        Split?              @relation(name: "SplitChildrens", fields: [splitId], references: [id])
@@ -194,10 +194,10 @@ model Transfer {
   id               String       @id @default(cuid())
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  transactionIn    Transaction? @relation(name: "TransactionToTransfer", fields: [transactionInId], references: [id])
-  transactionInId  String?      @unique
-  transactionOut   Transaction? @relation(name: "TransactionToTransfer1", fields: [transactionOutId], references: [id])
+  out              Transaction? @relation(name: "TransferOut", fields: [transactionOutId], references: [id])
   transactionOutId String?      @unique
+  in               Transaction? @relation(name: "TransferIn", fields: [transactionInId], references: [id])
+  transactionInId  String?      @unique
 }
 
 model Split {
@@ -220,6 +220,8 @@ enum TransactionType {
   DEPOSIT
   INCOME
   PAYMENT
+  TRANSFER_IN
+  TRANSFER_OUT
 }
 
 enum FileType {

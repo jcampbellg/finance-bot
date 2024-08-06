@@ -59,7 +59,7 @@ const yprisma = prisma.$extends({
         })
 
         const lastAmount = !!lastBalance ? lastBalance.amount : 0
-        const sum = (transaction.type === 'EXPENSE' || transaction.type === 'PAYMENT') ? -transaction.amount : transaction.amount
+        const sum = (transaction.type === 'EXPENSE' || transaction.type === 'PAYMENT' || transaction.type === 'TRANSFER_OUT') ? -transaction.amount : transaction.amount
 
         await prisma.balance.create({
           data: {
@@ -86,8 +86,8 @@ const yprisma = prisma.$extends({
 
         if (!balance) return false
 
-        const oldValue = (oldTransaction.type === 'EXPENSE' || oldTransaction.type === 'PAYMENT') ? -oldTransaction.amount : oldTransaction.amount
-        const newValue = (newTransaction.type === 'EXPENSE' || newTransaction.type === 'PAYMENT') ? -newTransaction.amount : newTransaction.amount
+        const oldValue = (oldTransaction.type === 'EXPENSE' || oldTransaction.type === 'PAYMENT' || oldTransaction.type === 'TRANSFER_OUT') ? -oldTransaction.amount : oldTransaction.amount
+        const newValue = (newTransaction.type === 'EXPENSE' || newTransaction.type === 'PAYMENT' || newTransaction.type === 'TRANSFER_OUT') ? -newTransaction.amount : newTransaction.amount
 
         const sum = newValue - oldValue
 
@@ -115,7 +115,7 @@ const yprisma = prisma.$extends({
 
         if (!balance) return false
 
-        const increment = (oldTransaction.type === 'EXPENSE' || oldTransaction.type === 'PAYMENT') ? oldTransaction.amount : -oldTransaction.amount
+        const increment = (oldTransaction.type === 'EXPENSE' || oldTransaction.type === 'PAYMENT' || oldTransaction.type === 'TRANSFER_OUT') ? oldTransaction.amount : -oldTransaction.amount
 
         await prisma.balance.updateMany({
           where: { createdAt: { gte: balance.createdAt }, currencyId: currency.id },
@@ -403,7 +403,7 @@ const xprisma = prisma.$extends({
         if (isOwner) {
           await prisma.split.deleteMany({ where: { parent: { account: { bookId: id } } } })
           await prisma.file.deleteMany({ where: { transaction: { account: { bookId: id } } } })
-          await prisma.transfer.deleteMany({ where: { OR: [{ transactionOut: { account: { bookId: id } } }, { transactionIn: { account: { bookId: id } } }] } })
+          await prisma.transfer.deleteMany({ where: { OR: [{ out: { account: { bookId: id } } }, { in: { account: { bookId: id } } }] } })
           await prisma.item.deleteMany({ where: { file: { transaction: { account: { bookId: id } } } } })
           await prisma.groupNotification.deleteMany({ where: { transaction: { account: { bookId: id } } } })
           await prisma.transaction.deleteMany({ where: { account: { bookId: id } } })

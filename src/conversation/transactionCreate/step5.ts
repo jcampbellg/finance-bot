@@ -5,6 +5,15 @@ import amountReply from '@conversation/utils/amountReply'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 import dayjs from 'dayjs'
+import 'dayjs/locale/es'
+import timezone from 'dayjs/plugin/timezone'
+import utc from 'dayjs/plugin/utc'
+import LocalizedFormat from 'dayjs/plugin/localizedFormat'
+
+dayjs.locale('es')
+dayjs.extend(utc)
+dayjs.extend(timezone)
+dayjs.extend(LocalizedFormat)
 
 export default async function step5(params: ConversationPropsWithBookSelected) {
   const { conversation, bot, chatId, user } = params

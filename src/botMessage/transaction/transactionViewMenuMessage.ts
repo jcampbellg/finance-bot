@@ -47,17 +47,21 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
   const isIncome = t.type === 'INCOME'
   const isExpense = t.type === 'EXPENSE'
 
+  const isTransfer = !!t.transferIn || !!t.transferOut
+
   const spanishDate = dayjs(isNormal ? t.paidAt : t.createdAt).tz(user.timezone).format('dddd LL hh:mma')
   const categoryLabel = isPayment ? 'Pago Fijo:' : 'Categoría:'
   const category = t.category ? t.category.description : 'Sin Categoría'
 
-  const amount = numeral(t.amount).format('0,0.00') + ' ' + t.currency + ` [${TRANSACTION_TYPE[t.type]}]`
+  const amount = numeral(t.amount).format('0,0.00') + ' ' + t.currency
 
   const paidAt = t.paidAt ? dayjs(t.paidAt).tz(user.timezone).format('dddd LL hh:mma') : 'SIN PAGAR'
 
   const isPaidLabel = (isPayment || isIncome) ? `\n<b>Fecha Pagada:</b> ${paidAt}` : ''
 
   const tags = t.tags.length > 0 ? `\n<b>Etiquetas:</b> ${t.tags.map(t => t).join(', ')}` : ''
+
+  const transferBtn = isTransfer ? [[{ text: `${!!t.transferIn ? '🟢 Ver Origen' : '🔴 Ver Destino'}`, callback_data: `transaction_view_${t.transferIn?.transactionInId || t.transferOut?.transactionOutId}` }]] : []
 
   const files = t.files
 
@@ -95,7 +99,7 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
 
   const canAttachFiles = MAX_FILES > t.files.length
 
-  await bot.sendMessage(chatId, `Editando Transacción\n\n<b>Descripción:</b> ${t.description}\n<b>Monto:</b> ${amount}\n<b>Fecha:</b> ${spanishDate}\n<b>Cuenta:</b> ${t.account.description}\n<b>${categoryLabel}</b> ${category}${isPaidLabel}${tags}`, {
+  await bot.sendMessage(chatId, `Editando ${TRANSACTION_TYPE[t.type]}\n\n<b>Descripción:</b> ${t.description}\n<b>Monto:</b> ${amount}\n<b>Fecha:</b> ${spanishDate}\n<b>Cuenta:</b> ${t.account.description}\n<b>${categoryLabel}</b> ${category}${isPaidLabel}${tags}`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
@@ -105,8 +109,10 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
         ...((isPayment || isIncome) ? (!t.paidAt ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_paid_now_${t.id}` }]] : [[{ text: `❌ Marcar como No Pagado`, callback_data: `transaction_paid_cancel_${t.id}` }]]) : []),
         ...(((isPayment || isIncome) && t.paidAt) ? [[{ text: '📅 Cambiar Fecha de Pago', callback_data: `transaction_paid_date_${t.id}` }]] : []),
         [{ text: '💵 Cambiar Monto', callback_data: `transaction_amount_${t.id}` }, ...(canAttachFiles ? [{ text: `📎 Adjuntar${t.files.length > 0 ? ' otra' : ''}`, callback_data: `transaction_file_${t.id}` }] : [])],
+        ...(((isNormal || isTransfer) && !!t.categoryId) ? [[{ text: 'Ver Categoría', callback_data: `category_view_${t.categoryId}` }]] : []),
         ...parentBtn,
         ...splitBtns,
+        ...transferBtn,
         menuBtn
       ]
     }

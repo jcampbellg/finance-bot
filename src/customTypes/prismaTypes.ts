@@ -10,6 +10,12 @@ export type Edit = {
   transactionId?: string
   type?: $Enums.TransactionType
   objectId?: string
+  accountAId?: string
+  accountBId?: string
+  currencyA?: string
+  currencyB?: string
+  amountA?: number
+  amountB?: number
 }
 
 export type ConversationWithEdit = Omit<Conversation, 'edit'> & { edit: Edit }
