@@ -1,5 +1,6 @@
 import menuBtn from '@buttons/menuBtn'
 import { ConversationProps } from '@customTypes/messageTypes'
+import { MAX_OWN_BOOKS } from '@utils/constant'
 import xprisma from '@utils/xprisma'
 import TelegramBot from 'node-telegram-bot-api'
 
@@ -12,8 +13,12 @@ export default async function booksMenuMessage(params: ConversationProps) {
 
   const msg = `📚 Por favor, selecciona el libro que te gustaría ver.`
 
+  const ownBooks = await xprisma.book.countOwn(user)
+
+  const canCreate = MAX_OWN_BOOKS > ownBooks
+
   const buttons: TelegramBot.InlineKeyboardButton[][] = [
-    [{ text: '📚 Crear Libro', callback_data: 'book_create' }, { text: '📚 Añadir Libro', callback_data: 'book_add' }],
+    [...(canCreate ? [{ text: '📚 Crear Libro', callback_data: 'book_create' }] : []), { text: '📚 Añadir Libro', callback_data: 'book_add' }],
     books.map(book => ({ text: book.title, callback_data: `book_view_${book.id}` })),
     menuBtn
   ]

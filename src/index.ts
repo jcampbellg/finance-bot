@@ -1,3 +1,4 @@
+import appLimitMessage from '@botMessage/appLimitMessage'
 import bookAddMessage from '@botMessage/book/bookAddMessage'
 import bookSelectMessage from '@botMessage/book/bookSelectMessage'
 import booksMenuMessage from '@botMessage/book/booksMenuMessage'
@@ -93,6 +94,11 @@ bot.on('callback_query', async (query) => {
   //#endregion
 
   //#region Menus
+  if (query.data === 'app_limit') {
+    await appLimitMessage(msg)
+    return
+  }
+
   if (query.data === 'menu' || query.data === 'end') {
     await menuMessage(msg, query.data === 'end')
     return

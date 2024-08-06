@@ -5,6 +5,7 @@ import { chunkIt } from '@array-utils/chunk-it'
 import { Category } from '@customTypes/prismaTypes'
 import endBtn from '@buttons/endBtn'
 import menuBtn from '@buttons/menuBtn'
+import { MAX_CATEGORIES } from '@utils/constant'
 
 type CategoriesListProps = {
   callbackCreate: string
@@ -19,8 +20,10 @@ export default async function categoriesListMessage(params: ConversationPropsWit
   const categories = await xprisma.category.findMany(user)
   const groupedCategories: Category[][] = chunkIt(categories).size(2)
 
+  const canCreate = MAX_CATEGORIES > categories.length
+
   const keyboard: TelegramBot.InlineKeyboardButton[][] = [
-    [{ text: '💵 Crear Categoria', callback_data: callbackCreate }],
+    ...(canCreate ? [[{ text: '🗂️ Crear Categoria', callback_data: callbackCreate }]] : []),
     ...groupedCategories.map((group) => group.map((c) => ({
       text: `${c.description}`,
       callback_data: `${callbackPrefix}${c.id}`

@@ -262,6 +262,11 @@ const xprisma = prisma.$extends({
       }
     },
     book: {
+      countOwn: async (user: ByncUser): Promise<number> => {
+        return await prisma.book.count({
+          where: { ownerId: user.id }
+        })
+      },
       async create(user: ByncUser, title: string): Promise<BookWithOwner | null> {
         const count = await prisma.book.count({
           where: { ownerId: user.id }
@@ -442,6 +447,11 @@ const xprisma = prisma.$extends({
       }
     },
     account: {
+      async count(user: ByncUser): Promise<number> {
+        if (!user.bookSelected) return 0
+
+        return await prisma.account.count({ where: { bookId: user.bookSelected.id } })
+      },
       async create(user: ByncUser, description: string): Promise<AccountWithBalance | null> {
         if (!user.bookSelected) return null
 
@@ -595,6 +605,11 @@ const xprisma = prisma.$extends({
       },
     },
     category: {
+      async count(user: ByncUser): Promise<number> {
+        if (!user.bookSelected) return 0
+
+        return await prisma.category.count({ where: { AND: [{ bookId: user.bookSelected.id }, { type: 'CATEGORY' }] } })
+      },
       async create(user: ByncUser, description: string): Promise<Category | null> {
         if (!user.bookSelected) return null
 
@@ -628,7 +643,6 @@ const xprisma = prisma.$extends({
 
         const monthTZStart = dayjs().tz(user.timezone).startOf('month')
 
-        console.log('findMany')
         const category = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: 'CATEGORY' }] },
           include: { ...categoryInclude, transactions: { where: { paidAt: { gte: monthTZStart.format() } } } }
@@ -638,6 +652,11 @@ const xprisma = prisma.$extends({
       }
     },
     payment: {
+      async count(user: ByncUser): Promise<number> {
+        if (!user.bookSelected) return 0
+
+        return await prisma.category.count({ where: { AND: [{ bookId: user.bookSelected.id }, { type: 'PAYMENT' }] } })
+      },
       async create(user: ByncUser, description: string): Promise<PaymentIncome | null> {
         if (!user.bookSelected) return null
 
@@ -680,6 +699,11 @@ const xprisma = prisma.$extends({
       }
     },
     income: {
+      async count(user: ByncUser): Promise<number> {
+        if (!user.bookSelected) return 0
+
+        return await prisma.category.count({ where: { AND: [{ bookId: user.bookSelected.id }, { type: 'INCOME' }] } })
+      },
       async create(user: ByncUser, description: string): Promise<PaymentIncome | null> {
         if (!user.bookSelected) return null
 
@@ -722,6 +746,11 @@ const xprisma = prisma.$extends({
       }
     },
     file: {
+      async count(user: ByncUser, transactionId: string): Promise<number> {
+        if (!user.bookSelected) return 0
+
+        return await prisma.file.count({ where: { transactionId: transactionId } })
+      },
       async create(user: ByncUser, data: FileCreate): Promise<boolean> {
         if (!user.bookSelected) return false
 
@@ -738,7 +767,7 @@ const xprisma = prisma.$extends({
           return false
         }
       },
-      delete: async (id: string) => {
+      async delete(id: string) {
         try {
           await prisma.file.delete({ where: { id } })
         } catch (error) {

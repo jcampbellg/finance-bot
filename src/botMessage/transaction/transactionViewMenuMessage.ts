@@ -9,7 +9,7 @@ import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { TransactionWithAll } from '@customTypes/prismaTypes'
 import menuBtn from '@buttons/menuBtn'
 import numeral from 'numeral'
-import { TRANSACTION_TYPE } from '@utils/constant'
+import { MAX_FILES, TRANSACTION_TYPE } from '@utils/constant'
 import TelegramBot from 'node-telegram-bot-api'
 
 dayjs.locale('es')
@@ -93,7 +93,7 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
 
   const parentBtn: TelegramBot.InlineKeyboardButton[][] = !!t.parentSplit ? [[{ text: `👈 Ver ${t.parentSplit.parent.description}`, callback_data: `transaction_view_${t.parentSplit.parent.id}` }]] : []
 
-  const splitLabel = (!!splitBtns.length || !!parentBtn.length) ? [[{ text: '✂️ Divisiones:', callback_data: `transaction_split_${t.id}` }]] : []
+  const canAttachFiles = MAX_FILES > t.files.length
 
   await bot.sendMessage(chatId, `Editando Transacción\n\n<b>Descripción:</b> ${t.description}\n<b>Monto:</b> ${amount}\n<b>Fecha:</b> ${spanishDate}\n<b>Cuenta:</b> ${t.account.description}\n<b>${categoryLabel}</b> ${category}${isPaidLabel}${tags}`, {
     parse_mode: 'HTML',
@@ -104,8 +104,7 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
         [{ text: '📅 Cambiar Fecha', callback_data: `transaction_date_${t.id}` }],
         ...((isPayment || isIncome) ? (!t.paidAt ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_paid_now_${t.id}` }]] : [[{ text: `❌ Marcar como No Pagado`, callback_data: `transaction_paid_cancel_${t.id}` }]]) : []),
         ...(((isPayment || isIncome) && t.paidAt) ? [[{ text: '📅 Cambiar Fecha de Pago', callback_data: `transaction_paid_date_${t.id}` }]] : []),
-        [{ text: '💵 Cambiar Monto', callback_data: `transaction_amount_${t.id}` }, { text: `📎 Adjuntar${t.files.length > 0 ? ' otra' : ''}`, callback_data: `transaction_file_${t.id}` }],
-        ...splitLabel,
+        [{ text: '💵 Cambiar Monto', callback_data: `transaction_amount_${t.id}` }, ...(canAttachFiles ? [{ text: `📎 Adjuntar${t.files.length > 0 ? ' otra' : ''}`, callback_data: `transaction_file_${t.id}` }] : [])],
         ...parentBtn,
         ...splitBtns,
         menuBtn

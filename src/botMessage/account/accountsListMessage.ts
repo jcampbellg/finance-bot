@@ -5,6 +5,7 @@ import { chunkIt } from '@array-utils/chunk-it'
 import { AccountWithBalance } from '@customTypes/prismaTypes'
 import endBtn from '@buttons/endBtn'
 import menuBtn from '@buttons/menuBtn'
+import { MAX_ACCOUNTS } from '@utils/constant'
 
 type AccountsListProps = {
   callbackCreate: string
@@ -19,8 +20,10 @@ export default async function accountsListMessage(params: ConversationPropsWithB
   const accounts = await xprisma.account.findMany(user)
   const groupedAccounts: AccountWithBalance[][] = chunkIt(accounts).size(3)
 
+  const canCreate = MAX_ACCOUNTS > accounts.length
+
   const keyboard: TelegramBot.InlineKeyboardButton[][] = [
-    [{ text: '🏦 Crear Cuenta', callback_data: callbackCreate }],
+    ...(canCreate ? [[{ text: '🏦 Crear Cuenta', callback_data: callbackCreate }]] : []),
     ...groupedAccounts.map((group) => group.map((account) => ({
       text: account.description,
       callback_data: `${callbackPrefix}${account.id}`

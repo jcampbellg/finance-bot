@@ -5,6 +5,7 @@ import { chunkIt } from '@array-utils/chunk-it'
 import { PaymentIncome } from '@customTypes/prismaTypes'
 import endBtn from '@buttons/endBtn'
 import menuBtn from '@buttons/menuBtn'
+import { MAX_PAYMENTS } from '@utils/constant'
 
 type PaymentsListProps = {
   callbackCreate: string
@@ -19,8 +20,10 @@ export default async function paymentsListMessage(params: ConversationPropsWithB
   const payments = await xprisma.payment.findMany(user)
   const groupedPayments: PaymentIncome[][] = chunkIt(payments).size(2)
 
+  const canCreate = MAX_PAYMENTS > payments.length
+
   const keyboard: TelegramBot.InlineKeyboardButton[][] = [
-    [{ text: '💵 Crear Pago Fijo', callback_data: callbackCreate }],
+    ...(canCreate ? [[{ text: '💵 Crear Pago Fijo', callback_data: callbackCreate }]] : []),
     ...groupedPayments.map((group) => group.map((p) => ({
       text: `${p.description}${!!p.transactions.length ? ` (${p.transactions.length} Pagos)` : ''}`,
       callback_data: `${callbackPrefix}${p.id}`
