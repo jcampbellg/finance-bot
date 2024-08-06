@@ -10,6 +10,7 @@ import { TransactionWithAll } from '@customTypes/prismaTypes'
 import menuBtn from '@buttons/menuBtn'
 import numeral from 'numeral'
 import { TRANSACTION_TYPE } from '@utils/constant'
+import TelegramBot from 'node-telegram-bot-api'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -44,6 +45,7 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
   const isPayment = t.type === 'PAYMENT'
   const isNormal = t.type === 'EXPENSE' || t.type === 'DEPOSIT'
   const isIncome = t.type === 'INCOME'
+  const isExpense = t.type === 'EXPENSE'
 
   const spanishDate = dayjs(isNormal ? t.paidAt : t.createdAt).tz(user.timezone).format('dddd LL hh:mma')
   const categoryLabel = isPayment ? 'Pago Fijo:' : 'Categoría:'
@@ -85,16 +87,27 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
     }
   }
 
+  const splitBtns: TelegramBot.InlineKeyboardButton[][] = t.splits?.childrens.map(s => {
+    return [{ text: `👉 Ver ${s.description}`, callback_data: `transaction_view_${s.id}` }]
+  }) || []
+
+  const parentBtn: TelegramBot.InlineKeyboardButton[][] = !!t.parentSplit ? [[{ text: `👈 Ver ${t.parentSplit.parent.description}`, callback_data: `transaction_view_${t.parentSplit.parent.id}` }]] : []
+
+  const splitLabel = (!!splitBtns.length || !!parentBtn.length) ? [[{ text: '✂️ Divisiones:', callback_data: `transaction_split_${t.id}` }]] : []
+
   await bot.sendMessage(chatId, `Editando Transacción\n\n<b>Descripción:</b> ${t.description}\n<b>Monto:</b> ${amount}\n<b>Fecha:</b> ${spanishDate}\n<b>Cuenta:</b> ${t.account.description}\n<b>${categoryLabel}</b> ${category}${isPaidLabel}${tags}`, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
         [{ text: '✏️ Renombrar', callback_data: `transaction_rename_${t.id}` }, { text: `❌ Eliminar`, callback_data: `transaction_delete_${t.id}` }],
-        [...(isNormal ? [{ text: `🗂️ Categoría`, callback_data: `transaction_category_${t.id}` }, { text: '🏷️ Etiquetas', callback_data: `transaction_tag_${t.id}` }, { text: '✂️ Dividir', callback_data: `transaction_split_${t.id}` }] : [])],
+        [...(isNormal ? [{ text: `🗂️ Categoría`, callback_data: `transaction_category_${t.id}` }, { text: '🏷️ Etiquetas', callback_data: `transaction_tag_${t.id}` }, ...(isExpense ? [{ text: '✂️ Dividir', callback_data: `transaction_split_${t.id}` }] : [])] : [])],
         [{ text: '📅 Cambiar Fecha', callback_data: `transaction_date_${t.id}` }],
         ...((isPayment || isIncome) ? (!t.paidAt ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_paid_now_${t.id}` }]] : [[{ text: `❌ Marcar como No Pagado`, callback_data: `transaction_paid_cancel_${t.id}` }]]) : []),
         ...(((isPayment || isIncome) && t.paidAt) ? [[{ text: '📅 Cambiar Fecha de Pago', callback_data: `transaction_paid_date_${t.id}` }]] : []),
         [{ text: '💵 Cambiar Monto', callback_data: `transaction_amount_${t.id}` }, { text: `📎 Adjuntar${t.files.length > 0 ? ' otra' : ''}`, callback_data: `transaction_file_${t.id}` }],
+        ...splitLabel,
+        ...parentBtn,
+        ...splitBtns,
         menuBtn
       ]
     }

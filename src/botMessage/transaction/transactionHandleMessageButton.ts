@@ -13,6 +13,7 @@ import transactionFileButton from '@conversation/transactionFile/transactionFile
 import fileDeleteMessage from '@botMessage/file/fileDeleteMessage'
 import transactionTagButton from '@conversation/transactionTag/transactionTagButton'
 import transactionCategoryButton from '@conversation/transactionCategory/transactionCategoryButton'
+import transactionSplitButton from '@conversation/transactionSplit/transactionSplitButton'
 
 export default async function transactionHandleMessageButton(params: ConversationPropsWithBookSelected): Promise<boolean> {
   const { query, conversation } = params
@@ -90,6 +91,11 @@ export default async function transactionHandleMessageButton(params: Conversatio
 
   if (btnPress.startsWith('transaction_category_') || conversation.subject === 'transaction_category') {
     await transactionCategoryButton(params)
+    return true
+  }
+
+  if (btnPress.startsWith('transaction_split_')) {
+    await transactionSplitButton(params)
     return true
   }
 

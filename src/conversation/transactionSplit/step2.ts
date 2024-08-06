@@ -1,29 +1,54 @@
-import categoriesListMessage from '@botMessage/category/categoriesListMessage'
+import noTransactionError from '@botMessage/errors/noTransactionError'
+import upsError from '@botMessage/errors/upsError'
+import transactionViewMenuMessage from '@botMessage/transaction/transactionViewMenuMessage'
 import amountReply from '@conversation/utils/amountReply'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 
 export default async function step2(params: ConversationPropsWithBookSelected) {
-  const { query, conversation } = params
+  const { ctx, conversation, user } = params
 
-  if (!query) {
-    throw new Error('query is required')
+  if (!ctx) {
+    throw new Error('ctx is required')
+  }
+
+  const transactionId = conversation.edit.transactionId
+
+  if (!transactionId) {
+    await noTransactionError(params)
+    return
   }
 
   await amountReply(params, async (amount) => {
-    await xprisma.conversation.update(conversation.id, {
-      subSubject: 'category',
-      edit: {
-        ...conversation.edit,
-        amount
-      }
+    const parent = await xprisma.transaction.findUnique(user, transactionId)
+
+    if (!parent) {
+      await noTransactionError(params)
+      return
+    }
+
+    const children = await xprisma.transaction.create(user, {
+      amount: amount,
+      currency: parent.currency,
+      description: parent.description,
+      type: parent.type,
+      accountId: parent.accountId,
+      tags: parent.tags,
+      paidAt: parent.paidAt,
+      categoryId: parent.categoryId,
     })
 
-    await categoriesListMessage(params, {
-      text: '🗂️ ¿A qué categoría pertenece este nuevo monto?',
-      btn: 'end',
-      callbackPrefix: 'transaction_split_category_',
-      callbackCreate: 'category_create'
+    if (!children) {
+      await upsError(params)
+      return
+    }
+
+    await xprisma.transaction.update(user, parent.id, {
+      amount: parent.amount - amount
     })
+
+    await xprisma.split.create(user, parent, children)
+
+    await transactionViewMenuMessage(params, transactionId)
   })
 }

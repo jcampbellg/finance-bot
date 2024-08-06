@@ -1,9 +1,10 @@
+import noSplitTransactionError from '@botMessage/errors/noSplitTransactionError'
 import noTransactionError from '@botMessage/errors/noTransactionError'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 
 export default async function step1(params: ConversationPropsWithBookSelected) {
-  const { query, bot, chatId, conversation } = params
+  const { query, bot, chatId, conversation, user } = params
 
   if (!query) {
     throw new Error('query is required')
@@ -13,6 +14,18 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
 
   if (!transactionId) {
     noTransactionError(params)
+    return
+  }
+
+  const parent = await xprisma.transaction.findUnique(user, transactionId)
+
+  if (!parent) {
+    noTransactionError(params)
+    return
+  }
+
+  if (parent.type !== 'EXPENSE') {
+    await noSplitTransactionError(params)
     return
   }
 

@@ -69,9 +69,10 @@ export type TransactionWithAll = Prisma.TransactionGetPayload<{
     category: true,
     files: { include: { items: true } },
     groupNotifications: true,
-    splits: true,
     transferIn: true,
-    transferOut: true
+    transferOut: true,
+    parentSplit: { include: { parent: true } },
+    splits: { include: { childrens: true } }
   }
 }>
 
@@ -97,8 +98,7 @@ export type PaymentIncome = Prisma.CategoryGetPayload<{
 export type Category = Prisma.CategoryGetPayload<{
   include: {
     limits: true,
-    transactions: true,
-    split: { include: { transaction: true } }
+    transactions: true
   }
 }>
 

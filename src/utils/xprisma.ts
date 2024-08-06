@@ -6,7 +6,6 @@ import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { MAX_ACCOUNTS, MAX_CATEGORIES, MAX_FILES, MAX_INCOMES, MAX_OWN_BOOKS, MAX_PAYMENTS } from './constant'
-import { create } from 'domain'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -29,14 +28,15 @@ const transactionInclude = {
   category: true,
   files: { include: { items: true } },
   groupNotifications: true,
-  splits: true,
   transferIn: true,
-  transferOut: true
+  transferOut: true,
+  parentSplit: { include: { parent: true } },
+  splits: { include: { childrens: true } }
 }
 
 const paymentIncomeInclude = { limits: true, transactions: true }
 
-const categoryInclude = { limits: true, transactions: true, split: { include: { transaction: true } } }
+const categoryInclude = { limits: true, transactions: true }
 
 const yprisma = prisma.$extends({
   model: {
@@ -369,7 +369,7 @@ const xprisma = prisma.$extends({
         }
 
         if (isOwner) {
-          await prisma.split.deleteMany({ where: { transaction: { account: { bookId: id } } } })
+          await prisma.split.deleteMany({ where: { parent: { account: { bookId: id } } } })
           await prisma.file.deleteMany({ where: { transaction: { account: { bookId: id } } } })
           await prisma.transfer.deleteMany({ where: { OR: [{ transactionOut: { account: { bookId: id } } }, { transactionIn: { account: { bookId: id } } }] } })
           await prisma.item.deleteMany({ where: { file: { transaction: { account: { bookId: id } } } } })
@@ -484,23 +484,29 @@ const xprisma = prisma.$extends({
       }
     },
     split: {
-      create: async (user: ByncUser, transaction: TransactionWithAll, data: { amount: number, categoryId: string }): Promise<boolean> => {
+      create: async (user: ByncUser, parent: TransactionWithAll, children: TransactionWithAll): Promise<boolean> => {
         if (!user.bookSelected) return false
-        if (transaction.account.bookId !== user.bookSelected.id) return false
+        if (parent.account.bookId !== user.bookSelected.id) return false
+
+        if (parent.parentSplit) {
+          await prisma.split.update({
+            where: { id: parent.parentSplit.id },
+            data: {
+              childrens: {
+                connect: { id: children.id }
+              }
+            }
+          })
+
+          return true
+        }
 
         await prisma.split.create({
           data: {
-            subAmount: transaction.amount - data.amount,
-            categoryId: data.categoryId,
-            transactionId: transaction.id
-          }
-        })
-
-        await prisma.split.create({
-          data: {
-            subAmount: data.amount,
-            categoryId: data.categoryId,
-            transactionId: transaction.id
+            parentId: parent.id,
+            childrens: {
+              connect: { id: children.id }
+            }
           }
         })
 
@@ -622,6 +628,7 @@ const xprisma = prisma.$extends({
 
         const monthTZStart = dayjs().tz(user.timezone).startOf('month')
 
+        console.log('findMany')
         const category = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: 'CATEGORY' }] },
           include: { ...categoryInclude, transactions: { where: { paidAt: { gte: monthTZStart.format() } } } }

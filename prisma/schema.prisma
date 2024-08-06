@@ -62,7 +62,6 @@ model Account {
 }
 
 model Category {
-  split        Split?        @relation(name: "CategoryToSplit")
   id           String        @id @default(cuid())
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -89,12 +88,14 @@ model Transaction {
   groupNotifications GroupNotification[] @relation(name: "TransactionsWithGroupNotification")
   paidAt             DateTime?           @default(now())
   tags               String[]
-  splits             Split[]             @relation(name: "splitToTransaction")
   category           Category?           @relation(name: "TransactionWithCategory", fields: [categoryId], references: [id])
   categoryId         String?
   files              File[]              @relation(name: "TransactionWithFile")
   transferIn         Transfer?           @relation(name: "TransactionToTransfer")
   transferOut        Transfer?           @relation(name: "TransactionToTransfer1")
+  splits             Split?              @relation(name: "SplitParents")
+  splitId            String?
+  parentSplit        Split?              @relation(name: "SplitChildrens", fields: [splitId], references: [id])
 }
 
 model GroupNotification {
@@ -189,17 +190,6 @@ model Limit {
   paidDue    Int?
 }
 
-model Split {
-  id            String      @id @default(cuid())
-  transactionId String
-  transaction   Transaction @relation(name: "splitToTransaction", fields: [transactionId], references: [id])
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  subAmount     Float
-  category      Category?   @relation(name: "CategoryToSplit", fields: [categoryId], references: [id])
-  categoryId    String?     @unique
-}
-
 model Transfer {
   id               String       @id @default(cuid())
   createdAt        DateTime     @default(now())
@@ -208,6 +198,15 @@ model Transfer {
   transactionInId  String?      @unique
   transactionOut   Transaction? @relation(name: "TransactionToTransfer1", fields: [transactionOutId], references: [id])
   transactionOutId String?      @unique
+}
+
+model Split {
+  id        String        @id @default(cuid())
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  parent    Transaction   @relation(name: "SplitParents", fields: [parentId], references: [id])
+  parentId  String        @unique
+  childrens Transaction[] @relation(name: "SplitChildrens")
 }
 
 enum CategoryType {
