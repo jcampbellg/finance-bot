@@ -1,4 +1,5 @@
 import upsError from '@botMessage/errors/upsError'
+import budgetBtn from '@buttons/budgetBtn'
 import menuBtn from '@buttons/menuBtn'
 import stringReply from '@conversation/utils/stringReply'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
@@ -74,10 +75,10 @@ async function CreateMessage(params: ConversationPropsWithBookSelected, id: stri
   }
 
   const botTextLook: Record<string, string> = {
-    'account': 'cuentas',
-    'income': 'ingresos',
-    'category': 'categorías',
-    'payment': 'pags fijos'
+    'account': 'Cuentas',
+    'income': 'Ingresos',
+    'category': 'Categorías',
+    'payment': 'Pagos Fijos'
   }
 
   const botTextLookCallback: Record<string, string> = {
@@ -101,10 +102,10 @@ async function CreateMessage(params: ConversationPropsWithBookSelected, id: stri
     'payment': `payment_view_${id}`
   }
 
-  const text = `¡Perfecto!\nTu ${botText} ha sido creado.`
+  const text = `¡Perfecto!\nTu ${botText[element]} ha sido creado.`
   const keyboard: TelegramBot.InlineKeyboardButton[][] = [
     [{ text: callbackText[element], callback_data: callback[element] }, { text: `🔎 Ver ${botTextLook[element]}`, callback_data: botTextLookCallback[element] }],
-    menuBtn
+    budgetBtn
   ]
 
   await bot.sendMessage(chatId, text, {

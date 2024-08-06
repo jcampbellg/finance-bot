@@ -1,3 +1,4 @@
+import menuBtn from '@buttons/menuBtn'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 
 export default async function budgetMenuMessage(params: ConversationPropsWithBookSelected) {
@@ -14,6 +15,7 @@ export default async function budgetMenuMessage(params: ConversationPropsWithBoo
       inline_keyboard: [
         [{ text: '🏦 Cuentas', callback_data: 'accounts_menu' }, { text: '🤑 Ingresos', callback_data: 'incomes_menu' }],
         [{ text: '🗂️ Categorias', callback_data: 'categories_menu' }, { text: '💵 Pagos Fijos', callback_data: 'payments_menu' }],
+        menuBtn
       ]
     }
   })
