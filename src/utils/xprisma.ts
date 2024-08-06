@@ -728,7 +728,7 @@ const xprisma = prisma.$extends({
         const payments = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: 'PAYMENT' }] },
           include: { ...paymentIncomeInclude, transactions: { where: { OR: [{ paidAt: { gte: monthTZStart.format() } }, { createdAt: { gte: monthTZStart.format() } }] } } },
-          orderBy: { transactions: { _count: 'desc' } }
+          orderBy: { transactions: { _count: 'asc' } }
         })
 
         return payments
@@ -776,7 +776,7 @@ const xprisma = prisma.$extends({
         const incomes = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: 'INCOME' }] },
           include: { ...paymentIncomeInclude, transactions: { where: { OR: [{ paidAt: { gte: monthTZStart.format() } }, { createdAt: { gte: monthTZStart.format() } }] } } },
-          orderBy: { transactions: { _count: 'desc' } }
+          orderBy: { transactions: { _count: 'asc' } }
         })
 
         return incomes
