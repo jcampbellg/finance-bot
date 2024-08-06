@@ -2,10 +2,10 @@ import accountsListMessage from '@botMessage/account/accountsListMessage'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 
-export default async function step1(params: ConversationPropsWithBookSelected) {
+export default async function step1(params: ConversationPropsWithBookSelected, next: boolean = false) {
   const { conversation } = params
 
-  const keySub = conversation.subSubject === 'amount-a' ? 'account-b' : 'account-a'
+  const keySub = next ? 'account-b' : 'account-a'
 
   xprisma.conversation.update(conversation.id, {
     subject: 'transfer_create',

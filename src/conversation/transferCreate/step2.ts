@@ -11,6 +11,13 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
   const key = conversation.subSubject.endsWith('account-a') ? 'accountAId' : 'accountBId'
   const sub = conversation.subSubject.endsWith('account-a') ? 'currency-a' : 'currency-b'
 
+  const askForSameBtn = conversation.subSubject.endsWith('account-b') ? [
+    {
+      text: 'Misma Moneda y Monto',
+      callback_data: 'same_data'
+    }
+  ] : []
+
   if (!!ctx) {
     // Account description
     await stringReply(params, async (description) => {
@@ -31,7 +38,10 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
 
       await bot.sendMessage(chatId, `¿En qué moneda se realizará la transferencia?`, {
         reply_markup: {
-          inline_keyboard: [endBtn]
+          inline_keyboard: [
+            askForSameBtn,
+            endBtn
+          ]
         }
       })
     })
@@ -83,6 +93,7 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
       message_id: query.message.message_id,
       reply_markup: {
         inline_keyboard: [
+          askForSameBtn,
           ...groupedcurrencies.map((group) => group.map((currency) => ({
             text: currency,
             callback_data: `${currency}`
