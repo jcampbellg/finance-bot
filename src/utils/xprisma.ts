@@ -219,12 +219,39 @@ const xprisma = prisma.$extends({
           }
         }
       },
-      async findUnique(id: string) {
+      async findUnique(id: string): Promise<ByncUser | null> {
         const user = await prisma.user.findUnique({
-          where: { id }
+          where: { id },
+          include: userInclude
         })
 
-        return user
+        if (!user) {
+          return null
+        }
+
+        const isOwner = user.booksOwn.length > 0
+
+        const bookSelected = !!user.bookSelected ? { ...user.bookSelected, isOwner } : null
+
+        let clearBookSelected = false
+
+        if (bookSelected) {
+          const notOwnerNorShare = !isOwner && !bookSelected.shares.find(share => share.userId === user.id)
+
+          if (notOwnerNorShare) {
+            await prisma.user.update({ where: { id: user.id }, data: { bookSelectedId: null } })
+            clearBookSelected = true
+          }
+        }
+
+        return {
+          ...user,
+          bookSelected: clearBookSelected ? null : (user.bookSelected ? { ...user.bookSelected, isOwner } : null),
+          conversation: {
+            ...user.conversation,
+            edit: user.conversation.edit as Edit
+          }
+        }
       }
     },
     conversation: {
@@ -415,7 +442,11 @@ const xprisma = prisma.$extends({
       }
     },
     share: {
-      async create(bookId: string, userId: string) {
+      async create(owner: ByncUser, bookId: string, userId: string) {
+        if (!owner.booksOwn.some(book => book.id === bookId)) {
+          return null
+        }
+
         const share = await prisma.share.findFirst({
           where: { AND: [{ bookId }, { userId }] }
         })
@@ -431,7 +462,11 @@ const xprisma = prisma.$extends({
 
         return share
       },
-      async delete(bookId: string, userId: string) {
+      async delete(owner: ByncUser, bookId: string, userId: string) {
+        if (!owner.booksOwn.some(book => book.id === bookId)) {
+          return null
+        }
+
         const share = await prisma.share.findFirst({
           where: { AND: [{ bookId }, { userId }] }
         })

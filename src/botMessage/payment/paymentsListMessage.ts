@@ -6,12 +6,13 @@ import { PaymentIncome } from '@customTypes/prismaTypes'
 import endBtn from '@buttons/endBtn'
 import menuBtn from '@buttons/menuBtn'
 import { MAX_PAYMENTS } from '@utils/constant'
+import budgetBtn from '@buttons/budgetBtn'
 
 type PaymentsListProps = {
   callbackCreate: string
   callbackPrefix: string
   text: string,
-  btn: 'end' | 'menu'
+  btn: 'end' | 'menu' | 'budget'
 }
 
 export default async function paymentsListMessage(params: ConversationPropsWithBookSelected, { callbackCreate, callbackPrefix, text: botText, btn }: PaymentsListProps) {
@@ -28,7 +29,7 @@ export default async function paymentsListMessage(params: ConversationPropsWithB
       text: `${p.description}${!!p.transactions.length ? ` (${p.transactions.length} Pagos)` : ''}`,
       callback_data: `${callbackPrefix}${p.id}`
     }))),
-    ...(btn === 'end' ? [endBtn] : [menuBtn])
+    ...(btn === 'budget' ? [budgetBtn] : (btn === 'end' ? [endBtn] : [menuBtn]))
   ]
 
   if (query) {

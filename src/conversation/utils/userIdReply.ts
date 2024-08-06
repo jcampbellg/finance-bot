@@ -1,9 +1,9 @@
 import menuBtn from '@buttons/menuBtn'
 import { ConversationProps, NextFunction } from '@customTypes/messageTypes'
-import { User } from '@prisma/client'
+import { ByncUser } from '@customTypes/prismaTypes'
 import xprisma from '@utils/xprisma'
 
-export default async function userIdReply(params: ConversationProps, next: NextFunction<User>) {
+export default async function userIdReply(params: ConversationProps, next: NextFunction<ByncUser>) {
   const { ctx, text, bot, conversation, chatId } = params
 
   if (!ctx) {

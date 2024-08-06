@@ -12,10 +12,8 @@ export default async function budgetMenuMessage(params: ConversationPropsWithBoo
     message_id: query.message.message_id,
     reply_markup: {
       inline_keyboard: [
-        [{ text: '✋ Reglas y Limites', callback_data: 'rules_menu' }, { text: '🔔 Notificaciones', callback_data: 'notifications_menu' }],
-        [{ text: '🏦 Cuentas', callback_data: 'accounts_menu' }, { text: '🤑 Ingresos', callback_data: 'income_menu' }],
-        [{ text: '🏷️ Categorias', callback_data: 'categories_menu' }, { text: '💵 Pagos Fijos', callback_data: 'payments_menu' }],
-        [{ text: '💱 Crear Cambio de moneda', callback_data: 'exchange_menu' }]
+        [{ text: '🏦 Cuentas', callback_data: 'accounts_menu' }, { text: '🤑 Ingresos', callback_data: 'incomes_menu' }],
+        [{ text: '🗂️ Categorias', callback_data: 'categories_menu' }, { text: '💵 Pagos Fijos', callback_data: 'payments_menu' }],
       ]
     }
   })

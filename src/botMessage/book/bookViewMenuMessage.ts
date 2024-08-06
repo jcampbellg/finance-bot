@@ -29,8 +29,12 @@ export default async function bookViewMenuMessage(params: ConversationProps) {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        [...(isSelected ? [] : [{ text: '👉 Seleccionar', callback_data: `book_select_${book.id}` }]), ...(book.isOwner ? [{ text: '🤝 Compartir y Permisos', callback_data: `book_share_${book.id}` }] : [])],
+        [...(isSelected ? [] : [{ text: '👉 Seleccionar', callback_data: `book_select_${book.id}` }])],
         [{ text: '✏️ Renombrar', callback_data: `book_rename_${book.id}` }, { text: `❌ ${book.isOwner ? 'Eliminar' : 'Quitar'}`, callback_data: `book_delete_${book.id}` }],
+        ...(book.isOwner ? [[
+          { text: '🤝 Compartir', callback_data: `book_share_${book.id}` },
+          { text: '👨‍💼 Cambiar Dueño', callback_data: `book_owner_${book.id}` },
+        ]] : []),
         menuBtn
       ]
     }

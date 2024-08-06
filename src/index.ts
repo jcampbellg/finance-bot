@@ -3,6 +3,7 @@ import bookAddMessage from '@botMessage/book/bookAddMessage'
 import bookSelectMessage from '@botMessage/book/bookSelectMessage'
 import booksMenuMessage from '@botMessage/book/booksMenuMessage'
 import bookViewMenuMessage from '@botMessage/book/bookViewMenuMessage'
+import budgetListMenuMessage from '@botMessage/budget/budgetListMenuMessage'
 import budgetMenuMessage from '@botMessage/budget/budgetMenuMessage'
 import menuMessage from '@botMessage/menuMessage'
 import summaryMenuMessage from '@botMessage/summary/summaryMenuMessage'
@@ -13,6 +14,10 @@ import bookCreateText from '@conversation/bookCreate/bookCreateText'
 import bookDeleteButton from '@conversation/bookDelete/bookDeleteButton'
 import bookRenameButton from '@conversation/bookRename/bookRenameButton'
 import bookRenameText from '@conversation/bookRename/bookRenameText'
+import bookShareButton from '@conversation/bookShare/bookShareButton'
+import bookShareText from '@conversation/bookShare/bookShareText'
+import budgetCreateButton from '@conversation/budgetCreate/budgetCreateButton'
+import budgetCreateText from '@conversation/budgetCreate/budgetCreateText'
 import startButton from '@conversation/start/startButton'
 import startText from '@conversation/start/startText'
 import BookSelectedWrapper from '@conversation/utils/BookSelectedWrapper'
@@ -62,6 +67,11 @@ bot.on('message', async (ctx) => {
     await bookRenameText(params)
     return
   }
+
+  if (conversation.subject === 'book_share' || conversation.subject === 'book_owner') {
+    await bookShareText(params)
+    return
+  }
   //#endregion
 
   //#region Transactions
@@ -70,6 +80,13 @@ bot.on('message', async (ctx) => {
   })
 
   if (notContinueTransaction) return
+  //#endregion
+
+  //#region Budget
+  if (conversation.subject === 'budget_create') {
+    await BookSelectedWrapper(params, budgetCreateText)
+    return
+  }
   //#endregion
 })
 
@@ -106,6 +123,11 @@ bot.on('callback_query', async (query) => {
 
   if (query.data === 'budget_menu') {
     await BookSelectedWrapper(msg, budgetMenuMessage)
+    return
+  }
+
+  if (['accounts_menu', 'incomes_menu', 'categories_menu', 'payments_menu'].includes(query.data)) {
+    await BookSelectedWrapper(msg, budgetListMenuMessage)
     return
   }
 
@@ -150,6 +172,11 @@ bot.on('callback_query', async (query) => {
     await bookDeleteButton(msg)
     return
   }
+
+  if (btnPress.startsWith('book_share_') || btnPress.startsWith('book_owner_')) {
+    await bookShareButton(msg)
+    return
+  }
   //#endregion
 
   //#region Transactions
@@ -158,5 +185,12 @@ bot.on('callback_query', async (query) => {
   })
 
   if (notContinueTransaction) return
+  //#endregion
+
+  //#region Budget
+  if (btnPress.startsWith('budget_create_')) {
+    await BookSelectedWrapper(msg, budgetCreateButton)
+    return
+  }
   //#endregion
 })
