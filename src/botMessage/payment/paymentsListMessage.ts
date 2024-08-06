@@ -25,10 +25,14 @@ export default async function paymentsListMessage(params: ConversationPropsWithB
 
   const keyboard: TelegramBot.InlineKeyboardButton[][] = [
     ...(canCreate ? [[{ text: '💵 Crear Pago Fijo', callback_data: callbackCreate }]] : []),
-    ...groupedPayments.map((group) => group.map((p) => ({
-      text: `${p.description}${!!p.transactions.length ? ` (${p.transactions.length} Pagos)` : ''}`,
-      callback_data: `${callbackPrefix}${p.id}`
-    }))),
+    ...groupedPayments.map((group) => group.map((p) => {
+      const paid = p.transactions.filter(t => !!t.paidAt).length
+      const all = p.transactions.length
+      return {
+        text: `${p.description}${!!p.transactions.length ? ` (${paid} / ${all})` : ''}`,
+        callback_data: `${callbackPrefix}${p.id}`
+      }
+    })),
     ...(btn === 'budget' ? [budgetBtn] : (btn === 'end' ? [endBtn] : [menuBtn]))
   ]
 

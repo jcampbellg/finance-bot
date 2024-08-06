@@ -1,3 +1,4 @@
+import menuBtn from '@buttons/menuBtn'
 import { ConversationProps } from '@customTypes/messageTypes'
 import { MAX_ACCOUNTS, MAX_CATEGORIES, MAX_FILES, MAX_INCOMES, MAX_OWN_BOOKS, MAX_PAYMENTS } from '@utils/constant'
 
@@ -9,7 +10,7 @@ export default async function appLimitMessage(params: ConversationProps) {
   }
 
   const appLimits = [{
-    name: 'Libros Creados',
+    name: 'Libros que puedes Crear',
     limit: MAX_OWN_BOOKS
   }, {
     name: 'Cuentas por Libro',
@@ -28,11 +29,14 @@ export default async function appLimitMessage(params: ConversationProps) {
     limit: MAX_FILES
   }]
 
-  const limits = appLimits.map(l => `📚 <b>${l.name}:</b> ${l.limit}`).join('\n')
+  const limits = appLimits.map(l => `<b>${l.name}:</b> ${l.limit}`).join('\n')
 
   await bot.editMessageText(`🚫 <b>Limites:</b>\n\n${limits}`, {
     chat_id: chatId,
     message_id: query.message.message_id,
-    parse_mode: 'HTML'
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [menuBtn]
+    }
   })
 }

@@ -6,6 +6,7 @@ import bookViewMenuMessage from '@botMessage/book/bookViewMenuMessage'
 import budgetListMenuMessage from '@botMessage/budget/budgetListMenuMessage'
 import budgetMenuMessage from '@botMessage/budget/budgetMenuMessage'
 import menuMessage from '@botMessage/menuMessage'
+import paymentsListInfoMessage from '@botMessage/payment/paymentsListInfoMessage'
 import summaryMenuMessage from '@botMessage/summary/summaryMenuMessage'
 import transactionHandleMessageButton from '@botMessage/transaction/transactionHandleMessageButton'
 import transactionHandleMessageText from '@botMessage/transaction/transactionHandleMessageText'
@@ -120,6 +121,11 @@ bot.on('callback_query', async (query) => {
   //#endregion
 
   //#region Menus
+  if (query.data === 'payments_pending') {
+    await BookSelectedWrapper(msg, paymentsListInfoMessage)
+    return
+  }
+
   if (query.data === 'app_limit') {
     await appLimitMessage(msg)
     return
