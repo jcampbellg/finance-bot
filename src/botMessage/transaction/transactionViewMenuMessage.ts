@@ -43,9 +43,9 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
   const { bot, user, chatId } = params
 
   const isPayment = t.type === 'PAYMENT'
-  const isNormal = t.type === 'EXPENSE' || t.type === 'DEPOSIT'
   const isIncome = t.type === 'INCOME'
   const isExpense = t.type === 'EXPENSE'
+  const isNormal = t.type === 'EXPENSE' || t.type === 'DEPOSIT'
 
   const isTransfer = !!t.transferIn || !!t.transferOut
 
@@ -61,7 +61,7 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
 
   const tags = t.tags.length > 0 ? `\n<b>Etiquetas:</b> ${t.tags.map(t => t).join(', ')}` : ''
 
-  const transferBtn = isTransfer ? [[{ text: `${!!t.transferIn ? '🟢 Ver Origen' : '🔴 Ver Destino'}`, callback_data: `transaction_view_${t.transferIn?.transactionInId || t.transferOut?.transactionOutId}` }]] : []
+  const transferBtn = isTransfer ? [[{ text: `${!!t.transferIn ? '🔴 Ver Origen' : '🟢 Ver Destino'}`, callback_data: `transaction_view_${t.transferIn?.transactionInId || t.transferOut?.transactionOutId}` }]] : []
 
   const files = t.files
 
@@ -104,7 +104,7 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
     reply_markup: {
       inline_keyboard: [
         [{ text: '✏️ Renombrar', callback_data: `transaction_rename_${t.id}` }, { text: `❌ Eliminar`, callback_data: `transaction_delete_${t.id}` }],
-        [...(isNormal ? [{ text: `🗂️ Categoría`, callback_data: `transaction_category_${t.id}` }, { text: '🏷️ Etiquetas', callback_data: `transaction_tag_${t.id}` }, ...(isExpense ? [{ text: '✂️ Dividir', callback_data: `transaction_split_${t.id}` }] : [])] : [])],
+        [...((isNormal || isTransfer) ? [{ text: `🗂️ Categoría`, callback_data: `transaction_category_${t.id}` }, { text: '🏷️ Etiquetas', callback_data: `transaction_tag_${t.id}` }, ...(isExpense ? [{ text: '✂️ Dividir', callback_data: `transaction_split_${t.id}` }] : [])] : [])],
         [{ text: '📅 Cambiar Fecha', callback_data: `transaction_date_${t.id}` }],
         ...((isPayment || isIncome) ? (!t.paidAt ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_paid_now_${t.id}` }]] : [[{ text: `❌ Marcar como No Pagado`, callback_data: `transaction_paid_cancel_${t.id}` }]]) : []),
         ...(((isPayment || isIncome) && t.paidAt) ? [[{ text: '📅 Cambiar Fecha de Pago', callback_data: `transaction_paid_date_${t.id}` }]] : []),

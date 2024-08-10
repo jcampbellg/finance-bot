@@ -55,23 +55,21 @@ model Account {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   description String
-  notes       String?
   transaction Transaction[] @relation(name: "TransactionWithAccount")
   book        Book          @relation(name: "AccountInBook", fields: [bookId], references: [id])
   bookId      String
 }
 
 model Category {
-  id           String        @id @default(cuid())
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id           String           @id @default(cuid())
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
   description  String
-  notes        String?
-  transactions Transaction[] @relation(name: "TransactionWithCategory")
+  transactions Transaction[]    @relation(name: "TransactionWithCategory")
   bookId       String
-  book         Book          @relation(name: "CategoryInBook", fields: [bookId], references: [id])
-  type         CategoryType  @default(CATEGORY)
-  limits       Limit[]       @relation(name: "CategoryToPayment")
+  book         Book             @relation(name: "CategoryInBook", fields: [bookId], references: [id])
+  type         CategoryType     @default(CATEGORY)
+  limits       AmountCurrency[] @relation(name: "CategoryToPayment")
 }
 
 model Transaction {
@@ -178,7 +176,7 @@ model Currency {
   symbol    String
 }
 
-model Limit {
+model AmountCurrency {
   id         String   @id @default(cuid())
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -186,8 +184,6 @@ model Limit {
   currency   String
   category   Category @relation(name: "CategoryToPayment", fields: [categoryId], references: [id])
   categoryId String
-  validFrom  Int
-  paidDue    Int?
 }
 
 model Transfer {

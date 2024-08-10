@@ -105,7 +105,8 @@ async function CreateMessage(params: ConversationPropsWithBookSelected, id: stri
   const text = `¡Perfecto!\nTu ${botText[element]} ha sido creado.`
   const keyboard: TelegramBot.InlineKeyboardButton[][] = [
     [{ text: callbackText[element], callback_data: callback[element] }, { text: `🔎 Ver ${botTextLook[element]}`, callback_data: botTextLookCallback[element] }],
-    budgetBtn
+    budgetBtn,
+    menuBtn
   ]
 
   await bot.sendMessage(chatId, text, {

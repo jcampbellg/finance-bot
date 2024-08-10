@@ -114,3 +114,9 @@ export type CurrencyWithBalance = Prisma.CurrencyGetPayload<{
     account: true
   }
 }>
+
+type CategoryUpdateInput = Omit<Prisma.CategoryUpdateInput, 'id'>
+
+type CategoryUncheckedUpdateInput = Omit<Prisma.CategoryUncheckedUpdateInput, 'id'>
+
+export type CategoryUpdate = Prisma.XOR<CategoryUpdateInput, CategoryUncheckedUpdateInput>

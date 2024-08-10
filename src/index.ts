@@ -3,10 +3,10 @@ import bookAddMessage from '@botMessage/book/bookAddMessage'
 import bookSelectMessage from '@botMessage/book/bookSelectMessage'
 import booksMenuMessage from '@botMessage/book/booksMenuMessage'
 import bookViewMenuMessage from '@botMessage/book/bookViewMenuMessage'
+import budgetItemViewMenuMessage from '@botMessage/budget/budgetItemViewMenuMessage'
 import budgetListMenuMessage from '@botMessage/budget/budgetListMenuMessage'
 import budgetMenuMessage from '@botMessage/budget/budgetMenuMessage'
 import menuMessage from '@botMessage/menuMessage'
-import paymentsListInfoMessage from '@botMessage/payment/paymentsListInfoMessage'
 import summaryMenuMessage from '@botMessage/summary/summaryMenuMessage'
 import transactionHandleMessageButton from '@botMessage/transaction/transactionHandleMessageButton'
 import transactionHandleMessageText from '@botMessage/transaction/transactionHandleMessageText'
@@ -121,11 +121,6 @@ bot.on('callback_query', async (query) => {
   //#endregion
 
   //#region Menus
-  if (query.data === 'payments_pending') {
-    await BookSelectedWrapper(msg, paymentsListInfoMessage)
-    return
-  }
-
   if (query.data === 'app_limit') {
     await appLimitMessage(msg)
     return
@@ -138,11 +133,6 @@ bot.on('callback_query', async (query) => {
 
   if (query.data === 'budget_menu') {
     await BookSelectedWrapper(msg, budgetMenuMessage)
-    return
-  }
-
-  if (['accounts_menu', 'incomes_menu', 'categories_menu', 'payments_menu'].includes(query.data)) {
-    await BookSelectedWrapper(msg, budgetListMenuMessage)
     return
   }
 
@@ -205,6 +195,14 @@ bot.on('callback_query', async (query) => {
   //#region Budget
   if (btnPress.startsWith('budget_create_')) {
     await BookSelectedWrapper(msg, budgetCreateButton)
+    return
+  }
+  if (['accounts_menu', 'incomes_menu', 'categories_menu', 'payments_menu'].includes(query.data)) {
+    await BookSelectedWrapper(msg, budgetListMenuMessage)
+    return
+  }
+  if (btnPress.startsWith('account_view_') || btnPress.startsWith('income_view_') || btnPress.startsWith('payment_view_') || btnPress.startsWith('category_view_')) {
+    await BookSelectedWrapper(msg, budgetItemViewMenuMessage)
     return
   }
   //#endregion
