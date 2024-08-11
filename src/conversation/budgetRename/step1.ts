@@ -19,15 +19,17 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
     return
   }
 
+  const subject = query.data.startsWith('category_rename_') ? 'category_rename' : 'account_rename'
+
   await xprisma.conversation.update(conversation.id, {
-    subject: 'category_rename',
+    subject: subject,
     subSubject: 'description',
     edit: {
-      categoryId: id
+      [subject === 'category_rename' ? 'categoryId' : 'accountId']: id
     }
   })
 
-  const type = category.type === 'INCOME' ? '🤑 Vamos a renombrar tu ingreso.' : category.type === 'PAYMENT' ? '💵 Vamos a renombrar tu pago fijo.' : '🗂️ Vamos a renombrar tu categoria.'
+  const type = subject === 'account_rename' ? '🏦 Vamos a renombrar tu cuenta.' : (category.type === 'INCOME' ? '🤑 Vamos a renombrar tu ingreso.' : category.type === 'PAYMENT' ? '💵 Vamos a renombrar tu pago fijo.' : '🗂️ Vamos a renombrar tu categoria.')
 
   await bot.editMessageText(`${type}\nPor favor, dime el nuevo nombre que te gustaría darle.`, {
     chat_id: chatId,

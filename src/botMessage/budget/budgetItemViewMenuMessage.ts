@@ -7,7 +7,7 @@ import xprisma from '@utils/xprisma'
 import numeral from 'numeral'
 
 type SelectProps = {
-  type?: $Enums.CategoryType
+  type?: $Enums.CategoryType | 'ACCOUNT'
   itemId?: string
 }
 
@@ -18,7 +18,7 @@ export default async function budgetItemViewMenuMessage(params: ConversationProp
     throw new Error('query is required')
   }
 
-  const isAccount = query.data.startsWith('account_view_')
+  const isAccount = query.data.startsWith('account_view_') || select?.type === 'ACCOUNT'
   const isIncome = query.data.startsWith('income_view_')
   const isPayment = query.data.startsWith('payment_view_')
 
@@ -85,7 +85,6 @@ async function accountViewMenuMessage(params: ConversationPropsWithBookSelected)
     reply_markup: {
       inline_keyboard: [
         [{ text: '✏️ Renombrar', callback_data: `account_rename_${account.id}` }, { text: `❌ Eliminar`, callback_data: `account_delete_${account.id}` }],
-        [{ text: '⚠️ Editar Límite', callback_data: `account_limit_${account.id}` }],
         [{ text: '💲 Crear Moneda', callback_data: `account_currency_create_${account.id}` }],
         ...currenciesBtns,
         [{ text: '🔎 Ver Cuentas', callback_data: 'accounts_menu' }, ...menuBtn]

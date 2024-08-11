@@ -1,4 +1,4 @@
-import { AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
+import { AccountUpdate, AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
 import { $Enums, PrismaClient } from '@prisma/client'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
@@ -526,6 +526,26 @@ const xprisma = prisma.$extends({
         })
 
         return accounts
+      },
+      async update(user: ByncUser, id: string, data: AccountUpdate): Promise<AccountWithBalance | null> {
+        if (!user.bookSelected) return null
+
+        const account = await prisma.account.findUnique({
+          where: { id },
+          include: accountInclude
+        })
+
+        if (!account) return null
+
+        if (account.bookId !== user.bookSelected.id) return null
+
+        const updatedAccount = await prisma.account.update({
+          where: { id },
+          data: data,
+          include: accountInclude
+        })
+
+        return updatedAccount
       }
     },
     split: {

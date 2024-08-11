@@ -12,14 +12,17 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
   }
 
   await stringReply(params, async (title) => {
-    const categoryId = conversation.edit.categoryId
+    const itemId = conversation.edit.categoryId || conversation.edit.accountId
+    const isCategory = conversation.subject === 'category_rename'
 
-    if (!categoryId) {
+    if (!itemId) {
       await notFoundError(params)
       return
     }
 
-    const update = await xprisma.category.update(user, categoryId, {
+    const update = isCategory ? await xprisma.category.update(user, itemId, {
+      description: title
+    }) : await xprisma.account.update(user, itemId, {
       description: title
     })
 
@@ -28,6 +31,7 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
       return
     }
 
-    await budgetItemViewMenuMessage(params, { itemId: categoryId, type: update.type })
+    // @ts-ignore
+    await budgetItemViewMenuMessage(params, { itemId: itemId, type: isCategory ? update.type : 'ACCOUNT' })
   })
 }

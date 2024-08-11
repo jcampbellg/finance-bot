@@ -19,6 +19,8 @@ import bookShareButton from '@conversation/bookShare/bookShareButton'
 import bookShareText from '@conversation/bookShare/bookShareText'
 import budgetCreateButton from '@conversation/budgetCreate/budgetCreateButton'
 import budgetCreateText from '@conversation/budgetCreate/budgetCreateText'
+import budgetRenameButton from '@conversation/budgetRename/budgetRenameButton'
+import budgetRenameText from '@conversation/budgetRename/budgetRenameText'
 import startButton from '@conversation/start/startButton'
 import startText from '@conversation/start/startText'
 import transferCreateButton from '@conversation/transferCreate/transferCreateButton'
@@ -88,6 +90,14 @@ bot.on('message', async (ctx) => {
   //#region Budget
   if (conversation.subject === 'budget_create') {
     await BookSelectedWrapper(params, budgetCreateText)
+    return
+  }
+  if (conversation.subject === 'account_rename' || conversation.subject === 'category_rename') {
+    await BookSelectedWrapper(params, budgetRenameText)
+    return
+  }
+  if (conversation.subject === 'account_delete' || conversation.subject === 'category_delete') {
+    // await BookSelectedWrapper(params, budgetDeleteText)
     return
   }
   //#endregion
@@ -168,7 +178,7 @@ bot.on('callback_query', async (query) => {
     return
   }
 
-  if (btnPress.startsWith('book_rename_')) {
+  if (btnPress.startsWith('Delete')) {
     await bookRenameButton(msg)
     return
   }
@@ -195,6 +205,14 @@ bot.on('callback_query', async (query) => {
   //#region Budget
   if (btnPress.startsWith('budget_create_')) {
     await BookSelectedWrapper(msg, budgetCreateButton)
+    return
+  }
+  if (btnPress.startsWith('account_rename_') || btnPress.startsWith('category_rename_')) {
+    await BookSelectedWrapper(msg, budgetRenameButton)
+    return
+  }
+  if (btnPress.startsWith('account_delete_') || btnPress.startsWith('category_delete_')) {
+    // await BookSelectedWrapper(msg, budgetDeleteButton)
     return
   }
   if (['accounts_menu', 'incomes_menu', 'categories_menu', 'payments_menu'].includes(query.data)) {

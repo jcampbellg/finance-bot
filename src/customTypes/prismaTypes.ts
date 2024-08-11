@@ -120,3 +120,9 @@ type CategoryUpdateInput = Omit<Prisma.CategoryUpdateInput, 'id'>
 type CategoryUncheckedUpdateInput = Omit<Prisma.CategoryUncheckedUpdateInput, 'id'>
 
 export type CategoryUpdate = Prisma.XOR<CategoryUpdateInput, CategoryUncheckedUpdateInput>
+
+type AccountUpdateInput = Omit<Prisma.AccountUpdateInput, 'id'>
+
+type AccountUncheckedUpdateInput = Omit<Prisma.AccountUncheckedUpdateInput, 'id'>
+
+export type AccountUpdate = Prisma.XOR<AccountUpdateInput, AccountUncheckedUpdateInput>
