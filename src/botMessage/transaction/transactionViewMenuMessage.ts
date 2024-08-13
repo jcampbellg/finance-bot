@@ -83,7 +83,6 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
     reply_markup: {
       inline_keyboard: [
         [{ text: '✏️ Renombrar', callback_data: `transaction_rename_${t.id}` }, { text: `❌ Eliminar`, callback_data: `transaction_delete_${t.id}` }],
-        [{ text: `🗂️ Categoría`, callback_data: `transaction_category_${t.id}` }],
         [...((isNormal || isTransfer) ? [{ text: `🗂️ Categoría`, callback_data: `transaction_category_${t.id}` }, { text: '🏷️ Etiquetas', callback_data: `transaction_tag_${t.id}` }, ...(isExpense ? [{ text: '✂️ Dividir', callback_data: `transaction_split_${t.id}` }] : [])] : [])],
         [{ text: '💵 Cambiar Monto', callback_data: `transaction_amount_${t.id}` }, { text: '📅 Cambiar Fecha', callback_data: `transaction_date_${t.id}` }],
         ...((isPayment || isIncome) ? (!t.paidAt ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_paid_now_${t.id}` }]] : [[{ text: `❌ Marcar como No Pagado`, callback_data: `transaction_paid_cancel_${t.id}` }]]) : []),
