@@ -11,6 +11,8 @@ import searchMessage from '@botMessage/search/searchMessage'
 import summaryMenuMessage from '@botMessage/summary/summaryMenuMessage'
 import transactionHandleMessageButton from '@botMessage/transaction/transactionHandleMessageButton'
 import transactionHandleMessageText from '@botMessage/transaction/transactionHandleMessageText'
+import accountBalanceButton from '@conversation/accountBalance/accountBalanceButton'
+import accountBalanceText from '@conversation/accountBalance/accountBalanceText'
 import bookCreateButton from '@conversation/bookCreate/bookCreateButton'
 import bookCreateText from '@conversation/bookCreate/bookCreateText'
 import bookDeleteButton from '@conversation/bookDelete/bookDeleteButton'
@@ -92,6 +94,10 @@ bot.on('message', async (ctx) => {
   //#endregion
 
   //#region Budget
+  if (conversation.subject === 'account_balance') {
+    await BookSelectedWrapper(params, accountBalanceText)
+    return
+  }
   if (conversation.subject === 'budget_create') {
     await BookSelectedWrapper(params, budgetCreateText)
     return
@@ -210,6 +216,10 @@ bot.on('callback_query', async (query) => {
   //#endregion
 
   //#region Budget
+  if (query.data.startsWith('account_balance_') || conversation.subject === 'account_balance') {
+    await BookSelectedWrapper(msg, accountBalanceButton)
+    return
+  }
   if (btnPress.startsWith('budget_create_')) {
     await BookSelectedWrapper(msg, budgetCreateButton)
     return

@@ -563,6 +563,50 @@ const xprisma = prisma.$extends({
         return true
       }
     },
+    balance: {
+      async userSet(user: ByncUser, { amount, symbol, accountId }: { amount: number, symbol: string, accountId: string }): Promise<boolean> {
+        if (!user.bookSelected) return false
+
+        const monthTZStart = dayjs().tz(user.timezone).startOf('month')
+
+        const currency = await prisma.currency.findFirst({
+          where: { AND: [{ symbol: symbol }, { account: { id: accountId } }] }
+        })
+
+        if (!currency) {
+          // Create currency With Balance
+          await prisma.currency.create({
+            data: { symbol, accountId, balance: { create: { amount, isUserInput: true } } }
+          })
+
+          return true
+        }
+
+        const lastBalance = await prisma.balance.findFirst({
+          where: { currencyId: currency.id },
+          include: { currency: { include: { account: true } } },
+          orderBy: { createdAt: 'desc' }
+        })
+
+        if (!lastBalance) {
+          // Create balance
+          await prisma.balance.create({
+            data: { amount, currencyId: currency.id, isUserInput: true }
+          })
+
+          return true
+        }
+
+        const sum = amount - (lastBalance?.amount || 0)
+
+        await prisma.balance.updateMany({
+          where: { AND: [{ createdAt: { lte: lastBalance.createdAt, gt: monthTZStart.format() } }, { currencyId: currency.id }] },
+          data: { amount: { increment: sum } }
+        })
+
+        return true
+      },
+    },
     split: {
       create: async (user: ByncUser, parent: TransactionWithAll, children: TransactionWithAll): Promise<boolean> => {
         if (!user.bookSelected) return false

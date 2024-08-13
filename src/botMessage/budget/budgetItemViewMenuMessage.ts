@@ -17,6 +17,8 @@ export default async function budgetItemViewMenuMessage(params: ConversationProp
     throw new Error('query is required')
   }
 
+  await xprisma.conversation.waiting(params.conversation.id)
+
   const isAccount = query?.data.startsWith('account_view_') || select?.isAccount
 
   if (isAccount) {
