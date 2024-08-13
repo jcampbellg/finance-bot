@@ -5,7 +5,7 @@ import xprisma from '@utils/xprisma'
 import TelegramBot from 'node-telegram-bot-api'
 
 export default async function booksMenuMessage(params: ConversationProps) {
-  const { bot, chatId, query, user, conversation } = params
+  const { bot, chatId, query, user, conversation, bookSelected } = params
 
   await xprisma.conversation.waiting(conversation.id)
 
@@ -19,7 +19,7 @@ export default async function booksMenuMessage(params: ConversationProps) {
 
   const buttons: TelegramBot.InlineKeyboardButton[][] = [
     [...(canCreate ? [{ text: '📚 Crear Libro', callback_data: 'book_create' }] : []), { text: '📚 Añadir Libro', callback_data: 'book_add' }],
-    books.map(book => ({ text: book.title, callback_data: `book_view_${book.id}` })),
+    books.map(book => ({ text: `${bookSelected?.id === book.id ? '⦿ ' : ''}${book.title}`, callback_data: `book_view_${book.id}` })),
     menuBtn
   ]
 

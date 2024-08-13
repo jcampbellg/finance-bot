@@ -546,6 +546,21 @@ const xprisma = prisma.$extends({
         })
 
         return updatedAccount
+      },
+      async delete(user: ByncUser, id: string): Promise<boolean> {
+        if (!user.bookSelected) return false
+
+        const account = await prisma.account.findUnique({
+          where: { id },
+          include: { transaction: true }
+        })
+
+        if (!account) return false
+        if (account?.transaction.length > 0) return false
+        if (account.bookId !== user.bookSelected.id) return false
+
+        await prisma.account.delete({ where: { id } })
+        return true
       }
     },
     split: {
@@ -774,6 +789,30 @@ const xprisma = prisma.$extends({
         })
 
         return update
+      },
+      async delete(user: ByncUser, id: string): Promise<boolean> {
+        if (!user.bookSelected) return false
+
+        const item = await prisma.category.findUnique({
+          where: { id },
+          include: { transactions: true }
+        })
+
+        if (!item) return false
+        if (item.bookId !== user.bookSelected.id) return false
+
+        if (item.type === 'INCOME' || item.type === 'PAYMENT') {
+          await prisma.transaction.updateMany({
+            where: { categoryId: id },
+            data: {
+              type: item.type === 'INCOME' ? 'DEPOSIT' : 'EXPENSE',
+              categoryId: null
+            }
+          })
+        }
+
+        await prisma.category.delete({ where: { id } })
+        return true
       }
     },
     payment: {

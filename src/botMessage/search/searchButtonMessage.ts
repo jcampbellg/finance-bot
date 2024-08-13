@@ -20,11 +20,13 @@ export default async function searchButtonMessage(params: ConversationPropsWithB
   }
 
   const isCategory = query.data.startsWith('search_category_')
+  const isAccount = query.data.startsWith('search_account_')
 
   const itemId = query.data.replace('search_category_', '').replace('search_account_', '')
 
   const transactions = await xprisma.transaction.findMany(user, {
-    [isCategory ? 'categoryId' : 'accountId']: itemId,
+    ...(isCategory ? { categoryId: itemId } : {}),
+    ...(isAccount ? { accountId: itemId } : {})
   })
 
   await bot.editMessageText(`🔎 Transacciones`, {

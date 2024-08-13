@@ -20,6 +20,7 @@ import bookShareButton from '@conversation/bookShare/bookShareButton'
 import bookShareText from '@conversation/bookShare/bookShareText'
 import budgetCreateButton from '@conversation/budgetCreate/budgetCreateButton'
 import budgetCreateText from '@conversation/budgetCreate/budgetCreateText'
+import budgetDeleteButton from '@conversation/budgetDelete/budgetDeleteButton'
 import budgetRenameButton from '@conversation/budgetRename/budgetRenameButton'
 import budgetRenameText from '@conversation/budgetRename/budgetRenameText'
 import startButton from '@conversation/start/startButton'
@@ -95,10 +96,6 @@ bot.on('message', async (ctx) => {
   }
   if (conversation.subject === 'account_rename' || conversation.subject === 'category_rename') {
     await BookSelectedWrapper(params, budgetRenameText)
-    return
-  }
-  if (conversation.subject === 'account_delete' || conversation.subject === 'category_delete') {
-    // await BookSelectedWrapper(params, budgetDeleteText)
     return
   }
   //#endregion
@@ -179,7 +176,7 @@ bot.on('callback_query', async (query) => {
     return
   }
 
-  if (btnPress.startsWith('Delete')) {
+  if (btnPress.startsWith('book_rename_') || conversation.subject === 'book_rename') {
     await bookRenameButton(msg)
     return
   }
@@ -212,8 +209,8 @@ bot.on('callback_query', async (query) => {
     await BookSelectedWrapper(msg, budgetRenameButton)
     return
   }
-  if (btnPress.startsWith('account_delete_') || btnPress.startsWith('category_delete_')) {
-    // await BookSelectedWrapper(msg, budgetDeleteButton)
+  if (btnPress.startsWith('account_delete_') || btnPress.startsWith('category_delete_') || conversation.subject === 'account_delete' || conversation.subject === 'category_delete') {
+    await BookSelectedWrapper(msg, budgetDeleteButton)
     return
   }
   if (['accounts_menu', 'incomes_menu', 'categories_menu', 'payments_menu'].includes(query.data)) {
@@ -234,7 +231,7 @@ bot.on('callback_query', async (query) => {
   //#endregion
 
   //#region Search
-  if (btnPress.startsWith('search_category_') || btnPress.startsWith('search_account_')) {
+  if (btnPress.startsWith('search_')) {
     await BookSelectedWrapper(msg, searchButtonMessage)
     return
   }

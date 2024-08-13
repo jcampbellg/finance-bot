@@ -1,0 +1,21 @@
+import { ConversationProps } from '@customTypes/messageTypes'
+import step1 from './step1'
+import step2 from './step2'
+
+export default async function budgetDeleteButton(params: ConversationProps) {
+  const { query } = params
+
+  if (!query) {
+    throw new Error('query is required')
+  }
+
+  if (query.data.startsWith('account_delete_') || query.data.startsWith('category_delete_')) {
+    await step1(params)
+    return
+  }
+
+  if (query.data === 'delete_confirm') {
+    await step2(params)
+    return
+  }
+}
