@@ -16,7 +16,7 @@ export default async function transactionCreateText(params: ConversationPropsWit
     return
   }
 
-  if (conversation.subSubject === 'account_create') {
+  if (conversation.subSubject === 'account') {
     await step3(params)
     return
   }

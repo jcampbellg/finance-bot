@@ -13,8 +13,7 @@ export default async function step1(params: ConversationPropsWithBookSelected, n
   })
 
   await accountsListMessage(params, {
-    text: `¿Puedes decirme ${keySub === 'account-a' ? 'desde' : 'a'} que cuenta ${keySub === 'account-a' ? 'origen' : 'destino'} se aplica la transferencia?`,
-    callbackCreate: `account_create`,
+    text: `¿Puedes decirme ${keySub === 'account-a' ? 'desde' : 'a'} que cuenta ${keySub === 'account-a' ? 'origen' : 'destino'} se aplica la transferencia?\n\n<i>O puedas crear una cuenta nueva: ¿Cómo te gustaría llamarla?</i>`,
     callbackPrefix: `account_select_`,
     btn: 'end'
   })

@@ -17,7 +17,7 @@ export default async function transactionCreateButton(params: ConversationPropsW
     return
   }
 
-  if (conversation.subSubject === 'accounts') {
+  if (conversation.subSubject === 'account') {
     await step3(params)
     return
   }

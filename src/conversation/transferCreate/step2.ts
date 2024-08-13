@@ -36,7 +36,8 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
         }
       })
 
-      await bot.sendMessage(chatId, `¿En qué moneda se realizará la transferencia?`, {
+      await bot.sendMessage(chatId, `¿En qué moneda se realizará la transferencia?\n\n<i>Escribe la moneda en 3 letras.</i>`, {
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
             askForSameBtn,
@@ -50,21 +51,6 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
 
   if (!query) {
     throw new Error('query is required')
-  }
-
-  if (query.data === 'account_create') {
-    await xprisma.conversation.update(conversation.id, {
-      subSubject: `account_create_${conversation.subSubject}`,
-    })
-    await bot.editMessageText(`🏦 Vamos a crear una nueva cuenta.\n¿Cómo te gustaría llamarlo?`, {
-      chat_id: chatId,
-      message_id: query.message.message_id,
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [endBtn]
-      }
-    })
-    return
   }
 
   if (query.data.startsWith('account_select_')) {
@@ -88,9 +74,10 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
     const currencies = account.currency.map((currency) => currency.symbol)
     const groupedcurrencies: string[][] = chunkIt(currencies).size(3)
 
-    await bot.editMessageText(`¿En qué moneda se realizará la transferencia?`, {
+    await bot.editMessageText(`¿En qué moneda se realizará la transferencia?\n\n<i>O escribe la moneda en 3 letras.</i>`, {
       chat_id: chatId,
       message_id: query.message.message_id,
+      parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
           askForSameBtn,

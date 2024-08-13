@@ -18,7 +18,7 @@ export default async function transferCreateButton(params: ConversationPropsWith
     return
   }
 
-  if (btnPress.startsWith('account_select') || btnPress === 'account_create') {
+  if (btnPress.startsWith('account_select')) {
     await step2(params)
     return
   }

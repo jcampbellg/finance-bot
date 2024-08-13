@@ -9,7 +9,7 @@ import { MAX_ACCOUNTS } from '@utils/constant'
 import budgetBtn from '@buttons/budgetBtn'
 
 type AccountsListProps = {
-  callbackCreate: string
+  callbackCreate?: string
   callbackPrefix: string
   text: string,
   btn: 'end' | 'menu' | 'budget'
@@ -21,7 +21,7 @@ export default async function accountsListMessage(params: ConversationPropsWithB
   const accounts = await xprisma.account.findMany(user)
   const groupedAccounts: AccountWithBalance[][] = chunkIt(accounts).size(3)
 
-  const canCreate = MAX_ACCOUNTS > accounts.length
+  const canCreate = MAX_ACCOUNTS > accounts.length && !!callbackCreate
 
   const keyboard: TelegramBot.InlineKeyboardButton[][] = [
     ...(canCreate ? [[{ text: '🏦 Crear Cuenta', callback_data: callbackCreate }]] : []),
