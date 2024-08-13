@@ -14,7 +14,7 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
   })
 
   await categoriesListMessage(params, {
-    text: `Por favor, selecciona un pago fijo de tu presupuesto.`,
+    text: `💵 Por favor, selecciona un pago fijo de tu presupuesto.\n\n<i>O puedas crear un nuevo pago fijo: ¿Cómo te gustaría llamarla?</i>`,
     callbackPrefix: `payment_select_`,
     btn: 'end',
     type: 'PAYMENT'

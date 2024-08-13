@@ -18,6 +18,7 @@ export default async function searchMessage(params: ConversationPropsWithBookSel
 
   const isCategory = query?.data.startsWith('search_category_') || false
   const isAccount = query?.data.startsWith('search_account_') || false
+  const isNotPaid = query?.data.startsWith('search_not_paid') || false
 
   const itemId = query?.data.replace('search_category_', '').replace('search_account_', '') || ''
 
@@ -26,6 +27,7 @@ export default async function searchMessage(params: ConversationPropsWithBookSel
   const transactions = await xprisma.transaction.findMany(user, {
     ...(isCategory ? { categoryId: itemId } : {}),
     ...(isAccount ? { accountId: itemId } : {}),
+    ...(isNotPaid ? { AND: [{ paidAt: null }, { type: { in: ['INCOME', 'PAYMENT'] } }] } : {}),
     ...(searchFor ? {
       OR: [
         ...(Number.isNaN(searchForFloat) ? [] : [{ amount: { equals: searchForFloat } }]),
