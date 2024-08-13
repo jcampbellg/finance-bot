@@ -8,7 +8,7 @@ export default async function incomeTransactionCreateText(params: ConversationPr
     throw new Error('ctx is required')
   }
 
-  if (conversation.subSubject === 'income_create') {
+  if (conversation.subSubject === 'income') {
     step2(params)
   }
 }

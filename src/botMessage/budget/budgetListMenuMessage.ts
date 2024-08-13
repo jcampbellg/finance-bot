@@ -1,7 +1,5 @@
 import accountsListMessage from '@botMessage/account/accountsListMessage'
 import categoriesListMessage from '@botMessage/category/categoriesListMessage'
-import incomesListMessage from '@botMessage/income/incomesListMessage'
-import paymentsListMessage from '@botMessage/payment/paymentsListMessage'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 
@@ -27,11 +25,12 @@ export default async function budgetListMenuMessage(params: ConversationPropsWit
   }
 
   if (btnPress === 'incomes_menu') {
-    await incomesListMessage(params, {
+    await categoriesListMessage(params, {
       btn: 'budget',
       callbackCreate: 'budget_create_income',
       callbackPrefix: 'income_view_',
-      text: '🤑 Ingresos'
+      text: '🤑 Ingresos',
+      type: 'INCOME'
     })
     return
   }
@@ -41,17 +40,19 @@ export default async function budgetListMenuMessage(params: ConversationPropsWit
       btn: 'budget',
       callbackCreate: 'budget_create_category',
       callbackPrefix: 'category_view_',
-      text: '🗂️ Categorias'
+      text: '🗂️ Categorias',
+      type: 'CATEGORY'
     })
     return
   }
 
   if (btnPress === 'payments_menu') {
-    await paymentsListMessage(params, {
+    await categoriesListMessage(params, {
       btn: 'budget',
       callbackCreate: 'budget_create_payment',
       callbackPrefix: 'payment_view_',
-      text: '💵 Pagos Fijos'
+      text: '💵 Pagos Fijos',
+      type: 'PAYMENT'
     })
     return
   }

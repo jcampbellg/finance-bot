@@ -8,7 +8,7 @@ export default async function paymentTransactionCreateText(params: ConversationP
     throw new Error('ctx is required')
   }
 
-  if (conversation.subSubject === 'payment_create') {
+  if (conversation.subSubject === 'payment') {
     step2(params)
   }
 }

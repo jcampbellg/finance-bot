@@ -1,4 +1,4 @@
-import incomesListMessage from '@botMessage/income/incomesListMessage'
+import categoriesListMessage from '@botMessage/category/categoriesListMessage'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 
@@ -13,10 +13,10 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
     }
   })
 
-  await incomesListMessage(params, {
-    text: `Por favor, selecciona un ingreso de tu presupuesto.`,
-    callbackCreate: `income_create`,
+  await categoriesListMessage(params, {
+    text: `Por favor, selecciona un ingreso de tu presupuesto.\n\n<i>O puedas crear un nuevo ingreso: ¿Cómo te gustaría llamarla?</i>`,
     callbackPrefix: `income_select_`,
-    btn: 'end'
+    btn: 'end',
+    type: 'INCOME'
   })
 }

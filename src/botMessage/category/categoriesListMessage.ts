@@ -5,26 +5,32 @@ import { chunkIt } from '@array-utils/chunk-it'
 import { Category } from '@customTypes/prismaTypes'
 import endBtn from '@buttons/endBtn'
 import menuBtn from '@buttons/menuBtn'
-import { MAX_CATEGORIES } from '@utils/constant'
+import { MAX_CATEGORIES, MAX_INCOMES, MAX_PAYMENTS } from '@utils/constant'
 import budgetBtn from '@buttons/budgetBtn'
+import { $Enums } from '@prisma/client'
 
 type CategoriesListProps = {
-  callbackCreate: string
+  callbackCreate?: string
   callbackPrefix: string
   text: string,
   btn: 'end' | 'menu' | 'budget'
+  type?: $Enums.CategoryType
 }
 
-export default async function categoriesListMessage(params: ConversationPropsWithBookSelected, { callbackCreate, callbackPrefix, text: botText, btn }: CategoriesListProps) {
+export default async function categoriesListMessage(params: ConversationPropsWithBookSelected, { callbackCreate, callbackPrefix, text: botText, btn, type = 'CATEGORY' }: CategoriesListProps) {
   const { bot, query, chatId, user } = params
 
-  const categories = await xprisma.category.findMany(user)
+  const categories = await xprisma.category.findManyByType(user, type)
   const groupedCategories: Category[][] = chunkIt(categories).size(2)
 
-  const canCreate = MAX_CATEGORIES > categories.length
+  const canCreate = !!callbackCreate && (
+    type === 'INCOME' ? categories.length < MAX_INCOMES : type === 'PAYMENT' ? categories.length < MAX_PAYMENTS : categories.length < MAX_CATEGORIES
+  )
+
+  const createText = type === 'INCOME' ? '🤑 Crear Ingreso' : type === 'PAYMENT' ? '💵 Crear Pago Fijo' : '🗂️ Crear Categoria'
 
   const keyboard: TelegramBot.InlineKeyboardButton[][] = [
-    ...(canCreate ? [[{ text: '🗂️ Crear Categoria', callback_data: callbackCreate }]] : []),
+    ...(canCreate ? [[{ text: createText, callback_data: callbackCreate }]] : []),
     ...groupedCategories.map((group) => group.map((c) => ({
       text: `${c.description}`,
       callback_data: `${callbackPrefix}${c.id}`
