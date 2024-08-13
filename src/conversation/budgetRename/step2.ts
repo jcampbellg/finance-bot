@@ -32,6 +32,6 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
     }
 
     // @ts-ignore
-    await budgetItemViewMenuMessage(params, { itemId: itemId, type: isCategory ? update.type : 'ACCOUNT' })
+    await budgetItemViewMenuMessage(params, { itemId: itemId, isAccount: !isCategory })
   })
 }

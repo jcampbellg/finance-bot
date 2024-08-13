@@ -10,7 +10,7 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
     throw new Error('query is required')
   }
 
-  const id = query.data.replace('category_rename_', '')
+  const id = query.data.replace('category_rename_', '').replace('account_rename_', '')
 
   const category = await xprisma.category.findUniqueById(user, id)
 

@@ -28,7 +28,7 @@ export default async function budgetListMenuMessage(params: ConversationPropsWit
     await categoriesListMessage(params, {
       btn: 'budget',
       callbackCreate: 'budget_create_income',
-      callbackPrefix: 'income_view_',
+      callbackPrefix: 'category_view_',
       text: '🤑 Ingresos',
       type: 'INCOME'
     })
@@ -50,7 +50,7 @@ export default async function budgetListMenuMessage(params: ConversationPropsWit
     await categoriesListMessage(params, {
       btn: 'budget',
       callbackCreate: 'budget_create_payment',
-      callbackPrefix: 'payment_view_',
+      callbackPrefix: 'category_view_',
       text: '💵 Pagos Fijos',
       type: 'PAYMENT'
     })

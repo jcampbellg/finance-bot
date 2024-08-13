@@ -97,9 +97,9 @@ async function CreateMessage(params: ConversationPropsWithBookSelected, id: stri
 
   const callback: Record<string, string> = {
     'account': `account_view_${id}`,
-    'income': `income_view_${id}`,
+    'income': `category_view_${id}`,
     'category': `category_view_${id}`,
-    'payment': `payment_view_${id}`
+    'payment': `category_view_${id}`
   }
 
   const text = `¡Perfecto!\nTu ${botText[element]} ha sido creado.`

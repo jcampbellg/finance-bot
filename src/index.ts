@@ -219,7 +219,7 @@ bot.on('callback_query', async (query) => {
     await BookSelectedWrapper(msg, budgetListMenuMessage)
     return
   }
-  if (btnPress.startsWith('account_view_') || btnPress.startsWith('income_view_') || btnPress.startsWith('payment_view_') || btnPress.startsWith('category_view_')) {
+  if (btnPress.startsWith('account_view_') || btnPress.startsWith('category_view_')) {
     await BookSelectedWrapper(msg, budgetItemViewMenuMessage)
     return
   }

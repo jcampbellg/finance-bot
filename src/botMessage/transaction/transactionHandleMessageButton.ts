@@ -14,6 +14,7 @@ import fileDeleteMessage from '@botMessage/file/fileDeleteMessage'
 import transactionTagButton from '@conversation/transactionTag/transactionTagButton'
 import transactionCategoryButton from '@conversation/transactionCategory/transactionCategoryButton'
 import transactionSplitButton from '@conversation/transactionSplit/transactionSplitButton'
+import transactionViewFilesMessage from './transactionViewFilesMessage'
 
 export default async function transactionHandleMessageButton(params: ConversationPropsWithBookSelected): Promise<boolean> {
   const { query, conversation } = params
@@ -26,6 +27,11 @@ export default async function transactionHandleMessageButton(params: Conversatio
 
   if (btnPress.startsWith('transaction_view_')) {
     await transactionViewMenuMessage(params)
+    return true
+  }
+
+  if (btnPress.startsWith('transaction_files_')) {
+    await transactionViewFilesMessage(params)
     return true
   }
 
@@ -74,7 +80,7 @@ export default async function transactionHandleMessageButton(params: Conversatio
     return true
   }
 
-  if (btnPress.startsWith('transaction_file')) {
+  if (btnPress.startsWith('transaction_file_')) {
     await transactionFileButton(params)
     return true
   }
