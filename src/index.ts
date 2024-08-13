@@ -7,7 +7,7 @@ import budgetItemViewMenuMessage from '@botMessage/budget/budgetItemViewMenuMess
 import budgetListMenuMessage from '@botMessage/budget/budgetListMenuMessage'
 import budgetMenuMessage from '@botMessage/budget/budgetMenuMessage'
 import menuMessage from '@botMessage/menuMessage'
-import searchButtonMessage from '@botMessage/search/searchButtonMessage'
+import searchMessage from '@botMessage/search/searchMessage'
 import summaryMenuMessage from '@botMessage/summary/summaryMenuMessage'
 import transactionHandleMessageButton from '@botMessage/transaction/transactionHandleMessageButton'
 import transactionHandleMessageText from '@botMessage/transaction/transactionHandleMessageText'
@@ -23,6 +23,8 @@ import budgetCreateText from '@conversation/budgetCreate/budgetCreateText'
 import budgetDeleteButton from '@conversation/budgetDelete/budgetDeleteButton'
 import budgetRenameButton from '@conversation/budgetRename/budgetRenameButton'
 import budgetRenameText from '@conversation/budgetRename/budgetRenameText'
+import searchByButton from '@conversation/searchBy/searchByButton'
+import searchByText from '@conversation/searchBy/searchByText'
 import startButton from '@conversation/start/startButton'
 import startText from '@conversation/start/startText'
 import transferCreateButton from '@conversation/transferCreate/transferCreateButton'
@@ -103,6 +105,13 @@ bot.on('message', async (ctx) => {
   //#region Transfer
   if (conversation.subject === 'transfer_create') {
     await BookSelectedWrapper(params, transferCreateText)
+    return
+  }
+  //#endregion
+
+  //#region Search
+  if (conversation.subject === 'search_by') {
+    await BookSelectedWrapper(params, searchByText)
     return
   }
   //#endregion
@@ -231,8 +240,12 @@ bot.on('callback_query', async (query) => {
   //#endregion
 
   //#region Search
+  if (btnPress.startsWith('search_by')) {
+    await BookSelectedWrapper(msg, searchByButton)
+    return
+  }
   if (btnPress.startsWith('search_')) {
-    await BookSelectedWrapper(msg, searchButtonMessage)
+    await BookSelectedWrapper(msg, searchMessage)
     return
   }
   //#endregion

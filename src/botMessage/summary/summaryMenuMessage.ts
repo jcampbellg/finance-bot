@@ -13,10 +13,9 @@ export default async function summaryMenuMessage(params: ConversationPropsWithBo
     message_id: query.message.message_id,
     reply_markup: {
       inline_keyboard: [
-        [{ text: '✋ Reglas y Limites', callback_data: 'pdf_rules' }],
-        [{ text: '🧾 Transacciones por Categorias', callback_data: 'pdf_transactions' }],
         [{ text: '🏦 Transacciones por Cuenta', callback_data: 'pdf_accounts' }],
-        [{ text: '💵 Pagos Fijos', callback_data: 'pdf_payments' }],
+        [{ text: '🗂️ Transacciones por Categorias', callback_data: 'pdf_transactions' }],
+        [{ text: '💵 Pagos Fijos e Ingresos', callback_data: 'pdf_payments' }],
         menuBtn
       ]
     }

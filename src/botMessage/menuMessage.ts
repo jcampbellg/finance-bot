@@ -22,7 +22,7 @@ export default async function menuMessage(params: ConversationProps, isEnd = fal
         [{ text: '📚 Ver y Seleccionar Libro', callback_data: 'books_menu' }],
         [{ text: '📝 Preparar Presupuesto', callback_data: 'budget_menu' }],
         [{ text: '🧾 Ultimos Movimientos', callback_data: 'search_recent' }],
-        [{ text: '🔎 Buscar', callback_data: 'search' }, { text: '📑 Resumen', callback_data: 'summary_menu' }],
+        [{ text: '🔎 Buscar', callback_data: 'search_by' }, { text: '📑 Resumen', callback_data: 'summary_menu' }],
         [{ text: '📃 Condiciones de 🤖 ByncBot', callback_data: 'app_limit' }]
       ]
     }
