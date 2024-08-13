@@ -1,5 +1,5 @@
 import { AccountUpdate, AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
-import { $Enums, PrismaClient } from '@prisma/client'
+import { $Enums, PrismaClient, Prisma } from '@prisma/client'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
@@ -607,6 +607,29 @@ const xprisma = prisma.$extends({
         })
 
         if (!transaction) return null
+
+        return transaction
+      },
+      async findMany(user: ByncUser, where: Prisma.TransactionWhereInput): Promise<TransactionWithAll[]> {
+        if (!user.bookSelected) return []
+
+        const transaction = await prisma.transaction.findMany({
+          where: {
+            AND: [{ account: { bookId: user.bookSelected.id } }, where]
+          },
+          include: transactionInclude,
+          take: 50,
+          orderBy: [
+            {
+              paidAt: 'asc',
+            },
+            {
+              createdAt: 'asc'
+            }
+          ],
+        })
+
+        if (!transaction) return []
 
         return transaction
       },

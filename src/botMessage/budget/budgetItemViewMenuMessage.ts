@@ -46,7 +46,7 @@ export default async function budgetItemViewMenuMessage(params: ConversationProp
   const buttons = [
     [{ text: '✏️ Renombrar', callback_data: `category_rename_${item.id}` }, { text: `❌ Eliminar`, callback_data: `category_delete_${item.id}` }],
     [{ text: '⚠️ Editar Límite', callback_data: `category_limit_${item.id}` }],
-    [{ text: `🔎 Ver ${look}`, callback_data: menu }, { text: `📑 Ver Transacciones`, callback_data: `category_summary_${item.id}` }],
+    [{ text: `🔎 Ver ${look}`, callback_data: menu }, { text: `📑 Ver Transacciones`, callback_data: `search_category_${item.id}` }],
     menuBtn
   ]
 
@@ -90,7 +90,7 @@ async function accountViewMenuMessage(params: ConversationPropsWithBookSelected,
     [{ text: '✏️ Renombrar', callback_data: `account_rename_${account.id}` }, { text: `❌ Eliminar`, callback_data: `account_delete_${account.id}` }],
     [{ text: '💲 Crear Moneda', callback_data: `account_currency_create_${account.id}` }],
     ...currenciesBtns,
-    [{ text: '🔎 Ver Cuentas', callback_data: 'accounts_menu' }, { text: `📑 Ver Transacciones`, callback_data: `account_summary_${account.id}` }],
+    [{ text: '🔎 Ver Cuentas', callback_data: 'accounts_menu' }, { text: `📑 Ver Transacciones`, callback_data: `search_account_${account.id}` }],
     menuBtn
   ]
 

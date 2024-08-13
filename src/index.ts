@@ -7,6 +7,7 @@ import budgetItemViewMenuMessage from '@botMessage/budget/budgetItemViewMenuMess
 import budgetListMenuMessage from '@botMessage/budget/budgetListMenuMessage'
 import budgetMenuMessage from '@botMessage/budget/budgetMenuMessage'
 import menuMessage from '@botMessage/menuMessage'
+import searchButtonMessage from '@botMessage/search/searchButtonMessage'
 import summaryMenuMessage from '@botMessage/summary/summaryMenuMessage'
 import transactionHandleMessageButton from '@botMessage/transaction/transactionHandleMessageButton'
 import transactionHandleMessageText from '@botMessage/transaction/transactionHandleMessageText'
@@ -228,6 +229,13 @@ bot.on('callback_query', async (query) => {
   //#region Transfer
   if (conversation.subject === 'transfer_create' || btnPress === 'transfer_create') {
     await BookSelectedWrapper(msg, transferCreateButton)
+    return
+  }
+  //#endregion
+
+  //#region Search
+  if (btnPress.startsWith('search_category_') || btnPress.startsWith('search_account_')) {
+    await BookSelectedWrapper(msg, searchButtonMessage)
     return
   }
   //#endregion
