@@ -67,7 +67,9 @@ export type BookUpdate = Prisma.XOR<BookUpdateInput, BookUncheckedUpdateInput>
 
 export type AccountWithBalance = Prisma.AccountGetPayload<{
   include: { currency: { include: { balance: true } } }
-}>
+}> & {
+  type: 'ACCOUNT'
+}
 
 export type TransactionWithAll = Prisma.TransactionGetPayload<{
   include: {

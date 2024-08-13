@@ -81,15 +81,17 @@ async function accountViewMenuMessage(params: ConversationPropsWithBookSelected,
     return
   }
 
-  const currencies = `<b>Monedas:</b> ` + !account.currency.length ? account.currency.map(c => `${c.symbol}`).join(', ') : 'La cuenta no tiene monedas'
+  const balance = `<b>Balance:</b>\n${account.currency.map(c => {
+    const amount = c.balance[0]?.amount || 0
+    const direction = amount < 0 ? '🔴' : '🟢'
 
-  const currenciesBtns = account.currency.map(c => [{ text: `${c.symbol}`, callback_data: `account_currency_${account.id}_${c.id}` }])
+    return `${direction} ${c.symbol}: ${numeral(amount).format('0,0.00')}`
+  }).join('\n')}`
 
-  const botText = `🏦 Editando Cuenta\n\n<b>Descripción:</b> ${account.description}\n${currencies}`
+  const botText = `🏦 Editando Cuenta\n\n<b>Descripción:</b> ${account.description}\n\n${balance}`
   const buttons = [
     [{ text: '✏️ Renombrar', callback_data: `account_rename_${account.id}` }, { text: `❌ Eliminar`, callback_data: `account_delete_${account.id}` }],
-    [{ text: '💲 Crear Moneda', callback_data: `account_currency_create_${account.id}` }],
-    ...currenciesBtns,
+    [{ text: '💰 Establecer Saldo', callback_data: `account_balance_${account.id}` }],
     [{ text: '🔎 Ver Cuentas', callback_data: 'accounts_menu' }, { text: `📑 Ver Transacciones`, callback_data: `search_account_${account.id}` }],
     menuBtn
   ]

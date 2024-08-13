@@ -21,7 +21,7 @@ const userInclude = {
   conversation: true
 }
 
-const accountInclude = { currency: { include: { balance: true } } }
+const accountInclude = { currency: { orderBy: { symbol: 'desc' as Prisma.SortOrder }, include: { balance: { orderBy: { createdAt: 'desc' as Prisma.SortOrder } } } } }
 
 const transactionInclude = {
   account: { include: { currency: true } },
@@ -501,7 +501,7 @@ const xprisma = prisma.$extends({
           include: accountInclude
         })
 
-        return account
+        return { ...account, type: 'ACCOUNT' }
       },
       async findUnique(user: ByncUser, id: string): Promise<AccountWithBalance | null> {
         if (!user.bookSelected) return null
@@ -515,7 +515,7 @@ const xprisma = prisma.$extends({
 
         if (account.bookId !== user.bookSelected.id) return null
 
-        return account
+        return { ...account, type: 'ACCOUNT' }
       },
       async findMany(user: ByncUser): Promise<AccountWithBalance[]> {
         if (!user.bookSelected) return []
@@ -525,7 +525,7 @@ const xprisma = prisma.$extends({
           include: accountInclude
         })
 
-        return accounts
+        return accounts.map(account => ({ ...account, type: 'ACCOUNT' }))
       },
       async update(user: ByncUser, id: string, data: AccountUpdate): Promise<AccountWithBalance | null> {
         if (!user.bookSelected) return null
@@ -545,7 +545,7 @@ const xprisma = prisma.$extends({
           include: accountInclude
         })
 
-        return updatedAccount
+        return { ...updatedAccount, type: 'ACCOUNT' }
       },
       async delete(user: ByncUser, id: string): Promise<boolean> {
         if (!user.bookSelected) return false
