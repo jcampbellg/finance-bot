@@ -46,8 +46,11 @@ export default async function searchMessage(params: ConversationPropsWithBookSel
     return [{ text: `${TRANSACTION_TYPE_ICON[t.type]} ${t.description} [${spanishDate}]`, callback_data: `transaction_view_${t.id}` }]
   })
 
+  const isEmpty = transactions.length === 0
+  const text = isEmpty ? '🔎 No se encontraron transacciones' : '🔎 Transacciones'
+
   if (!!query) {
-    await bot.editMessageText(`🔎 Transacciones`, {
+    await bot.editMessageText(text, {
       chat_id: chatId,
       message_id: query.message.message_id,
       parse_mode: 'HTML',
@@ -59,7 +62,7 @@ export default async function searchMessage(params: ConversationPropsWithBookSel
     return
   }
 
-  await bot.sendMessage(chatId, `🔎 Transacciones`, {
+  await bot.sendMessage(chatId, text, {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [...keyboard, menuBtn]
