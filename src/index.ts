@@ -25,6 +25,8 @@ import budgetCreateText from '@conversation/budgetCreate/budgetCreateText'
 import budgetDeleteButton from '@conversation/budgetDelete/budgetDeleteButton'
 import budgetRenameButton from '@conversation/budgetRename/budgetRenameButton'
 import budgetRenameText from '@conversation/budgetRename/budgetRenameText'
+import categoryLimitButton from '@conversation/categoryLimit/categoryLimitButton'
+import categoryLimitText from '@conversation/categoryLimit/categoryLimitText'
 import searchByButton from '@conversation/searchBy/searchByButton'
 import searchByText from '@conversation/searchBy/searchByText'
 import startButton from '@conversation/start/startButton'
@@ -96,6 +98,10 @@ bot.on('message', async (ctx) => {
   //#region Budget
   if (conversation.subject === 'account_balance') {
     await BookSelectedWrapper(params, accountBalanceText)
+    return
+  }
+  if (conversation.subject === 'category_limit') {
+    await BookSelectedWrapper(params, categoryLimitText)
     return
   }
   if (conversation.subject === 'budget_create') {
@@ -218,6 +224,10 @@ bot.on('callback_query', async (query) => {
   //#region Budget
   if (query.data.startsWith('account_balance_') || conversation.subject === 'account_balance') {
     await BookSelectedWrapper(msg, accountBalanceButton)
+    return
+  }
+  if (query.data.startsWith('category_limit_') || conversation.subject === 'category_limit') {
+    await BookSelectedWrapper(msg, categoryLimitButton)
     return
   }
   if (btnPress.startsWith('budget_create_')) {

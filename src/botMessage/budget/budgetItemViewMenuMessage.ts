@@ -35,8 +35,11 @@ export default async function budgetItemViewMenuMessage(params: ConversationProp
     return
   }
 
-  const limits = item.limits.map(l => `${numeral(l.amount).format('0,0.00')} ${l.currency}`).join('\n')
-  const limitsText = limits.length ? `\n\n<b>Límites:</b>\n${limits}` : ''
+  const limits = `<b>Límites:</b>\n${item.limits.length > 0 ? item.limits.map(l => {
+    const amount = l.amount || 0
+
+    return `${l.currency}: ${numeral(amount).format('0,0.00')}`
+  }).join('\n') : 'No tiene líimites.'}`
 
   const type = item.type
 
@@ -44,7 +47,7 @@ export default async function budgetItemViewMenuMessage(params: ConversationProp
   const menu = type === 'INCOME' ? 'incomes_menu' : type === 'PAYMENT' ? 'payments_menu' : 'categories_menu'
   const look = type === 'INCOME' ? 'Ingresos' : type === 'PAYMENT' ? 'Pagos Fijos' : 'Categorías'
 
-  const botText = `${title}\n\n<b>Descripción:</b> ${item.description}${limitsText}`
+  const botText = `${title}\n\n<b>Descripción:</b> ${item.description}\n\n${limits}`
   const buttons = [
     [{ text: '✏️ Renombrar', callback_data: `category_rename_${item.id}` }, { text: `❌ Eliminar`, callback_data: `category_delete_${item.id}` }],
     [{ text: '⚠️ Editar Límite', callback_data: `category_limit_${item.id}` }],

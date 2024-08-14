@@ -49,19 +49,6 @@ export default async function searchMessage(params: ConversationPropsWithBookSel
   const isEmpty = transactions.length === 0
   const text = isEmpty ? '🔎 No se encontraron transacciones' : '🔎 Transacciones'
 
-  if (!!query) {
-    await bot.editMessageText(text, {
-      chat_id: chatId,
-      message_id: query.message.message_id,
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [...keyboard, menuBtn]
-      }
-    })
-
-    return
-  }
-
   await bot.sendMessage(chatId, text, {
     parse_mode: 'HTML',
     reply_markup: {

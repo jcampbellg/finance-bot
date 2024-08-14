@@ -680,10 +680,10 @@ const xprisma = prisma.$extends({
           take: 50,
           orderBy: [
             {
-              paidAt: 'asc',
+              paidAt: 'desc',
             },
             {
-              createdAt: 'asc'
+              createdAt: 'desc'
             }
           ],
         })
@@ -783,7 +783,7 @@ const xprisma = prisma.$extends({
         const category = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: 'CATEGORY' }] },
           include: { ...categoryInclude, transactions: { where: { paidAt: { gte: monthTZStart.format() } } } },
-          orderBy: { transactions: { _count: 'asc' } }
+          orderBy: { transactions: { _count: 'desc' } }
         })
 
         return category
@@ -810,7 +810,7 @@ const xprisma = prisma.$extends({
         const category = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: type }] },
           include: { ...categoryInclude, transactions: { where: { OR: [{ paidAt: { gte: monthTZStart.format() } }, { AND: [{ createdAt: { gte: monthTZStart.format() } }, { paidAt: null }] }] } } },
-          orderBy: { transactions: { _count: 'asc' } }
+          orderBy: { transactions: { _count: 'desc' } }
         })
 
         return category
@@ -823,7 +823,7 @@ const xprisma = prisma.$extends({
         const category = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }] },
           include: { ...categoryInclude, transactions: { where: { OR: [{ paidAt: { gte: monthTZStart.format() } }, { AND: [{ createdAt: { gte: monthTZStart.format() } }, { paidAt: null }] }] } } },
-          orderBy: { transactions: { _count: 'asc' } }
+          orderBy: { transactions: { _count: 'desc' } }
         })
 
         return category
@@ -870,6 +870,28 @@ const xprisma = prisma.$extends({
 
         await prisma.category.delete({ where: { id } })
         return true
+      },
+      async updateLimit(user: ByncUser, category: Category, data: { amount: number, currency: string }): Promise<Boolean> {
+        if (!user.bookSelected) return false
+
+        if (category.bookId !== user.bookSelected.id) return false
+
+        const currency = category.limits.find(l => l.currency === data.currency)
+
+        if (currency) {
+          await prisma.amountCurrency.update({
+            where: { id: currency.id },
+            data: { amount: data.amount }
+          })
+          return true
+        }
+
+        await prisma.category.update({
+          where: { id: category.id },
+          data: { limits: { create: data } }
+        })
+
+        return true
       }
     },
     payment: {
@@ -905,19 +927,6 @@ const xprisma = prisma.$extends({
         if (payment.bookId !== user.bookSelected.id) return null
 
         return payment
-      },
-      async findMany(user: ByncUser): Promise<PaymentIncome[]> {
-        if (!user.bookSelected) return []
-
-        const monthTZStart = dayjs().tz(user.timezone).startOf('month')
-
-        const payments = await prisma.category.findMany({
-          where: { AND: [{ bookId: user.bookSelected.id }, { type: 'PAYMENT' }] },
-          include: { ...paymentIncomeInclude, transactions: { where: { OR: [{ paidAt: { gte: monthTZStart.format() } }, { AND: [{ createdAt: { gte: monthTZStart.format() } }, { paidAt: null }] }] } } },
-          orderBy: { transactions: { _count: 'asc' } }
-        })
-
-        return payments
       }
     },
     income: {
@@ -953,19 +962,6 @@ const xprisma = prisma.$extends({
         if (income.bookId !== user.bookSelected.id) return null
 
         return income
-      },
-      async findMany(user: ByncUser): Promise<PaymentIncome[]> {
-        if (!user.bookSelected) return []
-
-        const monthTZStart = dayjs().tz(user.timezone).startOf('month')
-
-        const incomes = await prisma.category.findMany({
-          where: { AND: [{ bookId: user.bookSelected.id }, { type: 'INCOME' }] },
-          include: { ...paymentIncomeInclude, transactions: { where: { OR: [{ paidAt: { gte: monthTZStart.format() } }, { AND: [{ createdAt: { gte: monthTZStart.format() } }, { paidAt: null }] }] } } },
-          orderBy: { transactions: { _count: 'asc' } }
-        })
-
-        return incomes
       }
     },
     file: {
