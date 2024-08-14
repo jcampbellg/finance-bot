@@ -90,3 +90,5 @@ typings/
 dist/
 
 bak/
+
+src/migration/
