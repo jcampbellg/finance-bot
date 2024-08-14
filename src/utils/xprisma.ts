@@ -1,5 +1,5 @@
 import { AccountUpdate, AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
-import { $Enums, PrismaClient, Prisma } from '@prisma/client'
+import { $Enums, PrismaClient, Prisma, Currency } from '@prisma/client'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
@@ -482,6 +482,13 @@ const xprisma = prisma.$extends({
       }
     },
     account: {
+      async currencies(user: ByncUser): Promise<Currency[]> {
+        if (!user.bookSelected) return []
+
+        const currencies = await prisma.currency.findMany({ where: { account: { bookId: user.bookSelected?.id } } })
+
+        return currencies
+      },
       async count(user: ByncUser): Promise<number> {
         if (!user.bookSelected) return 0
 
@@ -813,7 +820,7 @@ const xprisma = prisma.$extends({
           orderBy: { transactions: { _count: 'desc' } }
         })
 
-        return category
+        return category.sort((a, b) => b.transactions.length - a.transactions.length)
       },
       async findManyAll(user: ByncUser): Promise<Category[] | PaymentIncome[]> {
         if (!user.bookSelected) return []
