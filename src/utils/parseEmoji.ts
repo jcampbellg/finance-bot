@@ -24,7 +24,7 @@ type ArrayText = {
   font: string
 }
 
-type ColumnsEmoji = {
+export type ColumnsEmoji = {
   columns: ArrayText[]
   columnGap: number
 }

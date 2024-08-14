@@ -1,4 +1,4 @@
-import { AccountUpdate, AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
+import { AccountUpdate, AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, CategoryWithTotals, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
 import { $Enums, PrismaClient, Prisma, Currency } from '@prisma/client'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
@@ -6,6 +6,7 @@ import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { MAX_ACCOUNTS, MAX_CATEGORIES, MAX_FILES, MAX_INCOMES, MAX_OWN_BOOKS, MAX_PAYMENTS } from '@utils/constant'
+import parseEmoji from './parseEmoji'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -793,7 +794,7 @@ const xprisma = prisma.$extends({
           orderBy: { transactions: { _count: 'desc' } }
         })
 
-        return category
+        return category.sort((a, b) => b.transactions.length - a.transactions.length)
       },
       async findUniqueById(user: ByncUser, id: string): Promise<Category | PaymentIncome | null> {
         if (!user.bookSelected) return null
@@ -833,7 +834,7 @@ const xprisma = prisma.$extends({
           orderBy: { transactions: { _count: 'desc' } }
         })
 
-        return category
+        return category.sort((a, b) => b.transactions.length - a.transactions.length)
       },
       async update(user: ByncUser, id: string, data: CategoryUpdate): Promise<Category | PaymentIncome | null> {
         if (!user.bookSelected) return null
@@ -899,7 +900,38 @@ const xprisma = prisma.$extends({
         })
 
         return true
-      }
+      },
+      async findManyPDF(user: ByncUser, type: $Enums.CategoryType): Promise<CategoryWithTotals[]> {
+        if (!user.bookSelected) return []
+
+        const monthTZStart = dayjs().tz(user.timezone).startOf('month')
+
+        const category = await prisma.category.findMany({
+          where: { AND: [{ bookId: user.bookSelected.id }, { type: type }] },
+          include: { ...categoryInclude, transactions: { where: { OR: [{ paidAt: { gte: monthTZStart.format() } }, { AND: [{ createdAt: { gte: monthTZStart.format() } }, { paidAt: null }] }] } } },
+          orderBy: { transactions: { _count: 'desc' } }
+        })
+
+        return await Promise.all(category.sort((a, b) => b.transactions.length - a.transactions.length).map(async c => {
+          const parsedDescription = await parseEmoji(c.description)
+          const totals: Record<string, number> = c.transactions.reduce((acc: Record<string, number>, t) => {
+            const symbol = t.currency
+            const amount = t.amount
+
+            if (!acc[symbol]) {
+              acc[symbol] = 0
+            }
+            acc[symbol] += amount
+            return acc
+          }, {})
+
+          return {
+            ...c,
+            parsedDescription,
+            totals
+          }
+        }))
+      },
     },
     payment: {
       async count(user: ByncUser): Promise<number> {

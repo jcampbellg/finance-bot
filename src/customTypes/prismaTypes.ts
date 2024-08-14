@@ -1,4 +1,5 @@
 import { Conversation, Prisma, $Enums } from '@prisma/client'
+import { ColumnsEmoji } from '@utils/parseEmoji'
 
 export type Edit = {
   bookId?: string
@@ -116,6 +117,11 @@ export type CurrencyWithBalance = Prisma.CurrencyGetPayload<{
     account: true
   }
 }>
+
+export type CategoryWithTotals = Category & {
+  totals: Record<string, number>,
+  parsedDescription: ColumnsEmoji
+}
 
 type CategoryUpdateInput = Omit<Prisma.CategoryUpdateInput, 'id'>
 

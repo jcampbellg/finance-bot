@@ -16,10 +16,9 @@ export default async function pdfPayments(params: ConversationPropsWithBookSelec
   const symbols = currencies.map(a => a.symbol).filter((value, index, self) => self.indexOf(value) === index)
 
   const empty = symbols.map(() => ({}))
-  const widthsAuto = symbols.map(() => 'auto')
-  const widthsExpand = symbols.map(() => '*')
+  const widths = symbols.map(() => '*')
 
-  const payments = await xprisma.category.findManyByType(user, 'PAYMENT')
+  const payments = await xprisma.category.findManyPDF(user, 'PAYMENT')
 
   const docDefinition: TDocumentDefinitions = {
     pageSize: 'LETTER',
@@ -31,7 +30,7 @@ export default async function pdfPayments(params: ConversationPropsWithBookSelec
         table: {
           dontBreakRows: true,
           headerRows: 2,
-          widths: ['auto', ...widthsExpand],
+          widths: ['auto', ...widths],
           body: [
             [
               { text: 'Pagos Fijos', bold: true, colSpan: symbols.length + 1, alignment: 'center' },
@@ -41,23 +40,52 @@ export default async function pdfPayments(params: ConversationPropsWithBookSelec
               { text: 'Descripción', bold: true, alignment: 'left', fillColor: '#d3d3d3' },
               ...symbols.map(s => ({ text: s, alignment: 'left', fillColor: '#d3d3d3' }))
             ],
-            ...(await Promise.all(payments.map(async (p) => {
-              const description = await parseEmoji(p.description)
-              const trans: Record<string, number> = p.transactions.reduce((acc: Record<string, number>, t) => {
-                const symbol = t.currency
-                const amount = t.amount
-
-                if (!acc[symbol]) {
-                  acc[symbol] = 0
-                }
-                acc[symbol] += amount
-                return acc
-              }, {})
-
-              return [description,
-                ...symbols.map(s => ({ text: numeral(trans[s] || 0).format('0,0.00') }))
+            ...payments.map(p => {
+              return [p.parsedDescription,
+              ...symbols.map(s => ({ text: numeral(p.totals[s] || 0).format('0,0.00') }))
               ]
-            })))
+            })
+          ]
+        }
+      },
+      {
+        pageBreak: 'before',
+        font: 'RobotoMono',
+        layout: 'lightHorizontalLines',
+        table: {
+          dontBreakRows: true,
+          headerRows: 2,
+          widths: ['auto', ...widths],
+          body: [
+            [
+              { text: 'Transacciones por Pagos Fijos', bold: true, colSpan: symbols.length + 1, alignment: 'center' },
+              ...empty
+            ],
+            [
+              { text: 'Descripción', bold: true, alignment: 'left', fillColor: '#d3d3d3' },
+              ...symbols.map(s => ({ text: s, alignment: 'left', fillColor: '#d3d3d3' }))
+            ],
+            ...payments.map(p => {
+              const transactions = p.transactions.map(t => {
+                return symbols.map(s => {
+                  const isMatch = t.currency === s
+                  return { text: isMatch ? numeral(t.amount).format('0,0.00') : 'N/A', alignment: 'right' }
+                })
+              })
+
+              return {
+                font: 'RobotoMono',
+                layout: 'noBorders',
+                table: {
+                  dontBreakRows: true,
+                  headerRows: 1,
+                  widths: ['auto', ...widths],
+                  body: [
+                    [p.parsedDescription, ...transactions]
+                  ]
+                }
+              }
+            })
           ]
         }
       }
