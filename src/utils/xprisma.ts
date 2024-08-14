@@ -815,6 +815,19 @@ const xprisma = prisma.$extends({
 
         return category
       },
+      async findManyAll(user: ByncUser): Promise<Category[] | PaymentIncome[]> {
+        if (!user.bookSelected) return []
+
+        const monthTZStart = dayjs().tz(user.timezone).startOf('month')
+
+        const category = await prisma.category.findMany({
+          where: { AND: [{ bookId: user.bookSelected.id }] },
+          include: { ...categoryInclude, transactions: { where: { OR: [{ paidAt: { gte: monthTZStart.format() } }, { AND: [{ createdAt: { gte: monthTZStart.format() } }, { paidAt: null }] }] } } },
+          orderBy: { transactions: { _count: 'asc' } }
+        })
+
+        return category
+      },
       async update(user: ByncUser, id: string, data: CategoryUpdate): Promise<Category | PaymentIncome | null> {
         if (!user.bookSelected) return null
 
