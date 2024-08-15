@@ -29,8 +29,8 @@ export default async function (title: string, { bot, chatId }: ConversationProps
   pdfDoc.end()
 
   stream.on('finish', async function () {
-    // const stream = fs.createReadStream(filepath)
-    // await bot.sendDocument(chatId, stream, {}, { filename: `${title}_${filename}`, contentType: 'application/pdf' })
-    // fs.unlink(filepath, () => { })
+    const stream = fs.createReadStream(filepath)
+    await bot.sendDocument(chatId, stream, {}, { filename: `${title}_${filename}`, contentType: 'application/pdf' })
+    fs.unlink(filepath, () => { })
   })
 }

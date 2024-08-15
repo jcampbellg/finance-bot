@@ -1,4 +1,4 @@
-import { Conversation, Prisma, $Enums } from '@prisma/client'
+import { Conversation, Prisma, $Enums, Transaction } from '@prisma/client'
 import { ContentTable } from 'pdfmake/interfaces'
 
 export type Edit = {
@@ -118,9 +118,12 @@ export type CurrencyWithBalance = Prisma.CurrencyGetPayload<{
   }
 }>
 
-export type CategoryWithTotals = Category & {
-  totals: Record<string, number>,
+type TransactionPDF = Transaction & { parsedDescription: ContentTable }
+
+export type CategoryPDF = Omit<Category, 'transactions'> & {
+  totals: Record<string, number>
   parsedDescription: ContentTable
+  transactions: TransactionPDF[]
 }
 
 type CategoryUpdateInput = Omit<Prisma.CategoryUpdateInput, 'id'>

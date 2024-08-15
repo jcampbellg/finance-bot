@@ -1,4 +1,4 @@
-import { AccountUpdate, AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, CategoryWithTotals, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
+import { AccountUpdate, AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, CategoryPDF, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
 import { $Enums, PrismaClient, Prisma, Currency } from '@prisma/client'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
@@ -901,7 +901,7 @@ const xprisma = prisma.$extends({
 
         return true
       },
-      async findManyPDF(user: ByncUser, type: $Enums.CategoryType): Promise<CategoryWithTotals[]> {
+      async findManyPDF(user: ByncUser, type: $Enums.CategoryType): Promise<CategoryPDF[]> {
         if (!user.bookSelected) return []
 
         const monthTZStart = dayjs().tz(user.timezone).startOf('month')
@@ -912,7 +912,7 @@ const xprisma = prisma.$extends({
           orderBy: { transactions: { _count: 'desc' } }
         })
 
-        return await Promise.all(category.sort((a, b) => b.transactions.length - a.transactions.length).map(async c => {
+        return await Promise.all(category.map(async c => {
           const parsedDescription = await parseEmoji(c.description, {
             bold: true
           })
@@ -927,11 +927,26 @@ const xprisma = prisma.$extends({
             return acc
           }, {})
 
+          const transactions = await Promise.all(c.transactions.map(async t => {
+            const parsedDescription = await parseEmoji(t.description)
+
+            return {
+              ...t,
+              parsedDescription
+            }
+          }))
+
           return {
             ...c,
             parsedDescription,
-            totals
+            totals,
+            transactions
           }
+        })).then(categories => categories.sort((a, b) => {
+          const sumA = Object.values(a.totals).reduce((acc, curr) => acc + curr, 0)
+          const sumB = Object.values(b.totals).reduce((acc, curr) => acc + curr, 0)
+
+          return sumB - sumA
         }))
       },
     },

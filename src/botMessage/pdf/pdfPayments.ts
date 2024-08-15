@@ -41,7 +41,7 @@ export default async function pdfPayments(params: ConversationPropsWithBookSelec
             ...payments.map(p => {
               const transactions = p.transactions.map(t => {
                 return [
-                  t.description,
+                  { ...t.parsedDescription, font: 'RobotoMono' },
                   ...symbols.map(s => {
                     const isMatch = t.currency === s
                     return { text: isMatch ? numeral(t.amount).format('0,0.00') : 'N/A', alignment: 'right' }
