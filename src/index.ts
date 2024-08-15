@@ -7,7 +7,7 @@ import budgetItemViewMenuMessage from '@botMessage/budget/budgetItemViewMenuMess
 import budgetListMenuMessage from '@botMessage/budget/budgetListMenuMessage'
 import budgetMenuMessage from '@botMessage/budget/budgetMenuMessage'
 import menuMessage from '@botMessage/menuMessage'
-import pdfPayments from '@botMessage/pdf/pdfPayments'
+import pdfCategories from '@botMessage/pdf/pdfCategories'
 import searchMessage from '@botMessage/search/searchMessage'
 import summaryMenuMessage from '@botMessage/summary/summaryMenuMessage'
 import transactionHandleMessageButton from '@botMessage/transaction/transactionHandleMessageButton'
@@ -272,8 +272,8 @@ bot.on('callback_query', async (query) => {
   //#endregion
 
   //#region PDFs
-  if (btnPress === 'pdf_payments') {
-    await BookSelectedWrapper(msg, pdfPayments)
+  if (btnPress.startsWith('pdf_payments') || btnPress.startsWith('pdf_incomes') || btnPress.startsWith('pdf_categories')) {
+    await BookSelectedWrapper(msg, pdfCategories)
     return
   }
   //endregion
