@@ -1,5 +1,5 @@
 import { Conversation, Prisma, $Enums } from '@prisma/client'
-import { ColumnsEmoji } from '@utils/parseEmoji'
+import { ContentTable } from 'pdfmake/interfaces'
 
 export type Edit = {
   bookId?: string
@@ -120,7 +120,7 @@ export type CurrencyWithBalance = Prisma.CurrencyGetPayload<{
 
 export type CategoryWithTotals = Category & {
   totals: Record<string, number>,
-  parsedDescription: ColumnsEmoji
+  parsedDescription: ContentTable
 }
 
 type CategoryUpdateInput = Omit<Prisma.CategoryUpdateInput, 'id'>

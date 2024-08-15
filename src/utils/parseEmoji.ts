@@ -1,5 +1,6 @@
 import EmojiConvertor from 'emoji-js'
 import { HTMLToJSON } from 'html-to-json-parser'
+import { ContentTable } from 'pdfmake/interfaces'
 
 const emoji = new EmojiConvertor()
 emoji.img_set = 'google'
@@ -29,7 +30,7 @@ export type ColumnsEmoji = {
   columnGap: number
 }
 
-export default async function (input: string, font?: string): Promise<ColumnsEmoji> {
+export default async function (input: string, textOptions: Partial<ContentTable> = {}, emojiOptions: Partial<ContentTable> = {}): Promise<ContentTable> {
   const html = emoji.replace_unified(input)
   const json: any = await HTMLToJSON(`<div>${html}</div>`, false)
 
@@ -40,8 +41,8 @@ export default async function (input: string, font?: string): Promise<ColumnsEmo
     if (typeof node === 'string') {
       content.push({
         width: 'auto',
-        font: font || 'Roboto',
-        text: node
+        text: node,
+        ...textOptions
       })
     } else {
       if (!!emoji) {
@@ -49,14 +50,18 @@ export default async function (input: string, font?: string): Promise<ColumnsEmo
           // @ts-ignore
           image: node.attributes.src,
           width: 12,
-          height: 12
+          height: 12,
+          ...emojiOptions
         })
       }
     }
   }
 
   return {
-    columns: content,
-    columnGap: 4
-  } as ColumnsEmoji
+    layout: 'noBorders',
+    table: {
+      widths: content.map(() => 'auto'),
+      body: [content],
+    }
+  } as ContentTable
 }

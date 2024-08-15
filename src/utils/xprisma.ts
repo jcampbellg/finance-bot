@@ -913,7 +913,9 @@ const xprisma = prisma.$extends({
         })
 
         return await Promise.all(category.sort((a, b) => b.transactions.length - a.transactions.length).map(async c => {
-          const parsedDescription = await parseEmoji(c.description)
+          const parsedDescription = await parseEmoji(c.description, {
+            bold: true
+          })
           const totals: Record<string, number> = c.transactions.reduce((acc: Record<string, number>, t) => {
             const symbol = t.currency
             const amount = t.amount

@@ -1,12 +1,11 @@
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
-import parseEmoji from '@utils/parseEmoji'
 import sendPDF from '@utils/sendPDF'
 import xprisma from '@utils/xprisma'
 import numeral from 'numeral'
 import { TDocumentDefinitions } from 'pdfmake/interfaces'
 
 export default async function pdfPayments(params: ConversationPropsWithBookSelected) {
-  const { bookSelected, query, user } = params
+  const { query, user } = params
 
   if (!query) {
     throw new Error('query is required')
@@ -24,32 +23,6 @@ export default async function pdfPayments(params: ConversationPropsWithBookSelec
     pageSize: 'LETTER',
     content: [
       {
-        marginBottom: 10,
-        font: 'RobotoMono',
-        layout: 'lightHorizontalLines',
-        table: {
-          dontBreakRows: true,
-          headerRows: 2,
-          widths: ['auto', ...widths],
-          body: [
-            [
-              { text: 'Pagos Fijos', bold: true, colSpan: symbols.length + 1, alignment: 'center' },
-              ...empty
-            ],
-            [
-              { text: 'Descripción', bold: true, alignment: 'left', fillColor: '#d3d3d3' },
-              ...symbols.map(s => ({ text: s, alignment: 'left', fillColor: '#d3d3d3' }))
-            ],
-            ...payments.map(p => {
-              return [p.parsedDescription,
-              ...symbols.map(s => ({ text: numeral(p.totals[s] || 0).format('0,0.00') }))
-              ]
-            })
-          ]
-        }
-      },
-      {
-        pageBreak: 'before',
         font: 'RobotoMono',
         layout: 'lightHorizontalLines',
         table: {
@@ -63,29 +36,32 @@ export default async function pdfPayments(params: ConversationPropsWithBookSelec
             ],
             [
               { text: 'Descripción', bold: true, alignment: 'left', fillColor: '#d3d3d3' },
-              ...symbols.map(s => ({ text: s, alignment: 'left', fillColor: '#d3d3d3' }))
+              ...symbols.map(s => ({ text: s, alignment: 'right', fillColor: '#d3d3d3' }))
             ],
             ...payments.map(p => {
               const transactions = p.transactions.map(t => {
-                return symbols.map(s => {
-                  const isMatch = t.currency === s
-                  return { text: isMatch ? numeral(t.amount).format('0,0.00') : 'N/A', alignment: 'right' }
-                })
+                return [
+                  t.description,
+                  ...symbols.map(s => {
+                    const isMatch = t.currency === s
+                    return { text: isMatch ? numeral(t.amount).format('0,0.00') : 'N/A', alignment: 'right' }
+                  })
+                ]
               })
 
-              return {
-                font: 'RobotoMono',
-                layout: 'noBorders',
-                table: {
-                  dontBreakRows: true,
-                  headerRows: 1,
-                  widths: ['auto', ...widths],
-                  body: [
-                    [p.parsedDescription, ...transactions]
-                  ]
-                }
-              }
-            })
+              return [
+                [
+                  { ...p.parsedDescription, font: 'RobotoMono', fillColor: '#d3d3d3', marginLeft: 10 },
+                  // { text: p.description, fillColor: '#d3d3d3', margin: [10, 0] },
+                  ...symbols.map(s => ({ text: numeral(p.totals[s] || 0).format('0,0.00'), bold: true, fillColor: '#d3d3d3', alignment: 'right' }))
+                ],
+                ...transactions,
+                ...(transactions.length === 0 ? [[
+                  { text: 'No se encontraron transacciones', colSpan: symbols.length + 1, alignment: 'center' },
+                  ...empty
+                ]] : [])
+              ]
+            }).reduce((pv, v) => ([...pv, ...v]), [])
           ]
         }
       }

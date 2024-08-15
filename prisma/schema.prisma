@@ -25,7 +25,7 @@ model User {
   id             String       @id @default(cuid())
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @default(now()) @updatedAt
-  telegramId     Int          @unique
+  telegramId     BigInt       @unique
   booksAccess    Share[]      @relation(name: "UserToRole")
   timezone       String
   conversationId String       @unique
@@ -121,7 +121,7 @@ model Balance {
 model GroupChat {
   id         String   @id @default(cuid())
   createdAt  DateTime @default(now())
-  telegramId Int      @unique
+  telegramId BigInt   @unique
   books      Book[]   @relation(name: "BooksGroupChatGetNotified")
 }
 
