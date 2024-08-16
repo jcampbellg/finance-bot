@@ -1,8 +1,8 @@
-import { ConversationProps } from '@customTypes/messageTypes'
+import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import step1 from './step1'
 import step2 from './step2'
 
-export default async function transactionDeleteButton(params: ConversationProps) {
+export default async function transactionDeleteButton(params: ConversationPropsWithBookSelected) {
   const { query } = params
 
   if (!query) {
