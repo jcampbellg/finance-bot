@@ -15,6 +15,8 @@ import transactionTagButton from '@conversation/transactionTag/transactionTagBut
 import transactionCategoryButton from '@conversation/transactionCategory/transactionCategoryButton'
 import transactionSplitButton from '@conversation/transactionSplit/transactionSplitButton'
 import transactionViewFilesMessage from './transactionViewFilesMessage'
+import step1 from '@conversation/transactionCreate/step1'
+import { Edit } from '@customTypes/prismaTypes'
 
 export default async function transactionHandleMessageButton(params: ConversationPropsWithBookSelected): Promise<boolean> {
   const { query, conversation } = params
@@ -70,14 +72,47 @@ export default async function transactionHandleMessageButton(params: Conversatio
     return true
   }
 
+  if (btnPress.startsWith('transaction_create_expense_') || btnPress.startsWith('transaction_create_deposit_')) {
+    const categoryId = btnPress.replace('transaction_create_expense_', '').replace('transaction_create_deposit_', '')
+    const newEdit: Edit = {
+      categoryId,
+      type: btnPress.startsWith('transaction_create_expense_') ? 'EXPENSE' : 'DEPOSIT'
+    }
+
+    // Go to normal transaction flow
+    await step1(params, newEdit)
+  }
+
   if (btnPress === 'payment_transaction_create' || conversation.subject === 'payment_transaction_create') {
     await paymentTransactionCreateButton(params)
     return true
   }
 
+  if (btnPress.startsWith('payment_transaction_create_')) {
+    const paymentId = btnPress.replace('payment_transaction_create_', '')
+    const newEdit: Edit = {
+      categoryId: paymentId,
+      type: 'PAYMENT'
+    }
+
+    // Go to normal transaction flow
+    await step1(params, newEdit)
+  }
+
   if (btnPress === 'income_transaction_create' || conversation.subject === 'income_transaction_create') {
     await incomeTransactionCreateButton(params)
     return true
+  }
+
+  if (btnPress.startsWith('income_transaction_create_')) {
+    const incomeId = btnPress.replace('income_transaction_create_', '')
+    const newEdit: Edit = {
+      categoryId: incomeId,
+      type: 'INCOME'
+    }
+
+    // Go to normal transaction flow
+    await step1(params, newEdit)
   }
 
   if (btnPress.startsWith('transaction_file_')) {
