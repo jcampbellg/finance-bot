@@ -10,7 +10,6 @@ import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import parseEmoji from '@utils/parseEmoji'
 import { FILL_COLOR, LABEL_COLOR } from '@utils/constant'
-import { table } from 'console'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -52,7 +51,7 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
         table: {
           dontBreakRows: true,
           headerRows: 2,
-          widths: ['auto', ...widths],
+          widths: ['*', ...widths],
           body: [
             [
               { text: `Resumen de ${filename}`, bold: true, colSpan: symbols.length + 1, alignment: 'center' },
@@ -80,11 +79,10 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
       {
         pageBreak: 'before',
         font: 'RobotoMono',
-        layout: 'lightHorizontalLines',
+        layout: 'categoryTransactions',
         table: {
-          dontBreakRows: true,
           headerRows: 2,
-          widths: ['auto', ...widths],
+          widths: ['*', ...widths],
           body: [
             [
               { text: header, bold: true, colSpan: symbols.length + 1, alignment: 'center' },
@@ -101,7 +99,7 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
 
                 return [
                   [
-                    { ...parseEmoji(t.description), fillColor: FILL_COLOR, marginLeft: 10 },
+                    { ...parseEmoji(t.description), fillColor: FILL_COLOR },
                     { text: spanishDate, alignment: 'left', color: LABEL_COLOR }
                   ],
                   ...symbols.map(s => {
@@ -112,24 +110,29 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
               })
 
               return [
-                [
-                  { ...parseEmoji(c.description), marginLeft: 10, bold: true, fillColor: FILL_COLOR },
-                  ...symbols.map(s => {
-                    const limit = c.limits.find(l => l.currency === s)
-                    return [
-                      { text: numeral(c.totals[s] || 0).format('0,0.00'), alignment: 'right', fillColor: FILL_COLOR },
-                      ...(!!limit ? [{ text: `${numeral(limit.amount).format('0,0.00')}`, alignment: 'right', bold: true, fillColor: FILL_COLOR }] : [{}])
+                {
+                  colSpan: symbols.length + 1,
+                  layout: 'transactions',
+                  table: {
+                    dontBreakRows: true,
+                    headerRows: 1,
+                    widths: ['*', ...widths],
+                    body: [
+                      [
+                        { ...parseEmoji(`${c.description} - ${c.transactions.length} transacciones`), marginLeft: 8, bold: true, colSpan: symbols.length + 1 },
+                        ...empty
+                      ],
+                      ...transactions,
+                      ...(transactions.length === 0 ? [[
+                        { text: 'No se encontraron transacciones', italic: true, colSpan: symbols.length + 1, alignment: 'center' },
+                        ...empty
+                      ]] : [])
                     ]
-                  })
-                ],
-                ...transactions,
-                ...(transactions.length === 0 ? [[
-                  { text: 'No se encontraron transacciones', italic: true, colSpan: symbols.length + 1, alignment: 'center' },
-                  ...empty
-                ]] : [])
+                  }
+                },
+                ...empty
               ]
-            }).reduce((pv, v) => ([...pv, ...v]), [])
-            // })
+            })
           ]
         }
       }

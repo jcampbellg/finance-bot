@@ -2,6 +2,7 @@ import { TDocumentDefinitions } from 'pdfmake/interfaces'
 import PdfPrinter from 'pdfmake'
 import fs from 'fs'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
+import { FILL_COLOR } from './constant'
 
 const fonts = {
   Roboto: {
@@ -24,7 +25,66 @@ export default async function (title: string, { bot, chatId }: ConversationProps
   const stream = fs.createWriteStream(filepath)
   const printer = new PdfPrinter(fonts)
 
-  const pdfDoc = printer.createPdfKitDocument(docDefinition, {})
+  const pdfDoc = printer.createPdfKitDocument(docDefinition, {
+    tableLayouts: {
+      categoryTransactions: {
+        hLineWidth(i, node) {
+          if (i === 0 || i === node.table.body.length) {
+            return 0
+          }
+
+          if (i === node.table.headerRows)
+            return 2
+
+          if (i === (node.table.headerRows || 0) - 1)
+            return 1
+
+          return 0
+        },
+        vLineWidth() {
+          return 0
+        },
+        hLineColor(i) {
+          return i === 1 ? 'black' : '#aaa'
+        },
+        paddingLeft(i) {
+          return i === 0 ? 0 : 8
+        },
+        paddingRight(i, node) {
+          return (i === (node.table.widths?.length || 0) - 1) ? 0 : 8
+        }
+      },
+      transactions: {
+        hLineWidth(i, node) {
+          if (i === node.table.headerRows)
+            return 0
+
+          if (i === node.table.body.length)
+            return 0
+
+          return 1
+        },
+        fillColor(i) {
+          if (i === 0)
+            return FILL_COLOR
+
+          return null
+        },
+        vLineWidth() {
+          return 0
+        },
+        hLineColor() {
+          return '#aaa'
+        },
+        paddingLeft(i, node) {
+          return i === 0 ? 0 : 8
+        },
+        paddingRight(i, node) {
+          return (i === (node.table.widths?.length || 0) - 1) ? 0 : 8
+        }
+      }
+    }
+  })
   pdfDoc.pipe(stream)
   pdfDoc.end()
 
