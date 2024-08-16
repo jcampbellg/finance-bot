@@ -76,7 +76,7 @@ export default async function (title: string, { bot, chatId }: ConversationProps
         hLineColor() {
           return '#aaa'
         },
-        paddingLeft(i, node) {
+        paddingLeft(i) {
           return i === 0 ? 0 : 8
         },
         paddingRight(i, node) {
