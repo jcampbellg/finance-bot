@@ -46,6 +46,19 @@ export default async function searchMessage(params: ConversationPropsWithBookSel
     return [{ text: `${p.description}`, callback_data: `category_view_${p.id}` }]
   })
 
+  if (isNotPaid) {
+    const isEmpty = notPaidPayments.length === 0
+    await bot.sendMessage(chatId, isEmpty ? '🔎 No Hay Pagos Fijos Pendientes' : '🔎 Pagos Fijos Pendientes', {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          ...keyboardP,
+          menuBtn
+        ]
+      }
+    })
+  }
+
   const keyboardT = transactions.map((t) => {
     const isNormal = t.type === 'EXPENSE' || t.type === 'DEPOSIT'
     const spanishDate = dayjs(isNormal ? t.paidAt : t.createdAt).tz(user.timezone).format('D MMM YY')
@@ -53,7 +66,7 @@ export default async function searchMessage(params: ConversationPropsWithBookSel
   })
 
   const isEmpty = transactions.length === 0
-  const text = isEmpty ? '🔎 No se encontraron transacciones' : '🔎 Transacciones'
+  const text = isEmpty ? `🔎 No se encontraron ${isNotPaid ? 'facturas' : 'transacciones'}` : `🔎 ${isNotPaid ? 'Facturas' : 'Transacciones'}`
 
   await bot.sendMessage(chatId, text, {
     parse_mode: 'HTML',
