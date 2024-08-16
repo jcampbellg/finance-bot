@@ -72,7 +72,6 @@ export default async function searchMessage(params: ConversationPropsWithBookSel
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        ...keyboardP,
         ...keyboardT,
         menuBtn
       ]
