@@ -80,7 +80,7 @@ async function createTransfer(params: ConversationPropsWithBookSelected, edit: E
   const transferA = await xprisma.transaction.create(user, {
     amount: edit.amountA,
     currency: edit.currencyA,
-    description: `${accountA.description} -> ${accountB.description}`,
+    description: `${accountA.description} [${edit.currencyA}] -> ${accountB.description} [${edit.currencyB}]`,
     type: 'TRANSFER_OUT',
     accountId: edit.accountAId,
     paidAt: newDate.format()
@@ -96,7 +96,7 @@ async function createTransfer(params: ConversationPropsWithBookSelected, edit: E
   const transferB = await xprisma.transaction.create(user, {
     amount: edit.amountB,
     currency: edit.currencyB,
-    description: `${accountA.description} -> ${accountB.description}`,
+    description: `${accountA.description} [${edit.currencyA}] -> ${accountB.description} [${edit.currencyB}]`,
     type: 'TRANSFER_IN',
     accountId: edit.accountBId,
     paidAt: newDate.format(),
