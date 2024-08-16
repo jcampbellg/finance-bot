@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.json && tscpaths -p tsconfig.json -s ./src -o ./dist",
     "dev": "nodemon",
-    "emoji": "ts-node ./src/testEmoji.ts",
+    "test": "ts-node ./src/test.ts",
     "start": "node dist/index.js"
   },
   "prisma": {
@@ -25,7 +25,6 @@
   "dependencies": {
     "@array-utils/chunk-it": "^3.0.3",
     "@prisma/client": "^5.14.0",
-    "@rutherford/emoji": "^1.1.1",
     "@types/emoji-js": "^3.5.2",
     "@types/localized-countries": "^2.0.3",
     "@types/node-telegram-bot-api": "^0.64.6",
@@ -36,13 +35,13 @@
     "dotenv": "^16.4.5",
     "emoji-datasource-google": "^15.1.2",
     "emoji-js": "^3.8.0",
-    "html-to-json-parser": "^2.0.1",
     "localized-countries": "^2.0.0",
     "mathjs": "^13.0.0",
+    "node-html-parser": "^6.1.13",
     "node-telegram-bot-api": "^0.65.1",
     "numeral": "^2.0.6",
     "openai": "^4.40.2",
-    "pdfmake": "^0.2.10",
+    "pdfmake": "^0.2.9",
     "pureimage": "^0.4.13",
     "type-fest": "^4.23.0",
     "zod": "^3.23.8"

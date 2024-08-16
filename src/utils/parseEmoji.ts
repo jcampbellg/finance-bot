@@ -1,67 +1,40 @@
+import { ContentTable, ContentText, TableCell } from 'pdfmake/interfaces'
+import 'dayjs/locale/es'
 import EmojiConvertor from 'emoji-js'
-import { HTMLToJSON } from 'html-to-json-parser'
-import { ContentTable } from 'pdfmake/interfaces'
+import { parse } from 'node-html-parser'
 
 const emoji = new EmojiConvertor()
 emoji.img_set = 'google'
 emoji.img_sets.google.path = 'src/assets/64/'
 
-type Node = {
-  type: string
-  attributes: {
-    class: string
-    alt: string
-    src: string
+export default function (input: string): ContentText | ContentTable {
+  const description = emoji.replace_unified(input)
+  const html = parse(description)
+
+  if (html.childNodes.length === 1 && html.childNodes[0].nodeType === 3) {
+    return { text: description }
   }
-} | string
 
-type ArrayText = {
-  image: string
-  width: number
-  height: number
-} | {
-  width: 'auto'
-  text: string
-  font: string
-}
+  let body: TableCell[] = []
 
-export type ColumnsEmoji = {
-  columns: ArrayText[]
-  columnGap: number
-}
+  for (let i = 0; i < html.childNodes.length; i++) {
+    const node = html.childNodes[i]
+    if (node.nodeType === 3) {
+      body.push({ text: node.rawText })
+    }
 
-export default async function (input: string, textOptions: Partial<ContentTable> = {}, emojiOptions: Partial<ContentTable> = {}): Promise<ContentTable> {
-  const html = emoji.replace_unified(input)
-  const json: any = await HTMLToJSON(`<div>${html}</div>`, false)
-
-  let content = []
-
-  for (let i = 0; i < json.content.length; i++) {
-    const node: Node = json.content[i]
-    if (typeof node === 'string') {
-      content.push({
-        width: 'auto',
-        text: node,
-        ...textOptions
-      })
-    } else {
-      if (!!emoji) {
-        content.push({
-          // @ts-ignore
-          image: node.attributes.src,
-          width: 12,
-          height: 12,
-          ...emojiOptions
-        })
-      }
+    if (node.nodeType === 1) {
+      //@ts-ignore
+      const imgSrc = node.getAttribute('src')
+      body.push({ image: imgSrc, width: 12, height: 12 })
     }
   }
 
   return {
     layout: 'noBorders',
     table: {
-      widths: content.map(() => 'auto'),
-      body: [content],
+      widths: body.map(() => 'auto'),
+      body: [body],
     }
-  } as ContentTable
+  }
 }

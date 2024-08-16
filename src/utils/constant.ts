@@ -24,3 +24,6 @@ export const TRANSACTION_TYPE_ICON: Record<$Enums.TransactionType, string> = {
   'TRANSFER_IN': '🟢',
   'TRANSFER_OUT': '🔴'
 }
+
+export const FILL_COLOR = '#d3d3d3'
+export const LABEL_COLOR = '#5e5e5e'

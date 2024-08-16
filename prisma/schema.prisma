@@ -50,14 +50,14 @@ model Book {
 }
 
 model Account {
-  currency    Currency[]    @relation(name: "CurrencyInAccount")
-  id          String        @id @default(cuid())
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  description String
-  transaction Transaction[] @relation(name: "TransactionWithAccount")
-  book        Book          @relation(name: "AccountInBook", fields: [bookId], references: [id])
-  bookId      String
+  currency     Currency[]    @relation(name: "CurrencyInAccount")
+  id           String        @id @default(cuid())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  description  String
+  transactions Transaction[] @relation(name: "TransactionWithAccount")
+  book         Book          @relation(name: "AccountInBook", fields: [bookId], references: [id])
+  bookId       String
 }
 
 model Category {

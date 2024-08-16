@@ -1,4 +1,4 @@
-import { AccountUpdate, AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, CategoryPDF, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate } from '@customTypes/prismaTypes'
+import { AccountUpdate, AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, CategoryPDF, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate, AccountWithAll } from '@customTypes/prismaTypes'
 import { $Enums, PrismaClient, Prisma, Currency } from '@prisma/client'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
@@ -6,7 +6,6 @@ import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { MAX_ACCOUNTS, MAX_CATEGORIES, MAX_FILES, MAX_INCOMES, MAX_OWN_BOOKS, MAX_PAYMENTS } from '@utils/constant'
-import parseEmoji from './parseEmoji'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -535,6 +534,22 @@ const xprisma = prisma.$extends({
 
         return accounts.map(account => ({ ...account, type: 'ACCOUNT' }))
       },
+      async findManyPDF(user: ByncUser, monthTZStart: dayjs.Dayjs, monthTZEnd: dayjs.Dayjs): Promise<AccountWithAll[]> {
+        if (!user.bookSelected) return []
+
+        const accounts = await prisma.account.findMany({
+          where: { bookId: user.bookSelected.id },
+          include: {
+            ...accountInclude,
+            transactions: {
+              where: { OR: [{ paidAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }, { AND: [{ createdAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }] }] },
+              include: { category: true }
+            }
+          }
+        })
+
+        return accounts
+      },
       async update(user: ByncUser, id: string, data: AccountUpdate): Promise<AccountWithBalance | null> {
         if (!user.bookSelected) return null
 
@@ -560,11 +575,11 @@ const xprisma = prisma.$extends({
 
         const account = await prisma.account.findUnique({
           where: { id },
-          include: { transaction: true }
+          include: { transactions: true }
         })
 
         if (!account) return false
-        if (account?.transaction.length > 0) return false
+        if (account?.transactions.length > 0) return false
         if (account.bookId !== user.bookSelected.id) return false
 
         await prisma.account.delete({ where: { id } })
@@ -906,14 +921,10 @@ const xprisma = prisma.$extends({
 
         const category = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: type }] },
-          include: { ...categoryInclude, transactions: { where: { OR: [{ paidAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }, { AND: [{ createdAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }, { paidAt: null }] }] } } },
-          orderBy: { transactions: { _count: 'desc' } }
+          include: { ...categoryInclude, transactions: { include: { category: true, transferIn: true, transferOut: true, parentSplit: { include: { parent: true } }, splits: { include: { childrens: true } } }, orderBy: { paidAt: 'desc' }, where: { OR: [{ paidAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }, { AND: [{ createdAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }, { paidAt: null }] }] } } },
         })
 
-        return await Promise.all(category.map(async c => {
-          const parsedDescription = await parseEmoji(c.description, {
-            bold: true
-          })
+        return category.map(c => {
           const totals: Record<string, number> = c.transactions.reduce((acc: Record<string, number>, t) => {
             const symbol = t.currency
             const amount = t.amount
@@ -925,27 +936,17 @@ const xprisma = prisma.$extends({
             return acc
           }, {})
 
-          const transactions = await Promise.all(c.transactions.map(async t => {
-            const parsedDescription = await parseEmoji(t.description)
-
-            return {
-              ...t,
-              parsedDescription
-            }
-          }))
-
           return {
             ...c,
-            parsedDescription,
             totals,
-            transactions
+            transactions: c.transactions
           }
-        })).then(categories => categories.sort((a, b) => {
+        }).sort((a, b) => {
           const sumA = Object.values(a.totals).reduce((acc, curr) => acc + curr, 0)
           const sumB = Object.values(b.totals).reduce((acc, curr) => acc + curr, 0)
 
           return sumB - sumA
-        }))
+        })
       },
     },
     payment: {

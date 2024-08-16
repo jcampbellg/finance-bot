@@ -18,18 +18,18 @@ export default async function summaryMenuMessage(params: ConversationPropsWithBo
     throw new Error('query is required')
   }
 
-  const prevMonth = dayjs().tz(user.timezone).startOf('month').subtract(1, 'month').format('MMMM')
-  const thisMonth = dayjs().tz(user.timezone).startOf('month').format('MMMM')
+  const prevMonth = dayjs().tz(user.timezone).startOf('month').subtract(1, 'month').format('MMMM YYYY')
+  const thisMonth = dayjs().tz(user.timezone).startOf('month').format('MMMM YYYY')
+  const nextMonth = dayjs().tz(user.timezone).startOf('month').add(1, 'month').format('MMMM YYYY')
 
-  await bot.editMessageText('📑 Resumen:\n\nTransacciones por:', {
+  await bot.editMessageText('📑 Resumen:', {
     chat_id: chatId,
     message_id: query.message.message_id,
     reply_markup: {
       inline_keyboard: [
-        [{ text: `🏦 Cuenta ${prevMonth}`, callback_data: 'pdf_accounts_previous' }, { text: `🏦 Cuenta ${thisMonth}`, callback_data: 'pdf_accounts_current' }],
-        [{ text: `🗂️ Categorias ${prevMonth}`, callback_data: 'pdf_categories_previous' }, { text: `🗂️ Categorias ${thisMonth}`, callback_data: 'pdf_categories_current' }],
-        [{ text: `💵 Pagos Fijos ${prevMonth}`, callback_data: 'pdf_payments_previous' }, { text: `💵 Pagos Fijos ${thisMonth}`, callback_data: 'pdf_payments_current' }],
-        [{ text: `💵 Ingresos ${prevMonth}`, callback_data: 'pdf_incomes_previous' }, { text: `💵 Ingresos ${thisMonth}`, callback_data: 'pdf_incomes_current' }],
+        [{ text: `${prevMonth}`, callback_data: 'pdf_previous' },
+        { text: `${thisMonth}`, callback_data: 'pdf_current' },
+        { text: `${nextMonth}`, callback_data: 'pdf_next' }],
         menuBtn
       ]
     }

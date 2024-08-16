@@ -1,5 +1,4 @@
-import { Conversation, Prisma, $Enums, Transaction } from '@prisma/client'
-import { ContentTable } from 'pdfmake/interfaces'
+import { Conversation, Prisma, $Enums } from '@prisma/client'
 
 export type Edit = {
   bookId?: string
@@ -72,6 +71,10 @@ export type AccountWithBalance = Prisma.AccountGetPayload<{
   type: 'ACCOUNT'
 }
 
+export type AccountWithAll = Prisma.AccountGetPayload<{
+  include: { currency: { include: { balance: true } }, transactions: { include: { category: true } } }
+}>
+
 export type TransactionWithAll = Prisma.TransactionGetPayload<{
   include: {
     account: { include: { currency: true } },
@@ -118,11 +121,12 @@ export type CurrencyWithBalance = Prisma.CurrencyGetPayload<{
   }
 }>
 
-type TransactionPDF = Transaction & { parsedDescription: ContentTable }
+type TransactionPDF = Prisma.TransactionGetPayload<{
+  include: { category: true, transferIn: true, transferOut: true, parentSplit: { include: { parent: true } }, splits: { include: { childrens: true } } }
+}>
 
 export type CategoryPDF = Omit<Category, 'transactions'> & {
   totals: Record<string, number>
-  parsedDescription: ContentTable
   transactions: TransactionPDF[]
 }
 

@@ -10,6 +10,7 @@ import menuMessage from '@botMessage/menuMessage'
 import pdfCategories from '@botMessage/pdf/pdfCategories'
 import searchMessage from '@botMessage/search/searchMessage'
 import summaryMenuMessage from '@botMessage/summary/summaryMenuMessage'
+import summaryPDFMenuMessage from '@botMessage/summary/summaryPDFMenuMessage'
 import transactionHandleMessageButton from '@botMessage/transaction/transactionHandleMessageButton'
 import transactionHandleMessageText from '@botMessage/transaction/transactionHandleMessageText'
 import accountBalanceButton from '@conversation/accountBalance/accountBalanceButton'
@@ -274,6 +275,10 @@ bot.on('callback_query', async (query) => {
   //#region PDFs
   if (btnPress.startsWith('pdf_payments') || btnPress.startsWith('pdf_incomes') || btnPress.startsWith('pdf_categories')) {
     await BookSelectedWrapper(msg, pdfCategories)
+    return
+  }
+  if (btnPress.startsWith('pdf_')) {
+    await BookSelectedWrapper(msg, summaryPDFMenuMessage)
     return
   }
   //endregion
