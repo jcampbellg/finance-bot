@@ -1,22 +1,22 @@
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import sendPDF from '@utils/sendPDF'
 import xprisma from '@utils/xprisma'
-import numeral from 'numeral'
 import { TDocumentDefinitions } from 'pdfmake/interfaces'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
-import parseEmoji from '@utils/parseEmoji'
 import { FILL_COLOR, LABEL_COLOR } from '@utils/constant'
+import numeral from 'numeral'
+import parseEmoji from '@utils/parseEmoji'
 
 dayjs.locale('es')
 dayjs.extend(utc)
 dayjs.extend(timezone)
 dayjs.extend(LocalizedFormat)
 
-export default async function pdfCategories(params: ConversationPropsWithBookSelected) {
+export default async function pdfAccounts(params: ConversationPropsWithBookSelected) {
   const { query, user } = params
 
   if (!query) {
@@ -29,20 +29,19 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
   const empty = symbols.map(() => ({}))
   const widths = symbols.map(() => '*')
 
-  const type = query.data.startsWith('pdf_payments') ? 'PAYMENT' : query.data.startsWith('pdf_incomes') ? 'INCOME' : 'CATEGORY'
   const monthTZStart = query.data.includes('next') ? dayjs().tz(user.timezone).startOf('month').add(1, 'month') : query.data.includes('current') ? dayjs().tz(user.timezone).startOf('month') : dayjs().tz(user.timezone).startOf('month').subtract(1, 'month')
   const monthTZEnd = query.data.includes('next') ? dayjs().tz(user.timezone).endOf('month').add(1, 'month') : query.data.includes('current') ? dayjs().tz(user.timezone).endOf('month') : dayjs().tz(user.timezone).endOf('month').subtract(1, 'month')
 
-  const categories = await xprisma.category.findManyPDF(user, type, monthTZStart, monthTZEnd)
+  const accounts = await xprisma.account.findManyPDF(user, monthTZStart, monthTZEnd)
 
-  const header = (type === 'PAYMENT' ? 'Transacciones por Pagos Fijos' : type === 'INCOME' ? 'Transacciones por Ingresos' : 'Transacciones por Categorias')
-  const filename = type === 'PAYMENT' ? 'Pagos Fijos ' : type === 'INCOME' ? 'Ingresos ' : 'Categorias '
+  const header = 'Transacciones por Cuentas'
+  const filename = 'Cuentas '
 
   const docDefinition: TDocumentDefinitions = {
     pageSize: 'LETTER',
     content: [
       {
-        text: `${filename}${monthTZStart.format('MMMM YYYY')}`,
+        text: `${filename} ${monthTZStart.format('MMMM YYYY')}`,
         marginBottom: 10,
       },
       {
@@ -61,14 +60,13 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
               { text: 'Descripción', bold: true, alignment: 'left', fillColor: FILL_COLOR },
               ...symbols.map(s => ({ bold: true, text: s, alignment: 'right', fillColor: FILL_COLOR }))
             ],
-            ...categories.map(c => {
+            ...accounts.map(a => {
               return [
-                parseEmoji(c.description),
+                parseEmoji(a.description),
                 ...symbols.map(s => {
-                  const limit = c.limits.find(l => l.currency === s)
+                  const isNegative = a.totals[s] < 0
                   return [
-                    { text: numeral(c.totals[s] || 0).format('0,0.00'), alignment: 'right' },
-                    ...(!!limit ? [{ text: `${numeral(limit.amount).format('0,0.00')}`, alignment: 'right', bold: true }] : [{}])
+                    { text: numeral(Math.abs(a.totals[s] || 0)).format('0,0.00'), alignment: 'right', color: isNegative ? 'red' : 'green' },
                   ]
                 })
               ]
@@ -92,23 +90,7 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
               { text: 'Descripción', bold: true, alignment: 'left', fillColor: FILL_COLOR },
               ...symbols.map(s => ({ bold: true, text: s, alignment: 'right', fillColor: FILL_COLOR }))
             ],
-            ...categories.map(c => {
-              const transactions = c.transactions.map(t => {
-                const isNormal = t.type === 'EXPENSE' || t.type === 'DEPOSIT'
-                const spanishDate = dayjs(isNormal ? t.paidAt : t.createdAt).tz(user.timezone).format('D MMM YY')
-
-                return [
-                  [
-                    { ...parseEmoji(t.description), fillColor: FILL_COLOR },
-                    { text: spanishDate, alignment: 'left', color: LABEL_COLOR },
-                    { text: t.account.description, alignment: 'left', color: LABEL_COLOR },
-                  ],
-                  ...symbols.map(s => {
-                    const isMatch = t.currency === s
-                    return { text: isMatch ? numeral(t.amount).format('0,0.00') : '-', alignment: 'right' }
-                  })
-                ]
-              })
+            ...accounts.map(a => {
 
               return [
                 {
@@ -120,18 +102,31 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
                     widths: ['*', ...widths],
                     body: [
                       [
-                        { ...parseEmoji(`${c.description} - ${c.transactions.length} transacciones`), marginLeft: 8, bold: true, colSpan: symbols.length + 1 },
-                        ...empty
+                        { ...parseEmoji(`${a.description} - ${a.balances.length} transacciones`), marginLeft: 8, bold: true, colSpan: symbols.length + 1 }, ...empty
                       ],
-                      ...transactions,
-                      ...(transactions.length === 0 ? [[
-                        { text: 'No se encontraron transacciones', italic: true, colSpan: symbols.length + 1, alignment: 'center' },
-                        ...empty
-                      ]] : [])
+                      ...a.balances.map(b => {
+
+                        const description = parseEmoji(b.transaction?.description || 'Sin descripción')
+                        const isNormal = b.transaction?.type === 'EXPENSE' || b.transaction?.type === 'DEPOSIT'
+                        const spanishDate = b.transaction ? dayjs(isNormal ? b.transaction.paidAt : b.transaction.createdAt).tz(user.timezone).format('D MMM YY') : ''
+                        const transactionAmount = numeral(b.transaction?.amount || 0).format('0,0.00')
+
+                        return [
+                          [
+                            description,
+                            ...(!!b.transaction ? [{ text: spanishDate, alignment: 'left', color: LABEL_COLOR }] : []),
+                            ...(!!b.transaction ? [{ text: transactionAmount, alignment: 'left', color: b.transaction.type === 'DEPOSIT' || b.transaction.type === 'INCOME' || b.transaction.type === 'TRANSFER_IN' ? 'green' : 'red' }] : [])
+                          ],
+                          ...symbols.map(s => {
+                            const isNegative = b.amount < 0
+                            const isMatch = b.currency.symbol === s
+                            return { text: isMatch ? numeral(Math.abs(b.amount)).format('0,0.00') : '-', alignment: 'right', color: isNegative ? 'red' : 'green' }
+                          })
+                        ]
+                      })
                     ]
                   }
-                },
-                ...empty
+                }
               ]
             })
           ]

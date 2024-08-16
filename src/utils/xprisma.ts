@@ -1,4 +1,4 @@
-import { AccountUpdate, AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, CategoryPDF, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate, AccountWithAll } from '@customTypes/prismaTypes'
+import { AccountUpdate, AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, CategoryPDF, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate, AccountPDF } from '@customTypes/prismaTypes'
 import { $Enums, PrismaClient, Prisma, Currency } from '@prisma/client'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
@@ -21,7 +21,7 @@ const userInclude = {
   conversation: true
 }
 
-const accountInclude = { currency: { orderBy: { symbol: 'desc' as Prisma.SortOrder }, include: { balance: { orderBy: { createdAt: 'desc' as Prisma.SortOrder } } } } }
+const accountInclude = { currency: { orderBy: { symbol: 'desc' as Prisma.SortOrder }, include: { balance: { take: 1, orderBy: { createdAt: 'desc' as Prisma.SortOrder } } } } }
 
 const transactionInclude = {
   account: { include: { currency: true } },
@@ -534,21 +534,51 @@ const xprisma = prisma.$extends({
 
         return accounts.map(account => ({ ...account, type: 'ACCOUNT' }))
       },
-      async findManyPDF(user: ByncUser, monthTZStart: dayjs.Dayjs, monthTZEnd: dayjs.Dayjs): Promise<AccountWithAll[]> {
+      async findManyPDF(user: ByncUser, monthTZStart: dayjs.Dayjs, monthTZEnd: dayjs.Dayjs): Promise<AccountPDF[]> {
         if (!user.bookSelected) return []
 
         const accounts = await prisma.account.findMany({
           where: { bookId: user.bookSelected.id },
           include: {
             ...accountInclude,
-            transactions: {
-              where: { OR: [{ paidAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }, { AND: [{ createdAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }] }] },
-              include: { category: true }
-            }
           }
         })
 
-        return accounts
+        const balances = await prisma.balance.findMany({
+          where: {
+            AND: [
+              {
+                currency: { account: { bookId: user.bookSelected.id } },
+              },
+              { createdAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }
+            ]
+          },
+          include: { transaction: true, currency: true }
+        })
+
+        return accounts.map(a => {
+          const totals: Record<string, number> = a.currency.reduce((acc: Record<string, number>, c) => {
+            const symbol = c.symbol
+            const amount = c.balance[0]?.amount || 0
+
+            if (!acc[symbol]) {
+              acc[symbol] = 0
+            }
+            acc[symbol] += amount
+            return acc
+          }, {})
+
+          return {
+            ...a,
+            totals,
+            balances: balances.filter(b => b.currency.accountId === a.id)
+          }
+        }).sort((a, b) => {
+          const sumA = Object.values(a.totals).reduce((acc, curr) => acc + curr, 0)
+          const sumB = Object.values(b.totals).reduce((acc, curr) => acc + curr, 0)
+
+          return sumB - sumA
+        })
       },
       async update(user: ByncUser, id: string, data: AccountUpdate): Promise<AccountWithBalance | null> {
         if (!user.bookSelected) return null
@@ -921,7 +951,7 @@ const xprisma = prisma.$extends({
 
         const category = await prisma.category.findMany({
           where: { AND: [{ bookId: user.bookSelected.id }, { type: type }] },
-          include: { ...categoryInclude, transactions: { include: { category: true, transferIn: true, transferOut: true, parentSplit: { include: { parent: true } }, splits: { include: { childrens: true } } }, orderBy: { paidAt: 'desc' }, where: { OR: [{ paidAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }, { AND: [{ createdAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }, { paidAt: null }] }] } } },
+          include: { ...categoryInclude, transactions: { include: { account: true, category: true, transferIn: true, transferOut: true, parentSplit: { include: { parent: true } }, splits: { include: { childrens: true } } }, orderBy: { paidAt: 'desc' }, where: { OR: [{ paidAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }, { AND: [{ createdAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }, { paidAt: null }] }] } } },
         })
 
         return category.map(c => {
@@ -938,8 +968,7 @@ const xprisma = prisma.$extends({
 
           return {
             ...c,
-            totals,
-            transactions: c.transactions
+            totals
           }
         }).sort((a, b) => {
           const sumA = Object.values(a.totals).reduce((acc, curr) => acc + curr, 0)

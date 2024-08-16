@@ -122,12 +122,21 @@ export type CurrencyWithBalance = Prisma.CurrencyGetPayload<{
 }>
 
 type TransactionPDF = Prisma.TransactionGetPayload<{
-  include: { category: true, transferIn: true, transferOut: true, parentSplit: { include: { parent: true } }, splits: { include: { childrens: true } } }
+  include: { account: true, category: true, transferIn: true, transferOut: true, parentSplit: { include: { parent: true } }, splits: { include: { childrens: true } } }
 }>
 
 export type CategoryPDF = Omit<Category, 'transactions'> & {
   totals: Record<string, number>
   transactions: TransactionPDF[]
+}
+
+export type AccountPDF = Prisma.AccountGetPayload<{
+  include: { currency: { include: { balance: true } } }
+}> & {
+  totals: Record<string, number>
+  balances: Prisma.BalanceGetPayload<{
+    include: { transaction: true, currency: true }
+  }>[]
 }
 
 type CategoryUpdateInput = Omit<Prisma.CategoryUpdateInput, 'id'>
