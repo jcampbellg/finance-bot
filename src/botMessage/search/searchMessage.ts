@@ -24,6 +24,8 @@ export default async function searchMessage(params: ConversationPropsWithBookSel
 
   const searchForFloat = parseFloat(searchFor || '')
 
+  const notPaidPayments = isNotPaid ? (await xprisma.category.findManyByType(user, 'PAYMENT')).filter(p => p.transactions.length === 0) : []
+
   const transactions = await xprisma.transaction.findMany(user, {
     ...(isCategory ? { categoryId: itemId } : {}),
     ...(isAccount ? { accountId: itemId } : {}),
@@ -40,7 +42,11 @@ export default async function searchMessage(params: ConversationPropsWithBookSel
     } : {})
   })
 
-  const keyboard = transactions.map((t) => {
+  const keyboardP = notPaidPayments.map((p) => {
+    return [{ text: `${p.description}`, callback_data: `category_view_${p.id}` }]
+  })
+
+  const keyboardT = transactions.map((t) => {
     const isNormal = t.type === 'EXPENSE' || t.type === 'DEPOSIT'
     const spanishDate = dayjs(isNormal ? t.paidAt : t.createdAt).tz(user.timezone).format('D MMM YY')
     return [{ text: `${TRANSACTION_TYPE_ICON[t.type]} ${t.description} [${spanishDate}]`, callback_data: `transaction_view_${t.id}` }]
@@ -52,7 +58,11 @@ export default async function searchMessage(params: ConversationPropsWithBookSel
   await bot.sendMessage(chatId, text, {
     parse_mode: 'HTML',
     reply_markup: {
-      inline_keyboard: [...keyboard, menuBtn]
+      inline_keyboard: [
+        ...keyboardP,
+        ...keyboardT,
+        menuBtn
+      ]
     }
   })
 }
