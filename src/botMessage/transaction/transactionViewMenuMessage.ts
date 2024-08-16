@@ -41,7 +41,7 @@ export default async function transactionViewMenuMessage(params: ConversationPro
 }
 
 export async function botTransaction(params: ConversationPropsWithBookSelected, t: TransactionWithAll) {
-  const { bot, user, chatId } = params
+  const { bot, chatId } = params
 
   const isPayment = t.type === 'PAYMENT'
   const isIncome = t.type === 'INCOME'
@@ -49,18 +49,6 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
   const isNormal = t.type === 'EXPENSE' || t.type === 'DEPOSIT'
 
   const isTransfer = !!t.transferIn || !!t.transferOut
-
-  const spanishDate = dayjs(isNormal ? t.paidAt : t.createdAt).tz(user.timezone).format('dddd LL hh:mma')
-  const categoryLabel = isPayment ? 'Pago Fijo:' : 'Categoría:'
-  const category = t.category ? t.category.description : 'Sin Categoría'
-
-  const amount = numeral(t.amount).format('0,0.00') + ' ' + t.currency
-
-  const paidAt = t.paidAt ? dayjs(t.paidAt).tz(user.timezone).format('dddd LL hh:mma') : 'SIN PAGAR'
-
-  const isPaidLabel = (isPayment || isIncome) ? `\n<b>Fecha Pagada:</b> ${paidAt}` : ''
-
-  const tags = t.tags.length > 0 ? `\n<b>Etiquetas:</b> ${t.tags.map(t => t).join(', ')}` : ''
 
   const transferBtn = isTransfer ? [[{ text: `${!!t.transferIn ? '🔴 Ver Origen' : '🟢 Ver Destino'}`, callback_data: `transaction_view_${t.transferIn?.transactionInId || t.transferOut?.transactionOutId}` }]] : []
 
@@ -78,7 +66,7 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
     'PAYMENT': '💵 Ver Pago Fijo'
   }
 
-  await bot.sendMessage(chatId, `Editando ${TRANSACTION_TYPE[t.type]}\n\n<b>Descripción:</b> ${t.description}\n<b>Monto:</b> ${amount}\n<b>Fecha:</b> ${spanishDate}\n<b>Cuenta:</b> ${t.account.description}\n<b>${categoryLabel}</b> ${category}${isPaidLabel}${tags}`, {
+  await bot.sendMessage(chatId, transactionText(params, t), {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
@@ -96,4 +84,22 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
       ]
     }
   })
+}
+
+export function transactionText(params: ConversationPropsWithBookSelected, t: TransactionWithAll) {
+  const { user } = params
+
+  const isPayment = t.type === 'PAYMENT'
+  const isIncome = t.type === 'INCOME'
+  const isNormal = t.type === 'EXPENSE' || t.type === 'DEPOSIT'
+
+  const spanishDate = dayjs(isNormal ? t.paidAt : t.createdAt).tz(user.timezone).format('dddd LL hh:mma')
+  const categoryLabel = isPayment ? 'Pago Fijo:' : 'Categoría:'
+  const category = t.category ? t.category.description : 'Sin Categoría'
+  const amount = numeral(t.amount).format('0,0.00') + ' ' + t.currency
+  const paidAt = t.paidAt ? dayjs(t.paidAt).tz(user.timezone).format('dddd LL hh:mma') : 'SIN PAGAR'
+  const isPaidLabel = (isPayment || isIncome) ? `\n<b>Fecha Pagada:</b> ${paidAt}` : ''
+  const tags = t.tags.length > 0 ? `\n<b>Etiquetas:</b> ${t.tags.map(t => t).join(', ')}` : ''
+
+  return `Editando ${TRANSACTION_TYPE[t.type]}\n\n<b>Descripción:</b> ${t.description}\n<b>Monto:</b> ${amount}\n<b>Fecha:</b> ${spanishDate}\n<b>Cuenta:</b> ${t.account.description}\n<b>${categoryLabel}</b> ${category}${isPaidLabel}${tags}`
 }

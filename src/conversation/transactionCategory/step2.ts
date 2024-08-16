@@ -1,5 +1,6 @@
 import noTransactionError from '@botMessage/errors/noTransactionError'
 import upsError from '@botMessage/errors/upsError'
+import transactionGroupNotificationMessage from '@botMessage/transaction/transactionGroupNotificationMessage'
 import transactionViewMenuMessage from '@botMessage/transaction/transactionViewMenuMessage'
 import stringReply from '@conversation/utils/stringReply'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
@@ -33,6 +34,7 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
         return
       }
 
+      await transactionGroupNotificationMessage(params, success)
       await transactionViewMenuMessage(params, transactionId)
     })
     return
@@ -54,6 +56,7 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
       return
     }
 
+    await transactionGroupNotificationMessage(params, success)
     await transactionViewMenuMessage(params, transactionId)
     return
   }

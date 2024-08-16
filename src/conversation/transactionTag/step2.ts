@@ -1,4 +1,5 @@
 import noTransactionError from '@botMessage/errors/noTransactionError'
+import transactionGroupNotificationMessage from '@botMessage/transaction/transactionGroupNotificationMessage'
 import transactionViewMenuMessage from '@botMessage/transaction/transactionViewMenuMessage'
 import stringReply from '@conversation/utils/stringReply'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
@@ -19,10 +20,16 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
   }
 
   await stringReply(params, async (string) => {
-    await xprisma.transaction.update(user, transactionId, {
+    const update = await xprisma.transaction.update(user, transactionId, {
       tags: string.split(',').map((tag) => tag.trim())
     })
 
+    if (!update) {
+      await noTransactionError(params)
+      return
+    }
+
+    await transactionGroupNotificationMessage(params, update)
     await transactionViewMenuMessage(params, transactionId)
   })
 }

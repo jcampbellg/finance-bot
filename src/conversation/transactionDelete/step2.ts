@@ -1,10 +1,11 @@
 import noTransactionError from '@botMessage/errors/noTransactionError'
 import upsError from '@botMessage/errors/upsError'
+import { transactionGroupNotificationDeleteMessage } from '@botMessage/transaction/transactionGroupNotificationMessage'
 import menuBtn from '@buttons/menuBtn'
-import { ConversationProps } from '@customTypes/messageTypes'
+import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 
-export default async function step2(params: ConversationProps) {
+export default async function step2(params: ConversationPropsWithBookSelected) {
   const { bot, conversation, user, query, chatId } = params
 
   if (!query) {
@@ -19,6 +20,9 @@ export default async function step2(params: ConversationProps) {
     await noTransactionError(params)
     return
   }
+
+  // delete notification
+  transactionGroupNotificationDeleteMessage(params, transactionToDelete)
 
   const success = await xprisma.transaction.delete(user, transactionId)
 

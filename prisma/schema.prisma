@@ -99,7 +99,7 @@ model GroupNotification {
   id            String      @id @default(cuid())
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-  groupId       Int
+  groupId       BigInt
   messageId     Int
   transaction   Transaction @relation(name: "TransactionsWithGroupNotification", fields: [transactionId], references: [id])
   transactionId String

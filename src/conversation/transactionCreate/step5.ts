@@ -9,6 +9,7 @@ import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
+import transactionGroupNotificationMessage from '@botMessage/transaction/transactionGroupNotificationMessage'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -47,6 +48,7 @@ export default async function step5(params: ConversationPropsWithBookSelected) {
       return
     }
 
+    await transactionGroupNotificationMessage(params, newTransaction)
     await transactionViewMenuMessage(params, newTransaction.id)
   })
 }

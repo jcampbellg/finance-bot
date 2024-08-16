@@ -14,6 +14,7 @@ import summaryMenuMessage from '@botMessage/summary/summaryMenuMessage'
 import summaryPDFMenuMessage from '@botMessage/summary/summaryPDFMenuMessage'
 import transactionHandleMessageButton from '@botMessage/transaction/transactionHandleMessageButton'
 import transactionHandleMessageText from '@botMessage/transaction/transactionHandleMessageText'
+import transactionViewMenuMessage from '@botMessage/transaction/transactionViewMenuMessage'
 import accountBalanceButton from '@conversation/accountBalance/accountBalanceButton'
 import accountBalanceText from '@conversation/accountBalance/accountBalanceText'
 import bookCreateButton from '@conversation/bookCreate/bookCreateButton'
@@ -39,6 +40,7 @@ import transferCreateText from '@conversation/transferCreate/transferCreateText'
 import BookSelectedWrapper from '@conversation/utils/BookSelectedWrapper'
 import { MsgProps, QueryProps } from '@customTypes/messageTypes'
 import auth from '@utils/auth'
+import xprisma from '@utils/xprisma'
 import dotenv from 'dotenv'
 import TelegramBot from 'node-telegram-bot-api'
 
@@ -52,14 +54,33 @@ if (!process.env.TELEGRAM_BOT_TOKEN) {
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true })
 
 bot.on('message', async (ctx) => {
-  //#region Auth
+  //#region Group
   if (ctx.chat.type === 'group') {
-    // TODO: Handle group messages
+    const group = await xprisma.groupChat.upsert({
+      where: { telegramId: ctx.chat.id },
+      create: {
+        telegramId: ctx.chat.id,
+      },
+      update: {},
+      include: {
+        books: true
+      }
+    })
+
+    const groupId = Number(group.telegramId)
+
+    if (ctx.text === '/start') {
+      await bot.sendMessage(groupId, `¡Hola!\n\nAquí está el ID del grupo que necesitas compartir:\n\n<code>${group.id}</code>.\n\nPara compartir el libro dile a tu amigo que sigue estos pasos:\n1. Ve a "Ver y Seleccionar Libro".\n2. Selecciona el libro.\n3. Ve a "Compartir y Permisos".\n4. Pega el ID de usuario.`, {
+        parse_mode: 'HTML'
+      })
+    }
     return
   }
+  //#endregion
 
   if (ctx.chat.type !== 'private') return
 
+  //#region Auth
   const params = await auth({ bot, ctx } as MsgProps)
   const { text, chatId, conversation } = params
 
@@ -142,6 +163,15 @@ bot.on('callback_query', async (query) => {
   const btnPress = query.data
 
   await bot.sendChatAction(chatId, 'typing')
+  //#endregion
+
+  //#region Group
+  if (query.message?.chat.type === 'group') {
+    if (query.data?.startsWith('transaction_view_')) {
+      await BookSelectedWrapper(msg, transactionViewMenuMessage)
+    }
+    return
+  }
   //#endregion
 
   //#region Start
@@ -286,5 +316,5 @@ bot.on('callback_query', async (query) => {
     await BookSelectedWrapper(msg, summaryPDFMenuMessage)
     return
   }
-  //endregion
+  //#endregion
 })

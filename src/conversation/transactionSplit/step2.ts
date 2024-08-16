@@ -1,5 +1,6 @@
 import noTransactionError from '@botMessage/errors/noTransactionError'
 import upsError from '@botMessage/errors/upsError'
+import transactionGroupNotificationMessage from '@botMessage/transaction/transactionGroupNotificationMessage'
 import transactionViewMenuMessage from '@botMessage/transaction/transactionViewMenuMessage'
 import amountReply from '@conversation/utils/amountReply'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
@@ -43,9 +44,15 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
       return
     }
 
-    await xprisma.transaction.update(user, parent.id, {
+    await transactionGroupNotificationMessage(params, children)
+
+    const update = await xprisma.transaction.update(user, parent.id, {
       amount: parent.amount - amount
     })
+
+    if (!!update) {
+      await transactionGroupNotificationMessage(params, update)
+    }
 
     await xprisma.split.create(user, parent, children)
 

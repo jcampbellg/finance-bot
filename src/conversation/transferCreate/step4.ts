@@ -10,6 +10,7 @@ import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import menuBtn from '@buttons/menuBtn'
 import { Edit } from '@customTypes/prismaTypes'
+import transactionGroupNotificationMessage from '@botMessage/transaction/transactionGroupNotificationMessage'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -90,6 +91,8 @@ async function createTransfer(params: ConversationPropsWithBookSelected, edit: E
     return
   }
 
+  await transactionGroupNotificationMessage(params, transferA)
+
   const transferB = await xprisma.transaction.create(user, {
     amount: edit.amountB,
     currency: edit.currencyB,
@@ -109,6 +112,7 @@ async function createTransfer(params: ConversationPropsWithBookSelected, edit: E
     return
   }
 
+  await transactionGroupNotificationMessage(params, transferB)
   await bot.sendMessage(chatId, `Transferencia realizada con éxito.`, {
     reply_markup: {
       inline_keyboard: [

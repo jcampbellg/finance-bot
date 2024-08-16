@@ -7,6 +7,7 @@ import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { botTransaction } from './transactionViewMenuMessage'
+import transactionGroupNotificationMessage from './transactionGroupNotificationMessage'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -36,6 +37,7 @@ export default async function transactionPaidNowMessage(params: ConversationProp
     return
   }
 
+  await transactionGroupNotificationMessage(params, transaction)
   await botTransaction(params, transaction)
   return
 }

@@ -22,7 +22,7 @@ export default async function step1(params: ConversationProps) {
 
   const task = isShare ? 'compartir' : 'cambiar dueño'
 
-  await bot.editMessageText(`Por favor, envíame el ID del usuario con el que deseas ${task} el libro.`, {
+  await bot.editMessageText(`Por favor, envíame el ID del usuario o grupo con el que deseas ${task} el libro.`, {
     chat_id: chatId,
     message_id: query.message.message_id
   })

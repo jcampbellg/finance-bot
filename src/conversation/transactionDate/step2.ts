@@ -1,4 +1,3 @@
-import noBookError from '@botMessage/errors/noBookError'
 import transactionViewMenuMessage from '@botMessage/transaction/transactionViewMenuMessage'
 import dateReply from '@conversation/utils/dateReply'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
@@ -8,6 +7,9 @@ import 'dayjs/locale/es'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
+import transactionGroupNotificationMessage from '@botMessage/transaction/transactionGroupNotificationMessage'
+import upsError from '@botMessage/errors/upsError'
+import noTransactionError from '@botMessage/errors/noTransactionError'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -25,16 +27,22 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
     const transactionId = conversation.edit.transactionId
 
     if (!transactionId) {
-      await noBookError(params)
+      await noTransactionError(params)
       return
     }
 
     const newDate = dayjs.tz(newDateInput, user.timezone)
 
-    await xprisma.transaction.update(user, transactionId, {
+    const success = await xprisma.transaction.update(user, transactionId, {
       paidAt: newDate.format()
     })
 
+    if (!success) {
+      await upsError(params)
+      return
+    }
+
+    await transactionGroupNotificationMessage(params, success)
     await transactionViewMenuMessage(params, transactionId)
   })
 }

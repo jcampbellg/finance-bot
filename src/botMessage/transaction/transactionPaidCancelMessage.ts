@@ -2,6 +2,7 @@ import noTransactionError from '@botMessage/errors/noTransactionError'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import xprisma from '@utils/xprisma'
 import { botTransaction } from './transactionViewMenuMessage'
+import transactionGroupNotificationMessage from './transactionGroupNotificationMessage'
 
 export default async function transactionPaidCancelMessage(params: ConversationPropsWithBookSelected, transactionIdImport?: string) {
   const { query, user } = params
@@ -24,6 +25,7 @@ export default async function transactionPaidCancelMessage(params: ConversationP
     return
   }
 
+  await transactionGroupNotificationMessage(params, transaction)
   await botTransaction(params, transaction)
   return
 }
