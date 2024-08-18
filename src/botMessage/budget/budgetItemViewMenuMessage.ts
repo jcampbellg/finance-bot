@@ -87,10 +87,10 @@ async function accountViewMenuMessage(params: ConversationPropsWithBookSelected,
   }
 
   const balance = `<b>Balance:</b>\n${account.currency.map(c => {
-    const amount = Math.abs(c.balance[0]?.amount || 0)
+    const amount = c.balance[0]?.amount || 0
     const direction = amount < 0 ? '🔴' : '🟢'
 
-    return `${direction} ${c.symbol}: ${numeral(amount).format('0,0.00')}`
+    return `${direction} ${c.symbol}: ${numeral(Math.abs(amount)).format('0,0.00')}`
   }).join('\n')}`
 
   const botText = `🏦 Editando Cuenta\n\n<b>Descripción:</b> ${account.description}\n\n${balance}`
