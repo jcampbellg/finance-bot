@@ -763,7 +763,7 @@ const xprisma = prisma.$extends({
 
         if (transaction.paidAt === null && updatedTransaction.paidAt !== null) {
           // Create balance
-          await yprisma.balance.create(user, transaction)
+          await yprisma.balance.create(user, updatedTransaction)
         }
 
         if (updatedTransaction.paidAt === null && transaction.paidAt !== null) {
