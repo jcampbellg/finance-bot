@@ -107,8 +107,30 @@ export default async function pdfAccounts(params: ConversationPropsWithBookSelec
                     { text: spanishDate, alignment: 'left', color: LABEL_COLOR },
                     parseEmoji(t.category?.description || 'Sin Categoria'),
                   ],
-                  { text: isCredit ? `${numeral(amount).format('0,0.00')} ${t.currency}` : '-', alignment: 'right' },
-                  { text: isDebit ? `${numeral(amount).format('0,0.00')} ${t.currency}` : '-', alignment: 'right' },
+                  [
+                    ...symbols.map(s => {
+                      if (!isCredit || t.currency !== s) {
+                        return [
+                          { text: '-', alignment: 'right' },
+                        ]
+                      }
+                      return [
+                        { text: `${numeral(amount).format('0,0.00')} ${s}`, alignment: 'right' },
+                      ]
+                    })
+                  ],
+                  [
+                    ...symbols.map(s => {
+                      if (!isDebit || t.currency !== s) {
+                        return [
+                          { text: '-', alignment: 'right' },
+                        ]
+                      }
+                      return [
+                        { text: `${numeral(amount).format('0,0.00')} ${s}`, alignment: 'right' },
+                      ]
+                    })
+                  ],
                   [
                     ...symbols.map(s => {
                       const balance = t.balance[s] || 0

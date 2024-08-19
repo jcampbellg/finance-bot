@@ -490,7 +490,7 @@ const xprisma = prisma.$extends({
                 ]
               }
 
-              const sum = prevT.type === 'DEPOSIT' || prevT.type === 'INCOME' || prevT.type === 'TRANSFER_IN' ? prevT.amount : -prevT.amount
+              const sum = prevT.type === 'DEPOSIT' || prevT.type === 'INCOME' || prevT.type === 'TRANSFER_IN' ? -prevT.amount : prevT.amount
 
               return [
                 ...data,
@@ -502,7 +502,7 @@ const xprisma = prisma.$extends({
                   }
                 }
               ]
-            }, [])
+            }, []).reverse()
           }
         }).sort((a, b) => {
           const sumA = Object.values(a.totals).reduce((acc, curr) => acc + curr, 0)
