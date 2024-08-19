@@ -27,6 +27,36 @@ export default async function (title: string, { bot, chatId }: ConversationProps
 
   const pdfDoc = printer.createPdfKitDocument(docDefinition, {
     tableLayouts: {
+      category: {
+        hLineWidth(i, node) {
+          if (i === 0 || i === node.table.body.length) {
+            return 0
+          }
+
+          if (i === node.table.headerRows)
+            return 2
+
+          if (i === (node.table.headerRows || 0) - 1)
+            return 1
+
+          return 1
+        },
+        fillColor() {
+          return null
+        },
+        vLineWidth() {
+          return 0
+        },
+        hLineColor(i) {
+          return i === 1 ? 'black' : '#aaa'
+        },
+        paddingLeft() {
+          return 0
+        },
+        paddingRight() {
+          return 0
+        }
+      },
       categoryTransactions: {
         hLineWidth(i, node) {
           if (i === 0 || i === node.table.body.length) {
@@ -47,11 +77,11 @@ export default async function (title: string, { bot, chatId }: ConversationProps
         hLineColor(i) {
           return i === 1 ? 'black' : '#aaa'
         },
-        paddingLeft(i) {
-          return i === 0 ? 0 : 8
+        paddingLeft() {
+          return 0
         },
-        paddingRight(i, node) {
-          return (i === (node.table.widths?.length || 0) - 1) ? 0 : 8
+        paddingRight() {
+          return 0
         }
       },
       transactions: {
@@ -76,11 +106,11 @@ export default async function (title: string, { bot, chatId }: ConversationProps
         hLineColor() {
           return '#aaa'
         },
-        paddingLeft(i) {
-          return i === 0 ? 0 : 8
+        paddingLeft() {
+          return 0
         },
-        paddingRight(i, node) {
-          return (i === (node.table.widths?.length || 0) - 1) ? 0 : 8
+        paddingRight() {
+          return 0
         }
       }
     }

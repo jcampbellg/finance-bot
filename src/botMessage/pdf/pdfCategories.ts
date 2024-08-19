@@ -17,7 +17,7 @@ dayjs.extend(timezone)
 dayjs.extend(LocalizedFormat)
 
 export default async function pdfCategories(params: ConversationPropsWithBookSelected) {
-  const { query, user } = params
+  const { query, user, bot } = params
 
   if (!query) {
     throw new Error('query is required')
@@ -27,7 +27,7 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
   const symbols = currencies.map(a => a.symbol).filter((value, index, self) => self.indexOf(value) === index)
 
   const empty = symbols.map(() => ({}))
-  const widths = symbols.map(() => '*')
+  const widths = symbols.map(() => 396 / symbols.length)
 
   const type = query.data.startsWith('pdf_payments') ? 'PAYMENT' : query.data.startsWith('pdf_incomes') ? 'INCOME' : 'CATEGORY'
   const monthTZStart = query.data.includes('next') ? dayjs().tz(user.timezone).startOf('month').add(1, 'month') : query.data.includes('current') ? dayjs().tz(user.timezone).startOf('month') : dayjs().tz(user.timezone).startOf('month').subtract(1, 'month')
@@ -47,11 +47,11 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
       },
       {
         font: 'RobotoMono',
-        layout: 'lightHorizontalLines',
+        layout: 'category',
         table: {
           dontBreakRows: true,
           headerRows: 2,
-          widths: ['*', ...widths],
+          widths: [132, ...widths],
           body: [
             [
               { text: `Resumen de ${filename}`, bold: true, colSpan: symbols.length + 1, alignment: 'center' },
@@ -82,7 +82,7 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
         layout: 'categoryTransactions',
         table: {
           headerRows: 2,
-          widths: ['*', ...widths],
+          widths: [132, ...widths],
           body: [
             [
               { text: header, bold: true, colSpan: symbols.length + 1, alignment: 'center' },
@@ -99,9 +99,9 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
 
                 return [
                   [
-                    { ...parseEmoji(t.description), fillColor: FILL_COLOR },
+                    parseEmoji(t.description),
                     { text: spanishDate, alignment: 'left', color: LABEL_COLOR },
-                    { text: t.account.description, alignment: 'left', color: LABEL_COLOR },
+                    { ...parseEmoji(t.account.description), alignment: 'left', color: LABEL_COLOR },
                   ],
                   ...symbols.map(s => {
                     const isMatch = t.currency === s
@@ -117,7 +117,7 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
                   table: {
                     dontBreakRows: true,
                     headerRows: 1,
-                    widths: ['*', ...widths],
+                    widths: [132, ...widths],
                     body: [
                       [
                         { ...parseEmoji(`${c.description} - ${c.transactions.length} transacciones`), marginLeft: 8, bold: true, colSpan: symbols.length + 1 },
@@ -140,5 +140,6 @@ export default async function pdfCategories(params: ConversationPropsWithBookSel
     ]
   }
 
+  await bot.answerCallbackQuery({ callback_query_id: query.id, text: 'Generando PDF...' })
   await sendPDF(filename + monthTZStart.format('MMMM YYYY'), params, docDefinition)
 }

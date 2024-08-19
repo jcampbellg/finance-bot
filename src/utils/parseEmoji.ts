@@ -33,7 +33,12 @@ export default function (input: string): ContentText | ContentTable {
   return {
     layout: 'noBorders',
     table: {
-      widths: body.map(() => 'auto'),
+      widths: body.map((b) => {
+        if ("image" in b) {
+          return 12
+        }
+        return 'auto'
+      }),
       body: [body],
     }
   }
