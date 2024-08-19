@@ -11,6 +11,7 @@ import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import menuBtn from '@buttons/menuBtn'
 import { Edit } from '@customTypes/prismaTypes'
 import transactionGroupNotificationMessage from '@botMessage/transaction/transactionGroupNotificationMessage'
+import parseSearch from '@utils/parseSearch'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -81,6 +82,7 @@ async function createTransfer(params: ConversationPropsWithBookSelected, edit: E
     amount: edit.amountA,
     currency: edit.currencyA,
     description: `${accountA.description} [${edit.currencyA}] -> ${accountB.description} [${edit.currencyB}]`,
+    search: parseSearch(`${accountA.description} [${edit.currencyA}] -> ${accountB.description} [${edit.currencyB}]`),
     type: 'TRANSFER_OUT',
     accountId: edit.accountAId,
     paidAt: newDate.format()
@@ -97,6 +99,7 @@ async function createTransfer(params: ConversationPropsWithBookSelected, edit: E
     amount: edit.amountB,
     currency: edit.currencyB,
     description: `${accountA.description} [${edit.currencyA}] -> ${accountB.description} [${edit.currencyB}]`,
+    search: parseSearch(`${accountA.description} [${edit.currencyA}] -> ${accountB.description} [${edit.currencyB}]`),
     type: 'TRANSFER_IN',
     accountId: edit.accountBId,
     paidAt: newDate.format(),

@@ -54,6 +54,7 @@ model Account {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   description  String
+  search       String        @default("")
   transactions Transaction[] @relation(name: "TransactionWithAccount")
   book         Book          @relation(name: "AccountInBook", fields: [bookId], references: [id])
   bookId       String
@@ -64,6 +65,7 @@ model Category {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   description  String
+  search       String           @default("")
   transactions Transaction[]    @relation(name: "TransactionWithCategory")
   bookId       String
   book         Book             @relation(name: "CategoryInBook", fields: [bookId], references: [id])
@@ -77,6 +79,7 @@ model Transaction {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   description        String
+  search             String              @default("")
   amount             Float
   currency           String
   account            Account             @relation(name: "TransactionWithAccount", fields: [accountId], references: [id])
@@ -84,6 +87,7 @@ model Transaction {
   groupNotifications GroupNotification[] @relation(name: "TransactionsWithGroupNotification")
   paidAt             DateTime?           @default(now())
   tags               String[]
+  tagsSearch         String[]
   category           Category?           @relation(name: "TransactionWithCategory", fields: [categoryId], references: [id])
   categoryId         String?
   files              File[]              @relation(name: "TransactionWithFile")
@@ -127,6 +131,7 @@ model Item {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   description String
+  search      String   @default("")
   fileId      String?
   file        File?    @relation(name: "ItemToFile", fields: [fileId], references: [id])
 }

@@ -11,7 +11,7 @@
     "start": "node dist/index.js"
   },
   "prisma": {
-    "seed": "ts-node src/migration/seed.ts"
+    "seed": "ts-node src/migration/searchSeed.ts"
   },
   "devDependencies": {
     "@types/node": "^20.12.8",
@@ -26,6 +26,7 @@
     "@array-utils/chunk-it": "^3.0.3",
     "@prisma/client": "^5.14.0",
     "@types/emoji-js": "^3.5.2",
+    "@types/latinize": "^0.2.18",
     "@types/localized-countries": "^2.0.3",
     "@types/node-telegram-bot-api": "^0.64.6",
     "@types/numeral": "^2.0.5",
@@ -35,6 +36,7 @@
     "dotenv": "^16.4.5",
     "emoji-datasource-google": "^15.1.2",
     "emoji-js": "^3.8.0",
+    "latinize": "1",
     "localized-countries": "^2.0.0",
     "mathjs": "^13.0.0",
     "node-html-parser": "^6.1.13",

@@ -6,6 +6,7 @@ import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import { MAX_ACCOUNTS, MAX_CATEGORIES, MAX_FILES, MAX_INCOMES, MAX_OWN_BOOKS, MAX_PAYMENTS } from '@utils/constant'
+import parseSearch from './parseSearch'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -414,7 +415,7 @@ const xprisma = prisma.$extends({
         }
 
         const account = await prisma.account.create({
-          data: { description, bookId: user.bookSelected.id },
+          data: { description, bookId: user.bookSelected.id, search: parseSearch(description) },
           include: accountInclude
         })
 
@@ -709,7 +710,7 @@ const xprisma = prisma.$extends({
         if (count + 1 > MAX_CATEGORIES) return null
 
         const category = await prisma.category.create({
-          data: { description, bookId: user.bookSelected.id, type: 'CATEGORY' },
+          data: { description, bookId: user.bookSelected.id, type: 'CATEGORY', search: parseSearch(description) },
           include: categoryInclude
         })
 
@@ -893,7 +894,7 @@ const xprisma = prisma.$extends({
         if (count + 1 > MAX_PAYMENTS) return null
 
         const payment = await prisma.category.create({
-          data: { description, bookId: user.bookSelected.id, type: 'PAYMENT' },
+          data: { description, bookId: user.bookSelected.id, type: 'PAYMENT', search: parseSearch(description) },
           include: paymentIncomeInclude
         })
 
@@ -928,7 +929,7 @@ const xprisma = prisma.$extends({
         if (count + 1 > MAX_INCOMES) return null
 
         const income = await prisma.category.create({
-          data: { description, bookId: user.bookSelected.id, type: 'INCOME' },
+          data: { description, bookId: user.bookSelected.id, type: 'INCOME', search: parseSearch(description) },
           include: paymentIncomeInclude
         })
 

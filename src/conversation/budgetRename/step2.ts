@@ -2,6 +2,7 @@ import budgetItemViewMenuMessage from '@botMessage/budget/budgetItemViewMenuMess
 import notFoundError from '@botMessage/errors/notFoundError'
 import stringReply from '@conversation/utils/stringReply'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
+import parseSearch from '@utils/parseSearch'
 import xprisma from '@utils/xprisma'
 
 export default async function step2(params: ConversationPropsWithBookSelected) {
@@ -21,9 +22,11 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
     }
 
     const update = isCategory ? await xprisma.category.update(user, itemId, {
-      description: title
+      description: title,
+      search: parseSearch(title)
     }) : await xprisma.account.update(user, itemId, {
-      description: title
+      description: title,
+      search: parseSearch(title)
     })
 
     if (!update) {

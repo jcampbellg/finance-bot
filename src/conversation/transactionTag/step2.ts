@@ -3,6 +3,7 @@ import transactionGroupNotificationMessage from '@botMessage/transaction/transac
 import transactionViewMenuMessage from '@botMessage/transaction/transactionViewMenuMessage'
 import stringReply from '@conversation/utils/stringReply'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
+import parseSearch from '@utils/parseSearch'
 import xprisma from '@utils/xprisma'
 
 export default async function step2(params: ConversationPropsWithBookSelected) {
@@ -21,7 +22,8 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
 
   await stringReply(params, async (string) => {
     const update = await xprisma.transaction.update(user, transactionId, {
-      tags: string.split(',').map((tag) => tag.trim())
+      tags: string.split(',').map((tag) => tag.trim()),
+      tagsSearch: string.split(',').map((tag) => parseSearch(tag.trim()))
     })
 
     if (!update) {

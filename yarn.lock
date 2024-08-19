@@ -202,6 +202,11 @@
     "@types/minimatch" "*"
     "@types/node" "*"
 
+"@types/latinize@^0.2.18":
+  version "0.2.18"
+  resolved "https://registry.yarnpkg.com/@types/latinize/-/latinize-0.2.18.tgz#18ff876bae9c4e01b8e5efc2a67f6e26cb17a982"
+  integrity sha512-QjX4tcVEOcqDakv96sLMA2ESMcxSJel5KHxmcBgeTlZI7v6gFx9Tjqmt5+Pp8ijfGGr6CxuXzDNYk8A/iZ/GiA==
+
 "@types/localized-countries@^2.0.3":
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/@types/localized-countries/-/localized-countries-2.0.3.tgz#9de75d54111e26acb74b0908ee60b146b9918719"
@@ -1705,6 +1710,11 @@ kind-of@^6.0.2:
   version "6.0.3"
   resolved "https://registry.yarnpkg.com/kind-of/-/kind-of-6.0.3.tgz#07c05034a6c349fa06e24fa35aa76db4580ce4dd"
   integrity sha512-dcS1ul+9tmeD95T+x28/ehLgd9mENa3LsvDTtzm3vyBEO7RPptvAD+t44WVXaUjTBRcrpFeFlC8WCruUR456hw==
+
+latinize@1:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/latinize/-/latinize-1.0.0.tgz#1d9661b2c5387281e2fec8a75fb315339e65acaa"
+  integrity sha512-vAgAlB6nnbGmaLWOW3bHZ5EOUFYzV5h5LfgrRv43wWgWQXd1DorS7mMsgzc7XARPlQiokrNkv/9XzGmpYu44fg==
 
 localized-countries@^2.0.0:
   version "2.0.0"

@@ -32,12 +32,12 @@ export default async function searchMessage(params: ConversationPropsWithBookSel
     ...(isNotPaid ? { AND: [{ paidAt: null }, { type: { in: ['INCOME', 'PAYMENT'] } }] } : {}),
     ...(searchFor ? {
       OR: [
-        ...(Number.isNaN(searchForFloat) ? [] : [{ amount: { equals: searchForFloat } }]),
-        { description: { contains: searchFor, mode: 'insensitive' } },
-        { category: { description: { contains: searchFor, mode: 'insensitive' } } },
-        { account: { description: { contains: searchFor, mode: 'insensitive' } } },
-        { files: { some: { items: { some: { description: { contains: searchFor, mode: 'insensitive' } } } } } },
-        { tags: { has: searchFor } }
+        ...(Number.isNaN(searchForFloat) ? [] : [{ amount: { gte: searchForFloat - 10, lte: searchForFloat + 10, } }]),
+        { search: { contains: searchFor, mode: 'insensitive' } },
+        { category: { search: { contains: searchFor, mode: 'insensitive' } } },
+        { account: { search: { contains: searchFor, mode: 'insensitive' } } },
+        { files: { some: { items: { some: { search: { contains: searchFor, mode: 'insensitive' } } } } } },
+        { tagsSearch: { has: searchFor } }
       ]
     } : {})
   })

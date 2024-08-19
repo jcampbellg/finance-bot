@@ -32,9 +32,11 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
       amount: amount,
       currency: parent.currency,
       description: parent.description,
+      search: parent.search,
       type: parent.type,
       accountId: parent.accountId,
       tags: parent.tags,
+      tagsSearch: parent.tagsSearch,
       paidAt: parent.paidAt,
       categoryId: parent.categoryId,
     })

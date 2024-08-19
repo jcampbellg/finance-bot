@@ -10,6 +10,7 @@ import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import LocalizedFormat from 'dayjs/plugin/localizedFormat'
 import transactionGroupNotificationMessage from '@botMessage/transaction/transactionGroupNotificationMessage'
+import parseSearch from '@utils/parseSearch'
 
 dayjs.locale('es')
 dayjs.extend(utc)
@@ -38,6 +39,7 @@ export default async function step5(params: ConversationPropsWithBookSelected) {
       currency: conversation.edit.currency,
       amount: amount,
       description: conversation.edit.description,
+      search: parseSearch(conversation.edit.description),
       categoryId: conversation.edit.categoryId || null,
       type: editType,
       paidAt: (editType === 'PAYMENT' || editType === 'INCOME') ? null : newDate.format()

@@ -5,6 +5,7 @@ import transactionViewMenuMessage from '@botMessage/transaction/transactionViewM
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
 import { $Enums } from '@prisma/client'
 import openAi from '@utils/openAi'
+import parseSearch from '@utils/parseSearch'
 import xprisma from '@utils/xprisma'
 
 export default async function step2(params: ConversationPropsWithBookSelected) {
@@ -46,6 +47,7 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
       createMany: {
         data: items.map(item => ({
           description: item,
+          search: parseSearch(item)
         }))
       }
     }
