@@ -21,9 +21,16 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
   }
 
   await stringReply(params, async (string) => {
-    const update = await xprisma.transaction.update(user, transactionId, {
+    const update = conversation.subject === 'transaction_tag' ? await xprisma.transaction.update(user, transactionId, {
       tags: string.split(',').map((tag) => tag.trim()),
       tagsSearch: string.split(',').map((tag) => parseSearch(tag.trim()))
+    }) : await xprisma.transaction.update(user, transactionId, {
+      tags: {
+        push: string.split(',').map((tag) => tag.trim()),
+      },
+      tagsSearch: {
+        push: string.split(',').map((tag) => parseSearch(tag.trim()))
+      }
     })
 
     if (!update) {

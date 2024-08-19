@@ -73,7 +73,7 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
       inline_keyboard: [
         [{ text: '✏️ Renombrar', callback_data: `transaction_rename_${t.id}` }, { text: `❌ Eliminar`, callback_data: `transaction_delete_${t.id}` }],
         [...((isNormal || isTransfer) ? [{ text: `🗂️ Cambiar Categoría`, callback_data: `transaction_category_${t.id}` }, ...(isExpense ? [{ text: '✂️ Dividir', callback_data: `transaction_split_${t.id}` }] : [])] : [])],
-        [...((isNormal || isTransfer) ? [{ text: '🏷️ Cambiar Etiquetas', callback_data: `transaction_tag_${t.id}` }, { text: '🏷️ Agregar Etiqueta', callback_data: `transaction_tag_${t.id}` }] : [])],
+        [...((isNormal || isTransfer) ? [{ text: '🏷️ Cambiar Etiquetas', callback_data: `transaction_tag_${t.id}` }, { text: '🏷️ Agregar Etiqueta', callback_data: `transaction_tag_add_${t.id}` }] : [])],
         [{ text: '💵 Cambiar Monto', callback_data: `transaction_amount_${t.id}` }, { text: '📅 Cambiar Fecha', callback_data: `transaction_date_${t.id}` }],
         ...((isPayment || isIncome) ? (!t.paidAt ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_paid_now_${t.id}` }]] : [[{ text: `❌ Marcar como No Pagado`, callback_data: `transaction_paid_cancel_${t.id}` }]]) : []),
         ...(((isPayment || isIncome) && t.paidAt) ? [[{ text: '📅 Cambiar Fecha de Pago', callback_data: `transaction_paid_date_${t.id}` }]] : []),

@@ -8,10 +8,10 @@ export default async function step1(params: ConversationPropsWithBookSelected) {
     throw new Error('query is required')
   }
 
-  const transactionId = query.data.replace('transaction_tag_', '')
+  const transactionId = query.data.replace('transaction_tag_add', '').replace('transaction_tag_', '')
 
   await xprisma.conversation.update(conversation.id, {
-    subject: 'transaction_tag',
+    subject: query.data.startsWith('transaction_tag_add') ? 'transaction_tag_add' : 'transaction_tag',
     subSubject: 'tag',
     edit: {
       transactionId: transactionId

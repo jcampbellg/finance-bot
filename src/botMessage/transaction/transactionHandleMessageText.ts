@@ -52,7 +52,7 @@ export default async function transactionHandleMessageText(params: ConversationP
     return true
   }
 
-  if (conversation.subject === 'transaction_tag') {
+  if (conversation.subject === 'transaction_tag' || conversation.subject === 'transaction_tag_add') {
     await transactionTagText(params)
     return true
   }
