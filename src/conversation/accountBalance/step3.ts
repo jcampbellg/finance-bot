@@ -17,16 +17,20 @@ export default async function step3(params: ConversationPropsWithBookSelected) {
     return
   }
 
-  await currencyReply(params, async (currency) => {
-    if (!conversation.edit.amount) {
+  await currencyReply(params, async (symbol) => {
+    const amount = conversation.edit.amount
+    if (!amount) {
       await upsError(params)
       return
     }
 
-    await xprisma.balance.userSet(user, {
-      accountId,
-      symbol: currency,
-      amount: conversation.edit.amount
+    const currency = account.currency.find(c => c.symbol === symbol)
+
+    await xprisma.account.update(user, accountId, {
+      currency: {
+        ...(!currency ? { create: { symbol: symbol, balance: amount } } : {}),
+        ...(!!currency ? { update: { where: { id: currency.id }, data: { balance: amount } } } : {})
+      }
     })
 
     await budgetItemViewMenuMessage(params, { isAccount: true, itemId: accountId })

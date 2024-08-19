@@ -90,7 +90,7 @@ async function accountViewMenuMessage(params: ConversationPropsWithBookSelected,
   }
 
   const balance = `<b>Balance:</b>\n${account.currency.map(c => {
-    const amount = c.balance[0]?.amount || 0
+    const amount = c.balance
     const direction = amount < 0 ? '🔴' : '🟢'
 
     return `${direction} ${c.symbol}: ${numeral(Math.abs(amount)).format('0,0.00')}`
