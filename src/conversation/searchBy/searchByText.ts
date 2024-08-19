@@ -1,6 +1,7 @@
 import searchMessage from '@botMessage/search/searchMessage'
 import stringReply from '@conversation/utils/stringReply'
 import { ConversationPropsWithBookSelected } from '@customTypes/messageTypes'
+import parseSearch from '@utils/parseSearch'
 
 export default async function searchByText(params: ConversationPropsWithBookSelected) {
   const { ctx } = params
@@ -10,6 +11,6 @@ export default async function searchByText(params: ConversationPropsWithBookSele
   }
 
   await stringReply(params, async (searchFor) => {
-    await searchMessage(params, searchFor)
+    await searchMessage(params, parseSearch(searchFor))
   })
 }
