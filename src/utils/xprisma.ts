@@ -557,7 +557,8 @@ const xprisma = prisma.$extends({
               },
             ]
           },
-          include: { transaction: true, currency: true }
+          include: { transaction: true, currency: true },
+          orderBy: { createdAt: 'desc' }
         })
 
         return accounts.map(a => {
