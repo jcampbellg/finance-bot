@@ -64,7 +64,7 @@ export default async function pdfAccounts(params: ConversationPropsWithBookSelec
               return [
                 parseEmoji(c.description),
                 ...symbols.map(s => {
-                  const balance = c.totals[symbols[0]] || 0
+                  const balance = c.totals[s] || 0
                   const isNegative = balance < 0
                   return [
                     { text: numeral(Math.abs(balance)).format('0,0.00'), alignment: 'right', color: isNegative ? 'red' : 'green' },
@@ -107,9 +107,17 @@ export default async function pdfAccounts(params: ConversationPropsWithBookSelec
                     { text: spanishDate, alignment: 'left', color: LABEL_COLOR },
                     parseEmoji(t.category?.description || 'Sin Categoria'),
                   ],
-                  { text: isCredit ? numeral(amount).format('0,0.00') : '-', alignment: 'right' },
-                  { text: isDebit ? numeral(amount).format('0,0.00') : '-', alignment: 'right' },
-                  { text: numeral(0).format('0,0.00'), alignment: 'right' }
+                  { text: isCredit ? `${numeral(amount).format('0,0.00')} ${t.currency}` : '-', alignment: 'right' },
+                  { text: isDebit ? `${numeral(amount).format('0,0.00')} ${t.currency}` : '-', alignment: 'right' },
+                  [
+                    ...symbols.map(s => {
+                      const balance = t.balance[s] || 0
+                      const isNegative = balance < 0
+                      return [
+                        { text: `${numeral(Math.abs(balance)).format('0,0.00')} ${s}`, alignment: 'right', color: isNegative ? 'red' : 'green' },
+                      ]
+                    })
+                  ]
                 ]
               })
 

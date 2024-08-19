@@ -1,4 +1,4 @@
-import { AccountUpdate, AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, CategoryPDF, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate, AccountPDF } from '@customTypes/prismaTypes'
+import { AccountUpdate, AccountWithBalance, BookUpdate, BookWithOwner, BookWithOwnerAndShares, ByncUser, Category, CategoryUpdate, CategoryPDF, ConversationUpdateInput, CurrencyWithBalance, Edit, FileCreate, PaymentIncome, TransactionCreate, TransactionUpdate, TransactionWithAll, UserUpdate, AccountPDF, TransactionWithCategoryAndBalance } from '@customTypes/prismaTypes'
 import { $Enums, PrismaClient, Prisma, Currency } from '@prisma/client'
 import dayjs from 'dayjs'
 import 'dayjs/locale/es'
@@ -395,7 +395,7 @@ const xprisma = prisma.$extends({
       async currencies(user: ByncUser): Promise<Currency[]> {
         if (!user.bookSelected) return []
 
-        const currencies = await prisma.currency.findMany({ where: { account: { bookId: user.bookSelected?.id } } })
+        const currencies = await prisma.currency.findMany({ where: { account: { bookId: user.bookSelected?.id } }, orderBy: { symbol: 'desc' } })
 
         return currencies
       },
@@ -453,6 +453,7 @@ const xprisma = prisma.$extends({
             ...accountInclude,
             transactions: {
               include: { category: true },
+              orderBy: { paidAt: 'desc' },
               where: {
                 OR: [
                   { paidAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } },
@@ -467,16 +468,41 @@ const xprisma = prisma.$extends({
             const symbol = c.symbol
             const amount = c.balance || 0
 
-            if (!acc[symbol]) {
-              acc[symbol] = 0
+            return {
+              ...acc,
+              [symbol]: amount
             }
-            acc[symbol] += amount
-            return acc
           }, {})
 
           return {
             ...a,
             totals,
+            transactions: a.transactions.reduce((data: TransactionWithCategoryAndBalance[], t, i) => {
+              const prevT = data[i - 1]
+
+              if (!prevT) {
+                return [
+                  ...data,
+                  {
+                    ...t,
+                    balance: totals
+                  }
+                ]
+              }
+
+              const sum = prevT.type === 'DEPOSIT' || prevT.type === 'INCOME' || prevT.type === 'TRANSFER_IN' ? prevT.amount : -prevT.amount
+
+              return [
+                ...data,
+                {
+                  ...t,
+                  balance: i === 0 ? totals : {
+                    ...data[i - 1].balance,
+                    [prevT.currency]: prevT.balance[prevT.currency] + sum
+                  }
+                }
+              ]
+            }, [])
           }
         }).sort((a, b) => {
           const sumA = Object.values(a.totals).reduce((acc, curr) => acc + curr, 0)
