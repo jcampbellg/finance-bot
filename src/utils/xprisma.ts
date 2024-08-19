@@ -550,7 +550,11 @@ const xprisma = prisma.$extends({
               {
                 currency: { account: { bookId: user.bookSelected.id } },
               },
-              { createdAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() } }
+              {
+                transaction: {
+                  paidAt: { gte: monthTZStart.format(), lte: monthTZEnd.format() }
+                }
+              },
             ]
           },
           include: { transaction: true, currency: true }

@@ -51,9 +51,9 @@ export default async function budgetItemViewMenuMessage(params: ConversationProp
   const buttons = [
     [{ text: '✏️ Renombrar', callback_data: `category_rename_${item.id}` }, { text: `❌ Eliminar`, callback_data: `category_delete_${item.id}` }],
     [{ text: '⚠️ Editar Límite', callback_data: `category_limit_${item.id}` }],
-    ...(type === 'CATEGORY' ? [[{ text: '🧾 Nuevo Gasto', callback_data: `transaction_create_expense_${t.categoryId}` }, { text: '🏦 Nuevo Deposito', callback_data: `transaction_create_deposit_${t.categoryId}` }]] : []),
-    ...(type === 'INCOME' ? [[{ text: '🤑 Nuevo Ingreso', callback_data: `transaction_create_expense_${t.categoryId}` }]] : []),
-    ...(type === 'PAYMENT' ? [[{ text: ''💵 Nuevo Pago Fijo', callback_data: `transaction_create_expense_${t.categoryId}` }]] : []),
+    ...(type === 'CATEGORY' ? [[{ text: '🧾 Nuevo Gasto', callback_data: `transaction_create_expense_${itemId}` }, { text: '🏦 Nuevo Deposito', callback_data: `transaction_create_deposit_${itemId}` }]] : []),
+    ...(type === 'INCOME' ? [[{ text: '🤑 Nuevo Ingreso', callback_data: `income_transaction_create_${itemId}` }]] : []),
+    ...(type === 'PAYMENT' ? [[{ text: '💵 Nuevo Pago Fijo', callback_data: `payment_transaction_create_${itemId}` }]] : []),
     [{ text: `🔎 Ver ${look}`, callback_data: menu }, { text: `📑 Ver Transacciones`, callback_data: `search_category_${item.id}` }],
     menuBtn
   ]
