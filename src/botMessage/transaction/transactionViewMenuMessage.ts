@@ -18,7 +18,7 @@ dayjs.extend(utc)
 dayjs.extend(timezone)
 dayjs.extend(LocalizedFormat)
 
-export default async function transactionViewMenuMessage(params: ConversationPropsWithBookSelected, transactionIdImport?: string) {
+export default async function transactionViewMenuMessage(params: ConversationPropsWithBookSelected, transactionIdImport?: string, editMessage: boolean = false) {
   const { query, user } = params
 
   await xprisma.conversation.waiting(params.conversation.id)
@@ -37,11 +37,11 @@ export default async function transactionViewMenuMessage(params: ConversationPro
     return
   }
 
-  await botTransaction(params, transaction)
+  await botTransaction(params, transaction, editMessage)
 }
 
-export async function botTransaction(params: ConversationPropsWithBookSelected, t: TransactionWithAll) {
-  const { bot, chatId } = params
+export async function botTransaction(params: ConversationPropsWithBookSelected, t: TransactionWithAll, editMessage: boolean = false) {
+  const { bot, chatId, query } = params
 
   const isPayment = t.type === 'PAYMENT'
   const isIncome = t.type === 'INCOME'
@@ -67,23 +67,37 @@ export async function botTransaction(params: ConversationPropsWithBookSelected, 
     'PAYMENT': '💵 Ver Pago Fijo'
   }
 
+  const keyboard = [
+    [{ text: '✏️ Renombrar', callback_data: `transaction_rename_${t.id}` }, { text: `❌ Eliminar`, callback_data: `transaction_delete_${t.id}` }],
+    [...((isNormal || isTransfer) ? [{ text: `🗂️ Cambiar Categoría`, callback_data: `transaction_category_${t.id}` }, ...(isExpense ? [{ text: '✂️ Dividir', callback_data: `transaction_split_${t.id}` }] : [])] : [])],
+    [...((isNormal || isTransfer) ? [{ text: '🏷️ Cambiar Etiquetas', callback_data: `transaction_tag_${t.id}` }, { text: '🏷️ Agregar Etiqueta', callback_data: `transaction_tag_add_${t.id}` }] : [])],
+    [{ text: '💵 Cambiar Monto', callback_data: `transaction_amount_${t.id}` }, { text: '📅 Cambiar Fecha', callback_data: `transaction_date_${t.id}` }],
+    ...((isPayment || isIncome) ? (!t.paidAt ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_paid_now_${t.id}` }]] : [[{ text: `❌ Marcar como No Pagado`, callback_data: `transaction_paid_cancel_${t.id}` }]]) : []),
+    ...(((isPayment || isIncome) && t.paidAt) ? [[{ text: '📅 Cambiar Fecha de Pago', callback_data: `transaction_paid_date_${t.id}` }]] : []),
+    [...(canAttachFiles ? [{ text: `📎 Adjuntar`, callback_data: `transaction_file_${t.id}` }] : []), ...(t.files.length > 0 ? [{ text: '📎 Ver Archivos', callback_data: `transaction_files_${t.id}` }] : [])],
+    [...((!!t.category) ? [{ text: `${categoryTypeView[t.category.type]}`, callback_data: `category_view_${t.categoryId}` }] : []), { text: `🏦 Ver Cuenta`, callback_data: `account_view_${t.accountId}` }],
+    ...parentBtn,
+    ...splitBtns,
+    ...transferBtn,
+    menuBtn
+  ]
+
+  if (editMessage && !!query) {
+    await bot.editMessageText(transactionText(params, t), {
+      chat_id: chatId,
+      message_id: query.message.message_id,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: keyboard
+      }
+    })
+    return
+  }
+
   await bot.sendMessage(chatId, transactionText(params, t), {
     parse_mode: 'HTML',
     reply_markup: {
-      inline_keyboard: [
-        [{ text: '✏️ Renombrar', callback_data: `transaction_rename_${t.id}` }, { text: `❌ Eliminar`, callback_data: `transaction_delete_${t.id}` }],
-        [...((isNormal || isTransfer) ? [{ text: `🗂️ Cambiar Categoría`, callback_data: `transaction_category_${t.id}` }, ...(isExpense ? [{ text: '✂️ Dividir', callback_data: `transaction_split_${t.id}` }] : [])] : [])],
-        [...((isNormal || isTransfer) ? [{ text: '🏷️ Cambiar Etiquetas', callback_data: `transaction_tag_${t.id}` }, { text: '🏷️ Agregar Etiqueta', callback_data: `transaction_tag_add_${t.id}` }] : [])],
-        [{ text: '💵 Cambiar Monto', callback_data: `transaction_amount_${t.id}` }, { text: '📅 Cambiar Fecha', callback_data: `transaction_date_${t.id}` }],
-        ...((isPayment || isIncome) ? (!t.paidAt ? [[{ text: `✅ Marcar como Pagado`, callback_data: `transaction_paid_now_${t.id}` }]] : [[{ text: `❌ Marcar como No Pagado`, callback_data: `transaction_paid_cancel_${t.id}` }]]) : []),
-        ...(((isPayment || isIncome) && t.paidAt) ? [[{ text: '📅 Cambiar Fecha de Pago', callback_data: `transaction_paid_date_${t.id}` }]] : []),
-        [...(canAttachFiles ? [{ text: `📎 Adjuntar`, callback_data: `transaction_file_${t.id}` }] : []), ...(t.files.length > 0 ? [{ text: '📎 Ver Archivos', callback_data: `transaction_files_${t.id}` }] : [])],
-        [...((!!t.category) ? [{ text: `${categoryTypeView[t.category.type]}`, callback_data: `category_view_${t.categoryId}` }] : []), { text: `🏦 Ver Cuenta`, callback_data: `account_view_${t.accountId}` }],
-        ...parentBtn,
-        ...splitBtns,
-        ...transferBtn,
-        menuBtn
-      ]
+      inline_keyboard: keyboard
     }
   })
 }
