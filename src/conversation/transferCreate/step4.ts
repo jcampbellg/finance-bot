@@ -119,8 +119,8 @@ async function createTransfer(params: ConversationPropsWithBookSelected, edit: E
   await bot.sendMessage(chatId, `Transferencia realizada con éxito.`, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: '🔴 Ver Transferencia Destino', callback_data: `transaction_view_${transferA.id}` }],
-        [{ text: '🟢 Ver Transferencia Origen', callback_data: `transaction_view_${transferB.id}` }],
+        [{ text: '🔴 Ver Transferencia Origen', callback_data: `transaction_view_${transferA.id}` }],
+        [{ text: '🟢 Ver Transferencia Destino', callback_data: `transaction_view_${transferB.id}` }],
         menuBtn
       ]
     }
