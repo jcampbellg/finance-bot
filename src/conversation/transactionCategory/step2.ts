@@ -57,7 +57,7 @@ export default async function step2(params: ConversationPropsWithBookSelected) {
     }
 
     await transactionGroupNotificationMessage(params, success)
-    await transactionViewMenuMessage(params, transactionId)
+    await transactionViewMenuMessage(params, transactionId, true)
     return
   }
 }
