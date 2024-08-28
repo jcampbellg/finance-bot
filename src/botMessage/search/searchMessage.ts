@@ -29,7 +29,9 @@ export default async function searchMessage(params: ConversationPropsWithBookSel
   const transactions = await xprisma.transaction.findMany(user, {
     ...(isCategory ? { categoryId: itemId } : {}),
     ...(isAccount ? { accountId: itemId } : {}),
-    ...(isNotPaid ? { AND: [{ paidAt: null }, { type: { in: ['INCOME', 'PAYMENT'] } }] } : {}),
+    ...(isNotPaid ? { AND: [{ paidAt: null }, { type: { in: ['INCOME', 'PAYMENT'] } }] } : {
+      paidAt: { not: null },
+    }),
     ...(searchFor ? {
       OR: [
         ...(Number.isNaN(searchForFloat) ? [] : [{ amount: { gte: searchForFloat - 10, lte: searchForFloat + 10, } }]),
