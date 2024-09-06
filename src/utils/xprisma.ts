@@ -598,9 +598,9 @@ const xprisma = prisma.$extends({
         if (currency) {
           const amount = newTransaction.type === 'DEPOSIT' || newTransaction.type === 'INCOME' || newTransaction.type === 'TRANSFER_IN' ? newTransaction.amount : -newTransaction.amount
           if (!!newTransaction.paidAt) {
-          await prisma.currency.update({ where: { id: currency.id }, data: { balance: { increment: amount } } })
+            await prisma.currency.update({ where: { id: currency.id }, data: { balance: { increment: amount } } })
           }
-          }
+        }
 
         return newTransaction
       },
@@ -670,7 +670,9 @@ const xprisma = prisma.$extends({
         }
 
         if (transaction.amount !== updatedTransaction.amount) {
-          await prisma.currency.update({ where: { id: currency.id }, data: { balance: { increment: amount - oldAmount } } })
+          if (updatedTransaction.paidAt !== null) {
+            await prisma.currency.update({ where: { id: currency.id }, data: { balance: { increment: amount - oldAmount } } })
+          }
         }
 
         return updatedTransaction
