@@ -553,9 +553,9 @@ const xprisma = prisma.$extends({
         if (!user.bookSelected) return false
         if (parent.account.bookId !== user.bookSelected.id) return false
 
-        if (parent.parentSplit) {
+        if (!!parent.splits) {
           await prisma.split.update({
-            where: { id: parent.parentSplit.id },
+            where: { id: parent.splits.id },
             data: {
               childrens: {
                 connect: { id: children.id }
