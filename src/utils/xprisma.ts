@@ -537,12 +537,16 @@ const xprisma = prisma.$extends({
 
         const account = await prisma.account.findUnique({
           where: { id },
-          include: { transactions: true }
+          include: { transactions: true, currency: true }
         })
 
         if (!account) return false
         if (account?.transactions.length > 0) return false
         if (account.bookId !== user.bookSelected.id) return false
+
+        if (account.currency.length > 0) {
+          await prisma.currency.deleteMany({ where: { accountId: id } })
+        }
 
         await prisma.account.delete({ where: { id } })
         return true
