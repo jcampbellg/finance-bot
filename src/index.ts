@@ -1,3 +1,5 @@
+import { serve } from '@hono/node-server'
+import { Hono } from 'hono'
 import appLimitMessage from '@botMessage/appLimitMessage'
 import bookAddMessage from '@botMessage/book/bookAddMessage'
 import bookSelectMessage from '@botMessage/book/bookSelectMessage'
@@ -43,6 +45,7 @@ import auth from '@utils/auth'
 import xprisma from '@utils/xprisma'
 import dotenv from 'dotenv'
 import TelegramBot from 'node-telegram-bot-api'
+import otpGenerator from 'otp-generator'
 
 dotenv.config()
 
@@ -317,4 +320,39 @@ bot.on('callback_query', async (query) => {
     return
   }
   //#endregion
+})
+
+const app = new Hono()
+
+const port = 3000
+
+app.post('/generate', async (c) => {
+  // send otp number to user
+  const body = await c.req.json()
+
+  const user = await xprisma.user.findUnique(body.userId)
+
+  if (!user) {
+    return c.json({ error: 'User not found' }, 404)
+  }
+
+  const otp = otpGenerator.generate(6, { upperCaseAlphabets: true, specialChars: false, digits: true, lowerCaseAlphabets: false })
+
+  const chatId = Number(user.telegramId)
+
+  await bot.sendMessage(chatId, `Tu código de verificación es:\n<code>${otp}</code>`, {
+    parse_mode: 'HTML'
+  })
+
+  return c.json({ message: 'OTP sent' })
+})
+
+app.get('/', (c) => {
+  // Health check
+  return c.text('OK')
+})
+
+serve({
+  fetch: app.fetch,
+  port
 })
