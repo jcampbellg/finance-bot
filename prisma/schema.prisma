@@ -31,6 +31,7 @@ model User {
   booksOwn       Book[]       @relation(name: "UserToBook")
   bookSelected   Book?        @relation(name: "BookSelectedByUser", fields: [bookSelectedId], references: [id])
   bookSelectedId String?
+  otp            Otp?         @relation(name: "UserToOtp")
 }
 
 model Book {
@@ -194,6 +195,15 @@ model Split {
   parent    Transaction   @relation(name: "SplitParents", fields: [parentId], references: [id])
   parentId  String        @unique
   childrens Transaction[] @relation(name: "SplitChildrens")
+}
+
+model Otp {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  code      String
+  user      User     @relation(name: "UserToOtp", fields: [userId], references: [id])
+  userId    String   @unique
 }
 
 enum CategoryType {

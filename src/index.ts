@@ -326,7 +326,7 @@ const app = new Hono()
 
 const port = 3000
 
-app.post('/generate', async (c) => {
+app.post('/otp', async (c) => {
   // send otp number to user
   const body = await c.req.json()
 
@@ -342,6 +342,21 @@ app.post('/generate', async (c) => {
 
   await bot.sendMessage(chatId, `Tu código de verificación es:\n<code>${otp}</code>`, {
     parse_mode: 'HTML'
+  })
+
+  await xprisma.otp.upsert({
+    create: {
+      code: otp,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      userId: user.id
+    },
+    update: {
+      code: otp,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    },
+    where: {
+      userId: user.id
+    }
   })
 
   return c.json({ message: 'OTP sent' })
