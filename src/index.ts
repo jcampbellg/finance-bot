@@ -333,7 +333,7 @@ app.post('/otp', async (c) => {
   const user = await xprisma.user.findUnique(body.userId)
 
   if (!user) {
-    return c.json({ error: 'User not found' }, 404)
+    return c.json({ error: 'No existe el usuario.' }, 404)
   }
 
   const otp = otpGenerator.generate(6, { upperCaseAlphabets: true, specialChars: false, digits: true, lowerCaseAlphabets: false })
@@ -359,7 +359,7 @@ app.post('/otp', async (c) => {
     }
   })
 
-  return c.json({ message: 'OTP sent' })
+  return c.json<{ message: string }>({ message: 'Código enviado.' })
 })
 
 app.get('/', (c) => {
